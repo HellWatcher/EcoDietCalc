@@ -1,6 +1,7 @@
 """Persistence and integrity logging utilities.
 
-Provides JSON load/save for food data and writes a diagnostic log of data issues.
+Provides JSON load/save for food data and writes a diagnostic
+log of data issues.
 
 Exports
 -------
@@ -11,7 +12,8 @@ load_food_state
 
 Notes
 -----
-JSON I/O is UTF-8. Deduplication during save is case-insensitive by Name.
+JSON I/O is UTF-8. Deduplication during save is case-
+insensitive by Name.
 """
 
 import json
@@ -31,8 +33,8 @@ from models.food import (
     Food,
 )
 
-# Persisted state next to this file (works when run as a module or script)
-ROOT_DIR = Path(__file__).resolve().parents[1]  # project root (one level up from interface/)
+# Persisted state next to this file (works when run as a module)
+ROOT_DIR = Path(__file__).resolve().parents[1]  # project root (one level up)
 DATA_PATH = ROOT_DIR / "food_state.json"
 
 
@@ -53,8 +55,8 @@ def read_food_dict(
 
     Notes
     -----
-    The input JSON is expected to be a list of dicts compatible with
-    ``Food.from_dict``.
+    The input JSON is expected to be a list of dicts compatible
+    with ``Food.from_dict``.
     """
 
     # Text mode, UTF-8; fail soft (print + return []) so the CLI can continue
@@ -64,9 +66,13 @@ def read_food_dict(
         encoding="utf-8",
     ) as in_file:
         try:
-            # Defensive parse: swallow JSON/IO errors here—upstream should handle an empty result set
+            # Defensive parse: swallow JSON/IO errors here.
+            # Upstream should handle an empty result set.
             data = json.load(in_file)
-            return [Food.from_dict(entry) for entry in data]
+            result = []
+            for entry in data:
+                result.append(Food.from_dict(entry))
+            return result
         except Exception as exc:
             print(f"[ERROR] Failed to read food data: {exc}")
             return []
@@ -87,18 +93,22 @@ def save_food_dict(
 
     Notes
     -----
-    Deduplication is case-insensitive by ``"Name"``. Only the last occurrence
-    of each name is kept.
+    Deduplication is case-insensitive by ``"Name"``. Only the last
+    occurrence of each name is kept.
     """
 
-    # Deduplicate by case-insensitive Name; last occurrence wins (dict overwrites by key)
-    unique_by_name = {food["Name"].lower(): food for food in food_list}
+    # Deduplicate by case-insensitive Name; last occurrence wins
+    # (dict overwrites by key)
+    unique_by_name = {}
+    for food in food_list:
+        unique_by_name[food["Name"].lower()] = food
     with open(
         path,
         "w",
         encoding="utf-8",
     ) as out_file:
-        # Persist the last-seen order of unique names; list(...) fixes JSON iteration order
+        # Persist the last-seen order of unique names.
+        # `list(...)` fixes JSON iteration order on older Python versions
         json.dump(
             list(unique_by_name.values()),
             out_file,
@@ -125,22 +135,38 @@ def log_data_issues(
     Notes
     -----
     Writes human-readable sections covering:
-    - Foods referenced in stomach/available but missing from the master list
+    - Foods referenced in stomach/available but missing from the
+      master list
     - Invalid tastiness values
     - Unknown tastiness (``99``)
     """
     # Build an index of foods by lowercased name for O(1) membership checks
-    foods_by_name = {food.name.lower(): food for food in all_foods}
+    foods_by_name = {}
+    for food in all_foods:
+        foods_by_name[food.name.lower()] = food
 
     # Names referenced in stomach but missing from the master list
-    stomach_unknown = [food.name for food in stomach_counts if food.name.lower() not in foods_by_name]
-    available_unknown = [food.name for food in available_counts if food.name.lower() not in foods_by_name]
+    stomach_unknown = []
+    for food in stomach_counts:
+        if food.name.lower() not in foods_by_name:
+            stomach_unknown.append(food.name)
+
+    available_unknown = []
+    for food in available_counts:
+        if food.name.lower() not in foods_by_name:
+            available_unknown.append(food.name)
 
     # Any tastiness not present in TASTINESS_MULTIPLIERS is considered invalid
-    invalid_entries = [food.name for food in all_foods if food.tastiness not in TASTINESS_MULTIPLIERS]
+    invalid_entries = []
+    for food in all_foods:
+        if food.tastiness not in TASTINESS_MULTIPLIERS:
+            invalid_entries.append(food.name)
 
     # Union of referenced foods; flag those still at the unknown sentinel (99)
-    taste_unknown = [food.name for food in set(stomach_counts) | set(available_counts) if food.tastiness == 99]
+    taste_unknown = []
+    for food in set(stomach_counts) | set(available_counts):
+        if food.tastiness == 99:
+            taste_unknown.append(food.name)
 
     # Overwrite log.txt each run
     with open(
@@ -169,7 +195,12 @@ def log_data_issues(
             for name in sorted(set(taste_unknown)):
                 log_file.write(f"  - {name}\\n")
             log_file.write("\\n")
-        if not (stomach_unknown or available_unknown or invalid_entries or taste_unknown):
+        if not (
+            stomach_unknown
+            or available_unknown
+            or invalid_entries
+            or taste_unknown
+        ):
             log_file.write("[INFO] No issues found.\n")
 
 
@@ -213,24 +244,19 @@ def load_food_state(
     # Build manager from (possibly reset) data
     manager = FoodStateManager(food_dict)
 
-    # Unknown-tastiness preflight: prompt for items that are available now and still unknown
-    unknowns = [
-        food
-        for food in manager.available.keys()
-        if manager.available.get(
-            food,
-            0,
-        )
-        > 0
-        and getattr(
-            food,
-            "tastiness",
-            99,
-        )
-        == 99
-    ]
+    # Unknown-tastiness preflight: prompt for items that are available now
+    # and still unknown
+    unknowns = []
+    for food in manager.available.keys():
+        if manager.available.get(food, 0) > 0 and getattr(
+            food, "tastiness", 99
+        ) == 99:
+            unknowns.append(food)
     if unknowns:
-        print(f"[WARN] {len(unknowns)} available foods have unknown tastiness (neutral effect).")
+        # Short warning message split across two prints to stay under
+        # the line-length limit.
+        print(f"[WARN] {len(unknowns)} unknown tastiness items.")
+        print("(neutral effect).")
         if prompt_yes_no("Would you like to rate them now?"):
             for food in unknowns:
                 food.tastiness = prompt_for_tastiness(food.name)
