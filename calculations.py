@@ -51,7 +51,11 @@ def _unique_variety_names(
     stomach: dict,
 ) -> set[str]:
     # only items that individually meet the variety threshold
-    return {food.name.lower() for food, quantity in stomach.items() if is_variety_qualifying(food, quantity)}
+    return {
+        food.name.lower()
+        for food, quantity in stomach.items()
+        if is_variety_qualifying(food, quantity)
+    }
 
 
 def _total_calories(
@@ -84,7 +88,10 @@ def sum_weighted_nutrients(
         Weighted sum for the selected nutrient (sum over ``nutrient * quantity``).
     """
     # Weight by calories * quantity so high-cal foods influence balance appropriately
-    return sum(getattr(food, attr) * quantity for food, quantity in stomach.items())
+    return sum(
+        getattr(food, attr) * quantity
+        for food, quantity in stomach.items()
+    )
 
 
 def sum_all_weighted_nutrients(
@@ -189,7 +196,12 @@ def get_taste_bonus(
     if total_cal <= 0:
         return 0.0
     # Map tastiness→multiplier (fraction); default 0 for unknowns; convert to percentage points
-    taste_score = sum(TASTINESS_MULTIPLIERS.get(food.tastiness, 0.0) * food.calories * quantity for food, quantity in stomach.items())
+    taste_score = sum(
+        TASTINESS_MULTIPLIERS.get(food.tastiness, 0.0)
+        * food.calories
+        * quantity
+        for food, quantity in stomach.items()
+    )
     return (taste_score / total_cal) * 100.0 * TASTE_WEIGHT
 
 
@@ -250,7 +262,11 @@ def calculate_nutrition_multiplier(
     taste_pp = get_taste_bonus(stomach)
 
     cravings_set = normalized_cravings(cravings)
-    per_item_craving_pp = sum(CRAVING_BONUS_PP for food, quantity in stomach.items() if quantity and food.name.lower() in cravings_set)
+    per_item_craving_pp = sum(
+        CRAVING_BONUS_PP
+        for food, quantity in stomach.items()
+        if quantity and food.name.lower() in cravings_set
+    )
 
     # returns percentage points (not a fraction)
     return balance_pp + variety_pp + taste_pp + per_item_craving_pp
@@ -282,9 +298,18 @@ def get_sp(
     """
 
     density, _ = sum_all_weighted_nutrients(stomach)  # density is a calorie-weighted AVERAGE
-    density_sum = density["carbs"] + density["protein"] + density["fats"] + density["vitamins"]
+    density_sum = (
+        density["carbs"]
+        + density["protein"]
+        + density["fats"]
+        + density["vitamins"]
+    )
 
-    bonus = calculate_nutrition_multiplier(stomach, cravings, unique_foods_24h) / 100.0
+    bonus = calculate_nutrition_multiplier(
+        stomach,
+        cravings,
+        unique_foods_24h,
+    ) / 100.0
     bonus += cravings_satisfied * CRAVING_SATISFIED_FRAC
 
     return density_sum * (1.0 + bonus) + BASE_SKILL_POINTS
@@ -353,7 +378,10 @@ def evaluate_bonus_with_addition(
 
     # Only add to variety set if this bite newly meets the per-food threshold
     new_total = food_to_add.calories * test_stomach[food_to_add]
-    if new_total >= VARIETY_CAL_THRESHOLD and food_to_add.name.lower() not in variety_reference:
+    if (
+        new_total >= VARIETY_CAL_THRESHOLD
+        and food_to_add.name.lower() not in variety_reference
+    ):
         updated_variety = variety_reference | {food_to_add.name.lower()}
     else:
         updated_variety = variety_reference
@@ -544,7 +572,10 @@ def soft_variety_count(
     """
 
     # Sum fractional contributions for soft variety
-    return sum(variety_fraction_for(food_item, quantity) for food_item, quantity in stomach.items())
+    return sum(
+        variety_fraction_for(food_item, quantity)
+        for food_item, quantity in stomach.items()
+    )
 
 
 def variety_count(
@@ -564,4 +595,8 @@ def variety_count(
     """
 
     # Count foods that individually meet the threshold (hard variety)
-    return sum(1 for food_item, quantity in stomach.items() if is_variety_qualifying(food_item, quantity))
+    return sum(
+        1
+        for food_item, quantity in stomach.items()
+        if is_variety_qualifying(food_item, quantity)
+    )
