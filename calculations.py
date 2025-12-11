@@ -80,12 +80,14 @@ def sum_weighted_nutrients(
     stomach : dict[Food, int]
         Current stomach state.
     attr : str
-        Nutrient attribute name (e.g., ``"carbs"``, ``"protein"``, ``"fats"``, ``"vitamins"``).
+        Nutrient attribute name.
+        Examples: "carbs", "protein", "fats", "vitamins".
 
     Returns
     -------
     float
-        Weighted sum for the selected nutrient (sum over ``nutrient * quantity``).
+        Weighted sum for the selected nutrient.
+        (Sum over ``nutrient * quantity``.)
     """
     # Weight by calories * quantity so high-cal foods influence balance appropriately
     return sum(
@@ -166,7 +168,7 @@ def calculate_balance_ratio(
         Ratio in ``[0, 1]``; higher means more balanced.
     """
 
-    # If all totals are zero, ratio is 0; otherwise use min among positive values
+    # If all totals are zero, ratio is 0; otherwise use the min among positives
     if not any(nutrients):
         return 0.0
     max_nut = max(nutrients)
@@ -179,7 +181,8 @@ def get_taste_bonus(
 ) -> float:
     """Taste bonus percentage points for the current stomach.
 
-    A calorie-weighted average of tastiness multipliers, scaled by ``TASTE_WEIGHT``.
+    A calorie-weighted average of tastiness multipliers.
+    Scaled by ``TASTE_WEIGHT``.
 
     Parameters
     ----------
@@ -192,10 +195,14 @@ def get_taste_bonus(
         Taste bonus in percentage points.
     """
 
-    total_cal = sum(food.calories * quantity for food, quantity in stomach.items())
+    total_cal = sum(
+        food.calories * quantity
+        for food, quantity in stomach.items()
+    )
     if total_cal <= 0:
         return 0.0
-    # Map tastiness→multiplier (fraction); default 0 for unknowns; convert to percentage points
+    # Map tastiness → multiplier (fraction); default 0 for unknowns.
+    # Convert to percentage points below.
     taste_score = sum(
         TASTINESS_MULTIPLIERS.get(food.tastiness, 0.0)
         * food.calories
@@ -239,7 +246,8 @@ def calculate_nutrition_multiplier(
     cravings : list of str
         Active craving names (case-insensitive).
     unique_foods_24h : set of str
-        Foods (names, lowercased) that qualify for variety within the 24h window.
+        Foods (names, lowercased) that qualify for variety
+        within the 24h window.
 
     Returns
     -------
@@ -297,7 +305,7 @@ def get_sp(
         Final SP value.
     """
 
-    density, _ = sum_all_weighted_nutrients(stomach)  # density is a calorie-weighted AVERAGE
+    density, _ = sum_all_weighted_nutrients(stomach)  # calorie-weighted average
     density_sum = (
         density["carbs"]
         + density["protein"]
@@ -448,9 +456,18 @@ def get_balance_ratio(
         ``min_nonzero / max`` using weighted nutrient totals.
     """
     density, _ = sum_all_weighted_nutrients(stomach)
-    nutrients = [density["carbs"], density["protein"], density["fats"], density["vitamins"]]
+    nutrients = [
+        density["carbs"],
+        density["protein"],
+        density["fats"],
+        density["vitamins"],
+    ]
     max_nut = max(nutrients)
-    min_nut = min(count for count in nutrients if count > 0) if any(nutrients) else 0
+    min_nut = (
+        min(count for count in nutrients if count > 0)
+        if any(nutrients)
+        else 0
+    )
     return min_nut / max_nut if max_nut > 0 else 0
 
 
@@ -470,7 +487,8 @@ def get_variety_bonus(
         Variety bonus in percentage points (capped).
     """
 
-    # Exponential cap: each +20 qualifying foods halves the remaining gap to the cap
+    # Exponential cap: each +20 qualifying foods halves the remaining gap
+    # to the cap
     return VARIETY_BONUS_CAP_PP * (1 - 0.5 ** (quantity / 20))
 
 
@@ -519,7 +537,8 @@ def variety_fraction_for(
     Returns
     -------
     float
-        Value in ``[0.0, 1.0]``: ``min(1, calories*quantity / VARIETY_CAL_THRESHOLD)``.
+        Value in ``[0.0, 1.0]``.
+        Computed as ``min(1, calories*quantity / VARIETY_CAL_THRESHOLD)``.
     """
 
     # No contribution when quantity ≤ 0
