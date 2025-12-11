@@ -21,7 +21,7 @@ from typing import (
     Mapping,
 )
 
-# --- Tastiness ----------------------------------------------------------------
+# --- Tastiness ---------------------------------------------------------------
 
 # Private, mutable source dict (edit values here only)
 # Fractions (e.g., +0.20 means +20 percentage points before weighting)
@@ -49,8 +49,13 @@ _TASTINESS_NAMES_DICT: Final[dict[int, str]] = {
 }
 
 # Public, read-only views; mutations raise TypeError
-TASTINESS_MULTIPLIERS: Final[Mapping[int, float]] = MappingProxyType(_TASTINESS_MULTIPLIERS_DICT)
-TASTINESS_NAMES: Final[Mapping[int, str]] = MappingProxyType(_TASTINESS_NAMES_DICT)
+TASTINESS_MULTIPLIERS: Final[Mapping[int, float]] = MappingProxyType(
+    _TASTINESS_MULTIPLIERS_DICT
+)
+
+TASTINESS_NAMES: Final[Mapping[int, str]] = MappingProxyType(
+    _TASTINESS_NAMES_DICT
+)
 
 
 # Calories required per food for variety bonus eligibility
@@ -65,10 +70,12 @@ BASE_SKILL_POINTS = 12
 # Strength of the soft-variety ranking bias (Option A). 2–3 is a good default.
 SOFT_BIAS_GAMMA = 0.3
 
-# Tie-break window (in SP) for Option B. Candidates within this of the best true ΔSP are “near-equal”.
+# Tie-break window (in SP) for Option B.
+# Candidates within this of the best true ΔSP are “near-equal”.
 TIE_EPSILON = 0.85
 
-# Proximity weight toward the 2000-cal threshold (alpha) and small malus when already past 1.0 (beta).
+# Proximity weight toward the 2000-cal threshold (alpha) and
+# small malus when already past 1.0 (beta).
 TIE_ALPHA = 0.22
 TIE_BETA = 0.04
 
