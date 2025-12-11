@@ -9,14 +9,16 @@ def build_parser() -> argparse.ArgumentParser:
     Returns
     -------
     argparse.ArgumentParser
-        Configured parser with subcommands (``plan``, ``rate-unknowns``, ``reset``)
-        and global options (e.g., verbosity).
+        Configured parser with subcommands (``plan``,
+        ``rate-unknowns``, ``reset``) and global options
+        (e.g., verbosity).
     """
     parser = argparse.ArgumentParser(
         prog="eco",
         description="Eco Diet Planner",
     )
-    # Subcommands; `required=False` for back-compat with older single-command usage
+    # Subcommands; `required=False` for back-compat with older
+    # single-command usage
     subparsers = parser.add_subparsers(
         dest="cmd",
         required=False,
