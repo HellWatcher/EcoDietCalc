@@ -316,7 +316,6 @@ venv/
 
 # Byte-compiled / IDE
 *.log
-logs/
 log.txt
 *.egg-info/
 dist/
