@@ -1,17 +1,12 @@
 """Meal planning and bite selection logic.
 
-Implements the ranking pipeline that chooses the next bite based on SP deltas,
-soft-variety effects, proximity tie-breaks, and optional low-calorie penalties.
+Provides the ranking pipeline used to select the next bite. The
+algorithm considers SP deltas, soft-variety effects, proximity tie-breaks,
+and optional low-calorie penalties.
 
 Exports
 -------
 plan_meal
-
-Notes
------
-Relies on `FoodStateManager` for state and on `calculations`/`constants`
-for scoring. Functions are pure where practical; mutations happen only when
-appending to the log or consuming via the manager.
 """
 
 import difflib
@@ -48,24 +43,26 @@ logger = logging.getLogger(__name__)
 
 
 # Ranking-only bias helpers; never change the SP shown to the user
-# Nutrient density after a hypothetical bite: (carbs+protein+fats+vitamins)/calories
+# Nutrient density after a hypothetical bite:
+# (carbs+protein+fats+vitamins)/calories
 def _nutrient_sum(
     stomach: dict,
 ) -> float:
     """Compute nutrient-per-calorie density for a stomach state.
 
-    Parameters
-    ----------
-    stomach : dict[Food, int]
-        Mapping of foods to counts representing the current (or simulated) stomach.
-
     Returns
     -------
     float
-        Weighted sum of nutrients divided by total calories (0.0 if no calories).
+        Weighted sum of nutrients divided by total calories.
+        Returns 0.0 if there are no calories.
     """
     density, _ = sum_all_weighted_nutrients(stomach)
-    return density["carbs"] + density["protein"] + density["fats"] + density["vitamins"]
+    return (
+        density["carbs"]
+        + density["protein"]
+        + density["fats"]
+        + density["vitamins"]
+    )
 
 
 def fmt_signed(
@@ -107,13 +104,20 @@ def _soft_variety_bias(
     float
         Bias term to add to the primary rank score.
     """
-    # Soft-variety delta (pp) after adding this food, scaled by post-bite nutrient density
+    # Soft-variety delta (pp) after adding this food; scaled by
+    # post-bite nutrient density
     before_sv = soft_variety_count(stomach)
-    after_sv = soft_variety_count(simulate_stomach_with_added_food(stomach, food))
+    after_sv = soft_variety_count(
+        simulate_stomach_with_added_food(stomach, food)
+    )
     delta_pp = get_variety_bonus(after_sv) - get_variety_bonus(before_sv)
 
-    ns_after = _nutrient_sum(simulate_stomach_with_added_food(stomach, food))
-    assert isinstance(ns_after, (int, float)), f"ns_after type={type(ns_after)} val={ns_after}"
+    ns_after = _nutrient_sum(
+        simulate_stomach_with_added_food(stomach, food)
+    )
+    assert isinstance(ns_after, (int, float)), (
+        f"ns_after type={type(ns_after)} val={ns_after}"
+    )
 
     return SOFT_BIAS_GAMMA * ns_after * (delta_pp / 100.0)
 
@@ -122,7 +126,8 @@ def _proximity_bias(
     stomach: dict[Food, int],
     food: Food,
 ) -> float:
-    """Tie-break bias for moving toward (or overshooting) the per-food variety target.
+    """Tie-break bias for moving toward (or overshooting)
+    the per-food variety target.
 
     Parameters
     ----------
@@ -134,23 +139,16 @@ def _proximity_bias(
     Returns
     -------
     float
-        Positive when the bite moves closer to the target; small negative if it overshoots.
+    Positive when the bite moves closer to the target.
+    Small negative if it overshoots.
     """
-    # Favor moving toward the variety threshold (VARIETY_CAL_THRESHOLD) for THIS food; small malus if overshooting
-    count_before = stomach.get(
-        food,
-        0,
-    )
+    # Favor moving toward the variety threshold (VARIETY_CAL_THRESHOLD) for
+    # THIS food; small malus if overshooting
+    count_before = stomach.get(food, 0)
     p_before = (food.calories * count_before) / VARIETY_CAL_THRESHOLD
     p_after = (food.calories * (count_before + 1)) / VARIETY_CAL_THRESHOLD
-    grow = max(
-        0.0,
-        min(1.0, p_after) - min(1.0, p_before),
-    )
-    over = max(
-        0.0,
-        p_after - 1.0,
-    )
+    grow = max(0.0, min(1.0, p_after) - min(1.0, p_before))
+    over = max(0.0, p_after - 1.0)
     prox = grow - over * (TIE_BETA / TIE_ALPHA if TIE_ALPHA > 0 else 0.0)
     return TIE_ALPHA * prox
 
@@ -170,7 +168,8 @@ def _low_calorie_penalty(
     float
         Non-positive penalty (0 if at/above the floor).
     """
-    # Quadratic penalty below CAL_FLOOR: -CAL_PENALTY_GAMMA * (1 - cal/CAL_FLOOR)^2
+    # Quadratic penalty below CAL_FLOOR:
+    # -CAL_PENALTY_GAMMA * (1 - cal/CAL_FLOOR)^2
     if food.calories >= CAL_FLOOR:
         return 0.0
     x = 1.0 - (food.calories / CAL_FLOOR)  # 0 at floor, -> 1 as calories -> 0
@@ -234,7 +233,8 @@ def _choose_next_bite(
     tuple[Food | None, float]
         Best food and its raw SP delta; (None, 0.0) if nothing fits.
     """
-    candidates: list[tuple[Food, float, float]] = []  # (food, raw_delta, rank_score)
+    candidates: list[tuple[Food, float, float]] = []
+    # (food, raw_delta, rank_score)
     best_food = None
     best_rank_score = float("-inf")
     best_raw_delta = 0.0
@@ -245,7 +245,8 @@ def _choose_next_bite(
         if food.calories > remaining_calories:
             continue
 
-        # Raw ΔSP from adding one unit now (includes daily multiplier via cravings_satisfied)
+        # Raw ΔSP from adding one unit now. Includes daily multiplier
+        # via `cravings_satisfied`.
         raw_delta = get_sp_delta(
             food,
             manager.stomach,
@@ -269,12 +270,17 @@ def _choose_next_bite(
         return None, 0.0
 
     # 2) Keep near-equals within TIE_EPSILON of the best rank_score
-    near_candidates = [(food, raw_delta, rank_score) for (food, raw_delta, rank_score) in candidates if (best_rank_score - rank_score) <= TIE_EPSILON]
+    near_candidates = [
+        (food, raw_delta, rank_score)
+        for (food, raw_delta, rank_score) in candidates
+        if (best_rank_score - rank_score) <= TIE_EPSILON
+    ]
 
     # Sort by (primary_rank, proximity_bias); pick the last (highest)
     scored_candidates: list[tuple[Food, float, float, float]] = []
 
-    # 3) Add soft-variety as primary rank; use proximity as deterministic tie-break
+    # 3) Add soft-variety as primary rank; use proximity as
+    #    deterministic tie-break
     for food, raw_delta, _rank_score in near_candidates:
         soft_variety_bias = _soft_variety_bias(
             manager.stomach,
@@ -284,7 +290,11 @@ def _choose_next_bite(
             manager.stomach,
             food,
         )
-        primary_rank = raw_delta + _low_calorie_penalty(food) + soft_variety_bias
+        primary_rank = (
+            raw_delta
+            + _low_calorie_penalty(food)
+            + soft_variety_bias
+        )
         scored_candidates.append(
             (
                 food,
@@ -315,7 +325,9 @@ def _apply_bite(
     variety_count_now,
     meal_plan,
 ) -> tuple[float, int, int, int]:
-    """Consume `food`, recompute SP/bonuses, append to log, and return updated state."""
+    """Consume `food`, recompute SP/bonuses, append to log,
+    and return updated state.
+    """
     before_sp = current_sp
     pre_stomach = dict(manager.stomach)
     taste_delta = taste_delta_for_added_unit(pre_stomach, food)
@@ -323,7 +335,8 @@ def _apply_bite(
     manager.consume(food)
     remaining_calories -= food.calories
 
-    # Consider it satisfied whenever this bite matches a remaining craving (case-insensitive)
+    # Consider it satisfied whenever this bite matches a
+    # remaining craving (case-insensitive)
     food_name = normalize_name(food.name)
     satisfied = False
     if food_name in cravings:  # remove one instance if duplicated
@@ -337,7 +350,9 @@ def _apply_bite(
     )
 
     new_variety_count = variety_count(manager.stomach)
-    variety_delta = get_variety_bonus(new_variety_count) - get_variety_bonus(variety_count_now)
+    new_var = get_variety_bonus(new_variety_count)
+    old_var = get_variety_bonus(variety_count_now)
+    variety_delta = new_var - old_var
 
     append_meal_log(
         meal_log=meal_plan,
@@ -349,7 +364,12 @@ def _apply_bite(
         taste_delta=taste_delta,
     )
 
-    return current_sp, remaining_calories, cravings_satisfied, new_variety_count
+    return (
+        current_sp,
+        remaining_calories,
+        cravings_satisfied,
+        new_variety_count,
+    )
 
 
 def _pick_feasible_craving(
@@ -358,14 +378,21 @@ def _pick_feasible_craving(
     remaining_calories,
     cravings_satisfied,
 ):
-    """Return a craving food that can be eaten now (highest ΔSP among feasible), or None."""
+    """Return a craving food that can be eaten now.
+    Picks the highest ΔSP among feasible options, or None.
+    """
     cravings_set = {normalize_name(name) for name in cravings}
     candidates = []
     for food, quantity_available in manager.available.items():
         if not quantity_available or food.calories > remaining_calories:
             continue
         if normalize_name(food.name) in cravings_set:
-            sp_delta = get_sp_delta(food, manager.stomach, cravings, cravings_satisfied)
+            sp_delta = get_sp_delta(
+                food,
+                manager.stomach,
+                cravings,
+                cravings_satisfied,
+            )
             candidates.append((sp_delta, food))
     return max(candidates)[1] if candidates else None
 
@@ -381,9 +408,14 @@ def validate_cravings(
     manager,
     cravings_normalized: list[str],
 ) -> tuple[list[str], list[str], dict[str, list[str]]]:
-    """Filter cravings to valid food names; also return invalid items and suggestions."""
+    """Filter cravings to valid food names; return invalid items
+    and suggestions.
+    """
     # Build a normalized name index from the known foods
-    known_names = {normalize_name(food.name) for food in manager.foods.values()}
+    known_names = {
+        normalize_name(food.name)
+        for food in manager.foods.values()
+    }
     valid = []
     invalid = []
     suggestions: dict[str, list[str]] = {}
@@ -392,7 +424,12 @@ def validate_cravings(
             valid.append(name)
         else:
             invalid.append(name)
-            guesses = difflib.get_close_matches(name, list(known_names), n=3, cutoff=0.6)
+            guesses = difflib.get_close_matches(
+                name,
+                list(known_names),
+                n=3,
+                cutoff=0.6,
+            )
             if guesses:
                 suggestions[name] = guesses
 
@@ -400,7 +437,11 @@ def validate_cravings(
         logger.warning("Ignoring invalid cravings: %s", ", ".join(invalid))
         for bad in invalid:
             if bad in suggestions:
-                logger.info("Did you mean: %s → %s", bad, ", ".join(suggestions[bad]))
+                logger.info(
+                    "Did you mean: %s → %s",
+                    bad,
+                    ", ".join(suggestions[bad]),
+                )
     return valid, invalid, suggestions
 
 
@@ -456,11 +497,23 @@ def plan_meal(
                 cravings_satisfied,
             )
             if not food:
-                logger.info("No suitable food found with %d remaining cal", remaining_calories)
+                logger.info(
+                    "No suitable food with %d remaining cal",
+                    remaining_calories,
+                )
                 break
 
-        logger.info("Consume %s | %d cal", food.name, food.calories)
-        current_sp, remaining_calories, cravings_satisfied, variety_count_now = _apply_bite(
+        logger.info(
+            "Consume %s | %d cal",
+            food.name,
+            food.calories,
+        )
+        (
+            current_sp,
+            remaining_calories,
+            cravings_satisfied,
+            variety_count_now,
+        ) = _apply_bite(
             manager,
             food,
             current_sp=current_sp,
@@ -472,6 +525,9 @@ def plan_meal(
         )
 
     else:
-        logger.warning("Loop exited after max iterations (%d).", MAX_ITERATIONS)
+        logger.warning(
+            "Loop exited after max iterations (%d).",
+            MAX_ITERATIONS,
+        )
 
     return meal_plan
