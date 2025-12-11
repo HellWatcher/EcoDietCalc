@@ -1,2 +1,0 @@
-[INFO] Foods with unknown tastiness (99):
-  - Charred Camas Bulb\n  - Charred Papaya\n  - Charred Tomato\n  - Dried Fish\n  - Dried Meat\n  - Wilted Fiddleheads\n\n
