@@ -1,0 +1,26 @@
+{
+  "theta": {
+    "SOFT_BIAS_GAMMA": 3.2172122402035614,
+    "TIE_ALPHA": 0.33219769850967984,
+    "TIE_BETA": 0.17041732378587374,
+    "TIE_EPSILON": 0.24369615704977293,
+    "CAL_FLOOR": 301.0,
+    "CAL_PENALTY_GAMMA": 1.335185578515821
+  },
+  "avg_final_sp": 47.67621962035779,
+  "avg_delta_sp_per_100kcal": -0.0004276444059563161,
+  "avg_variety_count": 10.0,
+  "per_budget": [
+    {
+      "budget": 500000,
+      "final_sp": 47.67621962035779,
+      "delta_sp_per_100kcal": -0.0004276444059563161,
+      "variety_count": 10
+    }
+  ],
+  "score_tuple": [
+    47.67621962035779,
+    -0.0004276444059563161,
+    10.0
+  ]
+}
