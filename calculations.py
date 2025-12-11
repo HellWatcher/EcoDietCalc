@@ -89,7 +89,7 @@ def sum_weighted_nutrients(
         Weighted sum for the selected nutrient.
         (Sum over ``nutrient * quantity``.)
     """
-    # Weight by calories * quantity so high-cal foods influence balance appropriately
+    # Weight by calories*quantity so high-cal foods influence balance
     return sum(
         getattr(food, attr) * quantity
         for food, quantity in stomach.items()
@@ -305,7 +305,7 @@ def get_sp(
         Final SP value.
     """
 
-    density, _ = sum_all_weighted_nutrients(stomach)  # calorie-weighted average
+    density, _ = sum_all_weighted_nutrients(stomach)  # calorie-weighted avg
     density_sum = (
         density["carbs"]
         + density["protein"]
