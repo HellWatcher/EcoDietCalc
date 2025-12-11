@@ -59,11 +59,13 @@ def cmd_plan(
     manager = load_food_state()
 
     # collect interactive inputs
-    (cravings, cravings_satisfied, remaining_calories) = collect_user_constraints()
+    tmp_constraints = collect_user_constraints()
+    cravings, cravings_satisfied, remaining_calories = tmp_constraints
 
     # Block until all cravings are valid (or dropped/replaced by the user)
     while True:
-        valid, invalid, suggestions = validate_cravings(manager, [normalize_name(c) for c in cravings])
+        normalized = [normalize_name(c) for c in cravings]
+        valid, invalid, suggestions = validate_cravings(manager, normalized)
         if not invalid:
             cravings = valid
             break
@@ -71,10 +73,12 @@ def cmd_plan(
         print("\nThe following cravings are not in your foods:")
         for bad in invalid:
             if bad in suggestions and suggestions[bad]:
-                print(f"  - {bad}  (did you mean: {', '.join(suggestions[bad])})")
+                suggestion_str = ', '.join(suggestions[bad])
+                print(f"  - {bad}  (did you mean: {suggestion_str})")
             else:
                 print(f"  - {bad}")
-        print("Enter replacements now. Leave blank to drop an item.")
+        print("Enter replacements now.")
+        print("Leave blank to drop an item.")
 
         replacements = []
         for bad in invalid:
@@ -82,7 +86,8 @@ def cmd_plan(
             if repl:
                 replacements.append(repl)
 
-        # Keep existing valid ones, plus any replacements; loop will re-validate
+        # Keep existing valid ones, plus any replacements.
+        # Loop will re-validate.
         cravings = [*valid, *replacements]
 
     # Produce a plan under current constraints and show it
@@ -131,7 +136,8 @@ def cmd_rate_unknowns(
         )
         == 99
     ]
-    # Only consider foods that are available (>0) and still have unknown tastiness (99)
+    # Only consider foods that are available (>0) and still have
+    # unknown tastiness (99)
     if not unknowns:
         print("No available foods with unknown tastiness.")
         return
@@ -169,7 +175,8 @@ def cmd_reset(
         manager.reset_tastiness()
         did_any = True
     if not did_any:
-        print("Nothing to do. Pick at least one of: --stomach --availability --tastiness")
+        print("Nothing to do.")
+        print("Pick at least one of: --stomach --availability --tastiness")
         return
     save_food_dict(manager.to_json_ready(), DATA_PATH)
     print("Reset complete.")
