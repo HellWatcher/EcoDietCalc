@@ -35,7 +35,8 @@ class Food:
     vitamins : int
         Vitamins per unit.
     tastiness : int
-        Tastiness rating in ``{-3,-2,-1,0,1,2,3,99}`` where ``99`` means unknown.
+        Tastiness rating in ``{-3,-2,-1,0,1,2,3,99}``.
+        ``99`` denotes unknown.
     stomach : int, optional
         Current consumed count, by default ``0``.
     available : int, optional
@@ -66,9 +67,12 @@ class Food:
         self.stomach = int(stomach)
         self.available = int(available)
 
-        # Validate against TASTINESS_MULTIPLIERS (edit the scale in constants.py only)
+        # Validate tastiness against the canonical multipliers scale.
+        # Edit the scale in `constants.py` if needed.
         if self.tastiness not in TASTINESS_MULTIPLIERS:
-            raise ValueError(f"Invalid tastiness value: {self.tastiness}")
+            raise ValueError(
+                f"Invalid tastiness value: {self.tastiness}"
+            )
 
     def sum_nutrients(
         self,
@@ -90,9 +94,17 @@ class Food:
         Returns
         -------
         bool
-            ``True`` if required fields are present and values are within expected ranges.
+            ``True`` if required fields are present and values
+            are within expected ranges.
         """
-        return self.calories >= 0 and self.carbs >= 0 and self.protein >= 0 and self.fats >= 0 and self.vitamins >= 0 and self.tastiness in TASTINESS_MULTIPLIERS
+        return (
+            self.calories >= 0
+            and self.carbs >= 0
+            and self.protein >= 0
+            and self.fats >= 0
+            and self.vitamins >= 0
+            and self.tastiness in TASTINESS_MULTIPLIERS
+        )
 
     def calories_per_nutrient(
         self,
@@ -102,12 +114,17 @@ class Food:
         Returns
         -------
         float
-            ``calories / sum_nutrients()``; returns ``float('inf')`` when total nutrients are 0.
+            ``calories / sum_nutrients()``.
+            Returns ``float('inf')`` when total nutrients are 0.
         """
 
         # Guard divide-by-zero when total nutrients are 0
         total_nutrients = self.sum_nutrients()
-        return self.calories / total_nutrients if total_nutrients else float("inf")
+        return (
+            self.calories / total_nutrients
+            if total_nutrients
+            else float("inf")
+        )
 
     def __eq__(
         self,
@@ -123,7 +140,8 @@ class Food:
         Returns
         -------
         bool
-            ``True`` if both represent the same food (e.g., matching name); otherwise ``False``.
+            ``True`` if both represent the same food (e.g., matching name).
+            Otherwise ``False``.
         """
         return (
             isinstance(
@@ -157,7 +175,10 @@ class Food:
             Short summary (name, nutrients, calories).
         """
         # Short, user-facing label (avoid leaking internal fields)
-        return f"{self.name}; {self.sum_nutrients()} Nutrients, {self.calories} Cal"
+        return (
+            f"{self.name}; {self.sum_nutrients()} Nutrients, "
+            f"{self.calories} Cal"
+        )
 
     def __repr__(
         self,
@@ -169,7 +190,8 @@ class Food:
         str
             Constructor-like representation.
         """
-        # Minimal constructor-like repr; use .debug_string() or .to_dict() for full detail
+        # Minimal constructor-like repr; use `.debug_string()` or `.to_dict()`
+        # for full details when needed.
         return f"Food({self.name!r}, {self.calories} cal)"
 
     @classmethod
@@ -182,15 +204,18 @@ class Food:
         Parameters
         ----------
         data : dict
-            Must include keys ``"Name"``, ``"Calories"``, ``"Carbs"``, ``"Protein"``,
-            ``"Fats"``, ``"Vitamins"``, ``"Tastiness"``; optional ``"Stomach"``, ``"Available"``.
+            Must include keys:
+            ``"Name"``, ``"Calories"``, ``"Carbs"``, ``"Protein"``,
+            ``"Fats"``, ``"Vitamins"``, ``"Tastiness"``.
+            Optional keys: ``"Stomach"``, ``"Available"``.
 
         Returns
         -------
         Food
             Constructed instance.
         """
-        # Trust JSON keys; leave case of "Name" as-is (display), normalize counts to ints
+        # Trust JSON keys; leave the case of "Name" as-is (display).
+        # Normalize counts to ints when constructing.
         return cls(
             name=data["Name"],
             calories=data["Calories"],
@@ -211,10 +236,12 @@ class Food:
         Returns
         -------
         dict
-            Keys: ``Name``, ``Calories``, ``Carbs``, ``Protein``, ``Fats``, ``Vitamins``,
-            ``Tastiness``, ``Stomach``, ``Available``.
+            Keys:
+            ``Name``, ``Calories``, ``Carbs``, ``Protein``, ``Fats``,
+            ``Vitamins``, ``Tastiness``, ``Stomach``, ``Available``.
         """
-        # Mirror all fields for stable JSON shape; getattr keeps older saves compatible
+        # Mirror all fields for stable JSON shape. `getattr` keeps older saves
+        # compatible when keys are missing.
         data = {
             "Name": self.name,
             "Calories": self.calories,
@@ -251,4 +278,9 @@ class Food:
         str
             String including calories, macros, vitamins, and tastiness.
         """
-        return f"{self.name} | Cal: {self.calories}, C:{self.carbs} P:{self.protein} F:{self.fats} V:{self.vitamins} T:{self.tastiness}"
+        return (
+            f"{self.name} | Cal: {self.calories}, "
+            f"C:{self.carbs} P:{self.protein} "
+            f"F:{self.fats} V:{self.vitamins} "
+            f"T:{self.tastiness}"
+        )
