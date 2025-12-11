@@ -1,7 +1,10 @@
 """Interactive prompts used by the CLI.
 
 Order enforced by `collect_user_constraints`:
-1) Current calories → 2) Max calories → 3) Satisfied cravings → 4) Current craving.
+1) Current calories
+2) Max calories
+3) Satisfied cravings
+4) Current craving
 """
 
 from constants import (
@@ -18,8 +21,9 @@ def prompt_for_cravings_satisfied():
     int
         Number of cravings satisfied (0+).
     """
+    prompt = "How many cravings have you satisfied today? (0+) > "
     while True:
-        value = input("How many cravings have you satisfied today? (0+) > ").strip()
+        value = input(prompt).strip()
         if value == "":
             return 0
         try:
@@ -33,9 +37,10 @@ def prompt_for_cravings_satisfied():
 
 def prompt_current_calories() -> int:
     """Ask for calories already consumed (>= 0)."""
+    prompt = "How many calories have you already consumed? > "
     while True:
         try:
-            val = int(input("How many calories have you already consumed? > ").strip())
+            val = int(input(prompt).strip())
             if val < 0:
                 print("Calories cannot be negative.")
             else:
@@ -48,11 +53,15 @@ def prompt_max_calories(
     current_cal: int,
 ) -> int:
     """Ask for max calorie limit (>= current)."""
+    prompt = "What is your maximum calorie limit? > "
     while True:
         try:
-            val = int(input("What is your maximum calorie limit? > ").strip())
+            val = int(input(prompt).strip())
             if val < current_cal:
-                print("Maximum must be greater than or equal to current intake.")
+                print(
+                    "Maximum must be greater than or "
+                    "or equal to current intake."
+                )
             else:
                 return val
         except ValueError:
@@ -97,14 +106,25 @@ def prompt_for_tastiness(
     Returns
     -------
     int
-        Tastiness rating in ``{-3, -2, -1, 0, 1, 2, 3}``, or ``99`` if skipped/unknown.
+        Tastiness rating in ``{-3, -2, -1, 0, 1, 2, 3}``.
+        ``99`` if skipped/unknown.
     """
-    print(f"[PROMPT] Enter tastiness rating for '{food_name}' (-3 to 3, or 99 for unknown):")
+    prompt_line = (
+        f"[PROMPT] Enter tastiness rating for '{food_name}' "
+        "(-3 to 3, or 99 for unknown):"
+    )
+    print(prompt_line)
 
-    # Show human labels for valid ratings; exclude 99 (unknown) from the hint line
-    print("  Hints:", ", ".join(f"{key}: {TASTINESS_NAMES[key]}" for key in sorted(TASTINESS_NAMES) if key != 99))
+    # Show human labels for valid ratings. Exclude 99 (unknown) from hints.
+    hint_items = [
+        f"{key}: {TASTINESS_NAMES[key]}"
+        for key in sorted(TASTINESS_NAMES)
+        if key != 99
+    ]
+    hint_str = ", ".join(hint_items)
+    print("  Hints:", hint_str)
 
-    # Accept blank to keep tastiness as unknown (99); otherwise loop until a valid int in range
+    # Blank input keeps tastiness unknown (99). Loop for a valid int.
     while True:
         value = input("> ").strip()
         if value == "":
@@ -112,7 +132,8 @@ def prompt_for_tastiness(
         try:
             value = int(value)
 
-            # Validate against constants, not hardcoded bounds, so changing the scale only touches constants.py
+            # Validate against constants rather than hardcoded bounds; changing
+            # the scale only requires edits in `constants.py`.
             if value in TASTINESS_MULTIPLIERS:
                 return value
             print("Invalid value. Valid: -3 to 3, or 99 for unknown.")
