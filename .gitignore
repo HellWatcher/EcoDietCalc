@@ -330,3 +330,15 @@ htmlcov/
 .vscode/
 .idea/
 .env
+
+# Local VS Code workspace settings (keep local workspace settings private)
+.vscode/settings.json
+.vscode/*.code-workspace
+
+# Common Python/tool caches and build metadata
+.mypy_cache/
+.ropeproject/
+pip-wheel-metadata/
+*.dist-info/
+.cache/
+coverage.xml
