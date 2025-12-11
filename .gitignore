@@ -329,3 +329,4 @@ htmlcov/
 # Editor
 .vscode/
 .idea/
+.env
