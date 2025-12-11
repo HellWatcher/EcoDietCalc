@@ -17,7 +17,13 @@ def setup_logging(
         Path to a log file to write to, or ``None`` to log to stderr only.
     """
 
-    level = logging.WARNING if verbosity <= 0 else (logging.INFO if verbosity == 1 else logging.DEBUG)
+    if verbosity <= 0:
+        level = logging.WARNING
+    elif verbosity == 1:
+        level = logging.INFO
+    else:
+        level = logging.DEBUG
+
     handlers: list[logging.Handler] = [logging.StreamHandler()]
     if log_file:
         handlers.append(
@@ -26,7 +32,8 @@ def setup_logging(
                 encoding="utf-8",
             )
         )
-    # Reset prior basicConfig (tests or multiple CLI invocations may have configured logging already)
+    # Reset prior basicConfig.
+    # Tests or multiple CLI invocations may have configured logging already.
     logging.basicConfig(
         level=level,
         format="%(asctime)s %(levelname).1s %(name)s: %(message)s",
