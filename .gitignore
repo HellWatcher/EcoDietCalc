@@ -301,3 +301,31 @@ $RECYCLE.BIN/
 
 # Windows shortcuts
 *.lnk
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.sqlite3
+
+# Virtual env
+.venv/
+env/
+venv/
+
+# Byte-compiled / IDE
+*.log
+logs/
+log.txt
+*.egg-info/
+dist/
+
+# Test / coverage
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Editor
+.vscode/
+.idea/
