@@ -53,10 +53,12 @@ class FoodStateManager:
         ----------
         foods : list[Food]
             Collection of foods to manage. Initial `stomach` and `available`
-            maps are populated from each item's `stomach` and `available` counts.
+            maps are populated from each item's
+            ``stomach`` and ``available`` counts.
         """
         self.foods = {food.name.lower(): food for food in foods}
-        # Sparse maps: store only positive counts (omit zeros to keep dicts small)
+        # Sparse maps: store only positive counts.
+        # Omit zeros to keep dicts small.
         self.stomach = {}
         self.available = {}
         for food in foods:
@@ -100,7 +102,8 @@ class FoodStateManager:
         Returns
         -------
         bool
-            ``True`` if the bite was consumed and state updated; ``False`` if unavailable.
+            ``True`` if the bite was consumed and state updated.
+            ``False`` if unavailable.
         """
         # Fast-fail if no stock for this item
         if self.available.get(food, 0) <= 0:
@@ -110,7 +113,8 @@ class FoodStateManager:
         # Decrement on-hand availability
         self.available[food] -= 1
 
-        # Mirror counts onto the canonical Food instance so to_json_ready() stays accurate
+        # Mirror counts onto the canonical Food instance so that
+        # `to_json_ready()` stays accurate
         self.foods[food.name.lower()].stomach = self.stomach[food]
         self.foods[food.name.lower()].available = self.available[food]
 
@@ -130,7 +134,8 @@ class FoodStateManager:
         Returns
         -------
         bool
-            ``True`` if the available count is greater than zero; otherwise ``False``.
+            ``True`` if the available count is greater than zero.
+            Otherwise ``False``.
         """
         # Availability predicate used by planner filters
         return self.available.get(food, 0) > 0
@@ -155,7 +160,8 @@ class FoodStateManager:
             Current SP value.
         """
 
-        # Pass (stomach, cravings, cravings_satisfied, unique_foods_24h) — unique set, not list
+        # Pass (stomach, cravings, cravings_satisfied,
+        # unique_foods_24h) — unique set, not list
         return get_sp(
             stomach=self.stomach,
             cravings=cravings,
@@ -173,14 +179,12 @@ class FoodStateManager:
         set of str
             Lowercased names of foods in the stomach that qualify for variety.
         """
-        # Lowercased names for foods whose (calories * quantity) meet the variety threshold
+        # Lowercased names for foods whose
+        # (calories * quantity) meet the variety threshold
         return {
             food_item.name.lower()
             for food_item, quantity in self.stomach.items()
-            if is_variety_qualifying(
-                food_item,
-                quantity,
-            )
+            if is_variety_qualifying(food_item, quantity)
         }
 
     def all_available(
@@ -235,7 +239,8 @@ class FoodStateManager:
         Parameters
         ----------
         to_unknown : bool, optional
-            When ``True`` set tastiness to ``99`` (unknown); when ``False`` set to ``0`` (neutral).
+            When ``True`` set tastiness to ``99`` (unknown).
+            When ``False``, set to ``0`` (neutral).
 
         Returns
         -------
@@ -254,14 +259,17 @@ class FoodStateManager:
         -------
         list of dict
             One entry per food with keys:
-            ``Name``, ``Calories``, ``Carbs``, ``Protein``, ``Fats``, ``Vitamins``,
+            ``Name``, ``Calories``, ``Carbs``,
+            ``Protein``, ``Fats``, ``Vitamins``,
             ``Tastiness``, ``Stomach``, and ``Available``.
         """
-        # Stable field order to mirror Food.to_dict() for readable diffs
+        # Stable field order to mirror `Food.to_dict()` for readable diffs
         json_ready = []
-        # Emit all known foods, not just those currently present in stomach/available
+        # Emit all known foods, not just those currently present
+        # in `stomach`/`available`
         for food in self.foods.values():
-            # Stable key order for readable diffs; keep fields 1:1 with Food.to_dict()
+            # Stable key order for readable diffs; keep fields 1:1
+            # with `Food.to_dict()`
             json_ready.append(
                 {
                     "Name": food.name,
