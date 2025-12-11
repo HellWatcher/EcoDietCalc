@@ -356,8 +356,7 @@ def evaluate_theta(
     per_budget: List[Dict[str, Any]] = []
 
     for budget in budgets:
-        # Local import keeps coupling minimal and avoids global state surprises.
-        import planner as planner
+        # Build a fresh manager; planner mutates state during planning.
 
         # Build a fresh manager; planner mutates state during planning.
         # Suppress interactive tastiness rating prompts during tuner runs.
@@ -381,14 +380,14 @@ def evaluate_theta(
 
             # Run the planner. Support both kw/positional signatures.
             try:
-                _plan = planner.plan_meal(
+                planner.plan_meal(
                     manager=manager,
                     cravings=[],
                     cravings_satisfied=0,
                     remaining_calories=budget_int,
                 )
             except TypeError:
-                _plan = planner.plan_meal(
+                planner.plan_meal(
                     manager,
                     [],
                     0,
