@@ -121,9 +121,9 @@ impl FoodStateManager {
     }
 
     /// Compute current SP given cravings state.
-    pub fn get_current_sp(&self, cravings: &[String], cravings_satisfied: u32) -> f64 {
+    pub fn get_current_sp(&self, cravings: &[String], config: &calculations::SpConfig) -> f64 {
         let stomach_map = self.stomach_food_map();
-        calculations::calculate_sp(&stomach_map, cravings, cravings_satisfied)
+        calculations::calculate_sp(&stomach_map, cravings, config)
     }
 
     /// Convert state to a list of foods for JSON serialization.

@@ -2,8 +2,8 @@ use std::collections::HashMap;
 
 use crate::models::{Food, MealPlanItem};
 use crate::planner::calculations::{
-    calculate_sp, calculate_taste_bonus, calculate_variety_bonus, count_variety_qualifying,
-    get_sp_delta, sum_all_weighted_nutrients,
+    calculate_sp, calculate_taste_mult, calculate_variety_mult, count_variety_qualifying,
+    get_sp_delta, sum_all_weighted_nutrients, SpConfig,
 };
 use crate::planner::constants::*;
 use crate::state::FoodStateManager;
@@ -30,10 +30,10 @@ fn low_calorie_penalty(calories: f64) -> f64 {
 
 /// Calculate soft-variety bias.
 ///
-/// Bias based on change in soft-variety bonus.
+/// Bias based on change in variety multiplier.
 fn soft_variety_bias(stomach: &HashMap<&Food, u32>, food: &Food) -> f64 {
     let count_before = count_variety_qualifying(stomach);
-    let bonus_before = calculate_variety_bonus(count_before);
+    let mult_before = calculate_variety_mult(count_before);
 
     // Simulate adding the food
     let mut new_stomach = stomach.clone();
@@ -41,15 +41,16 @@ fn soft_variety_bias(stomach: &HashMap<&Food, u32>, food: &Food) -> f64 {
     new_stomach.insert(food, current + 1);
 
     let count_after = count_variety_qualifying(&new_stomach);
-    let bonus_after = calculate_variety_bonus(count_after);
+    let mult_after = calculate_variety_mult(count_after);
 
-    let delta_pp = bonus_after - bonus_before;
+    // Delta in multiplier terms (e.g., 1.2 -> 1.3 = +0.1)
+    let delta_mult = mult_after - mult_before;
 
     // Get nutrient sum after adding food
     let (density, _) = sum_all_weighted_nutrients(&new_stomach);
     let ns_after = density.sum();
 
-    SOFT_BIAS_GAMMA * ns_after * (delta_pp / 100.0)
+    SOFT_BIAS_GAMMA * ns_after * delta_mult
 }
 
 /// Calculate proximity bias.
@@ -85,7 +86,7 @@ fn proximity_bias(stomach: &HashMap<&Food, u32>, food: &Food) -> f64 {
 pub fn choose_next_bite<'a>(
     manager: &'a FoodStateManager,
     cravings: &[String],
-    cravings_satisfied: u32,
+    config: &SpConfig,
 ) -> Option<&'a Food> {
     let available = manager.all_available();
     if available.is_empty() {
@@ -98,7 +99,7 @@ pub fn choose_next_bite<'a>(
     let candidates: Vec<Candidate> = available
         .into_iter()
         .map(|food| {
-            let sp_delta = get_sp_delta(&stomach, food, cravings, cravings_satisfied);
+            let sp_delta = get_sp_delta(&stomach, food, cravings, config);
             let penalty = low_calorie_penalty(food.calories);
             let rank_score = sp_delta + penalty;
             let sv_bias = soft_variety_bias(&stomach, food);
@@ -156,7 +157,7 @@ pub fn choose_next_bite<'a>(
 pub fn pick_feasible_craving<'a>(
     manager: &'a FoodStateManager,
     cravings: &[String],
-    cravings_satisfied: u32,
+    config: &SpConfig,
 ) -> Option<&'a Food> {
     if cravings.is_empty() {
         return None;
@@ -172,9 +173,11 @@ pub fn pick_feasible_craving<'a>(
         .into_iter()
         .filter(|f| craving_set.contains(&f.name.to_lowercase()))
         .max_by(|a, b| {
-            let delta_a = get_sp_delta(&stomach, a, cravings, cravings_satisfied);
-            let delta_b = get_sp_delta(&stomach, b, cravings, cravings_satisfied);
-            delta_a.partial_cmp(&delta_b).unwrap_or(std::cmp::Ordering::Equal)
+            let delta_a = get_sp_delta(&stomach, a, cravings, config);
+            let delta_b = get_sp_delta(&stomach, b, cravings, config);
+            delta_a
+                .partial_cmp(&delta_b)
+                .unwrap_or(std::cmp::Ordering::Equal)
         })
 }
 
@@ -184,7 +187,7 @@ pub fn pick_feasible_craving<'a>(
 pub fn generate_plan(
     manager: &mut FoodStateManager,
     cravings: &[String],
-    mut cravings_satisfied: u32,
+    config: &SpConfig,
     remaining_calories: f64,
 ) -> Vec<MealPlanItem> {
     let mut plan = Vec::new();
@@ -202,13 +205,13 @@ pub fn generate_plan(
 
         // Calculate current state
         let stomach_before = manager.stomach_food_map();
-        let variety_before = calculate_variety_bonus(count_variety_qualifying(&stomach_before));
-        let taste_before = calculate_taste_bonus(&stomach_before);
-        let sp_before = calculate_sp(&stomach_before, cravings, cravings_satisfied);
+        let variety_before = calculate_variety_mult(count_variety_qualifying(&stomach_before));
+        let taste_before = calculate_taste_mult(&stomach_before);
+        let sp_before = calculate_sp(&stomach_before, cravings, config);
 
         // Try to pick a craving first, otherwise best bite
-        let selected = pick_feasible_craving(manager, cravings, cravings_satisfied)
-            .or_else(|| choose_next_bite(manager, cravings, cravings_satisfied));
+        let selected = pick_feasible_craving(manager, cravings, config)
+            .or_else(|| choose_next_bite(manager, cravings, config));
 
         let food = match selected {
             Some(f) => f,
@@ -233,18 +236,14 @@ pub fn generate_plan(
         // Consume the food
         let _ = manager.consume_food(&food_name);
 
-        // Update craving satisfaction
-        if is_craving {
-            cravings_satisfied += 1;
-        }
-
         // Calculate new state
         let stomach_after = manager.stomach_food_map();
-        let variety_after = calculate_variety_bonus(count_variety_qualifying(&stomach_after));
-        let taste_after = calculate_taste_bonus(&stomach_after);
-        let sp_after = calculate_sp(&stomach_after, cravings, cravings_satisfied);
+        let variety_after = calculate_variety_mult(count_variety_qualifying(&stomach_after));
+        let taste_after = calculate_taste_mult(&stomach_after);
+        let sp_after = calculate_sp(&stomach_after, cravings, config);
 
         let sp_gain = sp_after - sp_before;
+        // Delta in multiplier terms (e.g., 1.2 -> 1.3 shows as +0.1)
         let variety_delta = variety_after - variety_before;
         let taste_delta = taste_after - taste_before;
 
@@ -308,15 +307,19 @@ mod tests {
 
     #[test]
     fn test_low_calorie_penalty() {
+        // Above CAL_FLOOR = no penalty
         assert_eq!(low_calorie_penalty(500.0), 0.0);
-        assert_eq!(low_calorie_penalty(420.0), 0.0);
+        assert_eq!(low_calorie_penalty(CAL_FLOOR + 1.0), 0.0);
+        // Below CAL_FLOOR = penalty
         assert!(low_calorie_penalty(100.0) < 0.0);
+        assert!(low_calorie_penalty(CAL_FLOOR - 1.0) < 0.0);
     }
 
     #[test]
     fn test_choose_next_bite() {
         let manager = FoodStateManager::new(sample_foods());
-        let selected = choose_next_bite(&manager, &[], 0);
+        let config = SpConfig::default();
+        let selected = choose_next_bite(&manager, &[], &config);
         assert!(selected.is_some());
     }
 
@@ -324,8 +327,9 @@ mod tests {
     fn test_pick_feasible_craving() {
         let manager = FoodStateManager::new(sample_foods());
         let cravings = vec!["Apple".to_string()];
+        let config = SpConfig::default();
 
-        let selected = pick_feasible_craving(&manager, &cravings, 0);
+        let selected = pick_feasible_craving(&manager, &cravings, &config);
         assert!(selected.is_some());
         assert_eq!(selected.unwrap().name.to_lowercase(), "apple");
     }
@@ -333,7 +337,8 @@ mod tests {
     #[test]
     fn test_generate_plan() {
         let mut manager = FoodStateManager::new(sample_foods());
-        let plan = generate_plan(&mut manager, &[], 0, 1000.0);
+        let config = SpConfig::default();
+        let plan = generate_plan(&mut manager, &[], &config, 1000.0);
 
         assert!(!plan.is_empty());
         let total_cal: f64 = plan.iter().map(|p| p.calories).sum();

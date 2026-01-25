@@ -1,6 +1,6 @@
 use crate::models::MealPlanItem;
 use crate::planner::constants::{
-    CRAVING_SATISFIED_FRAC, TASTE_DELTA_THRESHOLD, VARIETY_DELTA_THRESHOLD,
+    CRAVING_MULT_PER_MATCH, TASTE_DELTA_THRESHOLD, VARIETY_DELTA_THRESHOLD,
 };
 
 /// Display a meal plan in a formatted table.
@@ -26,10 +26,7 @@ pub fn display_meal_plan(plan: &[MealPlanItem]) {
 
         // Craving tag
         if item.is_craving {
-            tags.push(format!(
-                "[Craving +{}%]",
-                (CRAVING_SATISFIED_FRAC * 100.0) as i32
-            ));
+            tags.push(format!("[Craving +{:.0}%]", CRAVING_MULT_PER_MATCH * 100.0));
         }
 
         // Variety delta tag

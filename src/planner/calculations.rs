@@ -59,45 +59,47 @@ pub fn sum_all_weighted_nutrients(stomach: &HashMap<&Food, u32>) -> (NutrientDen
     (density, total_cal)
 }
 
-/// Calculate balance bonus (percentage points).
+/// Calculate balance multiplier.
 ///
-/// Range: -50 to +50 pp.
-/// Penalizes imbalanced nutrition; peaks at perfect 1:1:1:1 ratio.
-pub fn calculate_balance_bonus(density: &NutrientDensity) -> f64 {
+/// Range: 0.5 (worst balance) to 2.0 (perfect 1:1:1:1 ratio).
+pub fn calculate_balance_mult(density: &NutrientDensity) -> f64 {
     let max_val = density.max();
     if max_val == 0.0 {
-        return 0.0;
+        return 1.0; // No food = neutral
     }
 
     let min_val = density.min_nonzero();
     if min_val == f64::MAX {
-        return 0.0;
+        return BALANCE_MULT_MIN; // Missing nutrients = worst
     }
 
-    let balance_ratio = min_val / max_val;
-    (balance_ratio * 100.0) - 50.0
+    let balance_ratio = min_val / max_val; // 0.0 to 1.0
+                                           // Map ratio to multiplier range: 0 -> 0.5, 1 -> 2.0
+    BALANCE_MULT_MIN + balance_ratio * (BALANCE_MULT_MAX - BALANCE_MULT_MIN)
 }
 
-/// Calculate variety bonus (percentage points).
+/// Calculate variety multiplier.
 ///
-/// Uses exponential cap: each +20 qualifying foods halves remaining gap.
-/// Max: VARIETY_BONUS_CAP_PP (55 pp).
-pub fn calculate_variety_bonus(variety_count: usize) -> f64 {
-    // variety_bonus(count) = VARIETY_BONUS_CAP_PP * (1 - 0.5^(count/20))
-    VARIETY_BONUS_CAP_PP * (1.0 - 0.5_f64.powf(variety_count as f64 / 20.0))
+/// Uses exponential approach: each +20 qualifying foods halves remaining gap.
+/// Range: 1.0 (no variety) to VARIETY_MULT_MAX (1.55).
+pub fn calculate_variety_mult(variety_count: usize) -> f64 {
+    // variety_mult(count) = 1.0 + (VARIETY_MULT_MAX - 1.0) * (1 - 0.5^(count/20))
+    let bonus_range = VARIETY_MULT_MAX - 1.0;
+    1.0 + bonus_range * (1.0 - 0.5_f64.powf(variety_count as f64 / 20.0))
 }
 
-/// Calculate taste bonus (percentage points).
+/// Calculate taste multiplier.
 ///
-/// Range: approximately -30 to +30 pp.
-pub fn calculate_taste_bonus(stomach: &HashMap<&Food, u32>) -> f64 {
+/// Calorie-weighted average of individual food taste multipliers.
+/// Range: 0.7 (all hated) to 1.3 (all favorite).
+pub fn calculate_taste_mult(stomach: &HashMap<&Food, u32>) -> f64 {
     let total_cal: f64 = stomach
         .iter()
         .map(|(f, qty)| f.calories * (*qty) as f64)
         .sum();
 
     if total_cal == 0.0 {
-        return 0.0;
+        return 1.0; // No food = neutral
     }
 
     let weighted_taste: f64 = stomach
@@ -109,7 +111,7 @@ pub fn calculate_taste_bonus(stomach: &HashMap<&Food, u32>) -> f64 {
         })
         .sum();
 
-    (weighted_taste / total_cal) * 100.0 * TASTE_WEIGHT
+    weighted_taste / total_cal
 }
 
 /// Count foods that qualify for variety bonus.
@@ -125,10 +127,10 @@ pub fn is_variety_qualifying(calories_per_unit: f64, quantity: u32) -> bool {
     (calories_per_unit * quantity as f64) >= VARIETY_CAL_THRESHOLD
 }
 
-/// Calculate craving bonus in percentage points.
+/// Calculate craving multiplier.
 ///
-/// Returns CRAVING_BONUS_PP for each food in stomach that matches a craving.
-pub fn calculate_craving_bonus(stomach: &HashMap<&Food, u32>, cravings: &[String]) -> f64 {
+/// Returns 1.0 + (CRAVING_MULT_PER_MATCH * matches) for foods matching cravings.
+pub fn calculate_craving_mult(stomach: &HashMap<&Food, u32>, cravings: &[String]) -> f64 {
     let craving_set: std::collections::HashSet<String> =
         cravings.iter().map(|c| c.to_lowercase()).collect();
 
@@ -137,31 +139,47 @@ pub fn calculate_craving_bonus(stomach: &HashMap<&Food, u32>, cravings: &[String
         .filter(|f| craving_set.contains(&f.name.to_lowercase()))
         .count();
 
-    matches as f64 * CRAVING_BONUS_PP
+    1.0 + matches as f64 * CRAVING_MULT_PER_MATCH
+}
+
+/// Configurable multipliers for SP calculation.
+#[derive(Debug, Clone)]
+pub struct SpConfig {
+    pub server_mult: f64,
+    pub dinner_party_mult: f64,
+}
+
+impl Default for SpConfig {
+    fn default() -> Self {
+        Self {
+            server_mult: DEFAULT_SERVER_MULT,
+            dinner_party_mult: DEFAULT_DINNER_PARTY_MULT,
+        }
+    }
 }
 
 /// Calculate total SP from stomach contents and craving state.
 ///
-/// SP = density_sum * (1.0 + bonus/100) + BASE_SKILL_POINTS + (cravings_satisfied * CRAVING_SATISFIED_FRAC)
-pub fn calculate_sp(
-    stomach: &HashMap<&Food, u32>,
-    cravings: &[String],
-    cravings_satisfied: u32,
-) -> f64 {
+/// Formula: (nutrient_total * balance * variety * taste * craving * dinner_party + base) * server
+pub fn calculate_sp(stomach: &HashMap<&Food, u32>, cravings: &[String], config: &SpConfig) -> f64 {
     let (density, _total_cal) = sum_all_weighted_nutrients(stomach);
     let density_sum = density.sum();
 
-    let balance_bonus = calculate_balance_bonus(&density);
+    let balance_mult = calculate_balance_mult(&density);
     let variety_count = count_variety_qualifying(stomach);
-    let variety_bonus = calculate_variety_bonus(variety_count);
-    let taste_bonus = calculate_taste_bonus(stomach);
-    let craving_bonus = calculate_craving_bonus(stomach, cravings);
+    let variety_mult = calculate_variety_mult(variety_count);
+    let taste_mult = calculate_taste_mult(stomach);
+    let craving_mult = calculate_craving_mult(stomach, cravings);
 
-    let total_bonus = balance_bonus + variety_bonus + taste_bonus + craving_bonus;
+    // Chain multipliers
+    let nutrition_sp = density_sum
+        * balance_mult
+        * variety_mult
+        * taste_mult
+        * craving_mult
+        * config.dinner_party_mult;
 
-    density_sum * (1.0 + total_bonus / 100.0)
-        + BASE_SKILL_POINTS
-        + (cravings_satisfied as f64 * CRAVING_SATISFIED_FRAC)
+    (nutrition_sp + BASE_SKILL_POINTS) * config.server_mult
 }
 
 /// Calculate the SP delta from adding one unit of a food.
@@ -169,16 +187,16 @@ pub fn get_sp_delta(
     stomach: &HashMap<&Food, u32>,
     food: &Food,
     cravings: &[String],
-    cravings_satisfied: u32,
+    config: &SpConfig,
 ) -> f64 {
-    let sp_before = calculate_sp(stomach, cravings, cravings_satisfied);
+    let sp_before = calculate_sp(stomach, cravings, config);
 
     // Create new stomach with food added
     let mut new_stomach = stomach.clone();
     let current = new_stomach.get(&food).copied().unwrap_or(0);
     new_stomach.insert(food, current + 1);
 
-    let sp_after = calculate_sp(&new_stomach, cravings, cravings_satisfied);
+    let sp_after = calculate_sp(&new_stomach, cravings, config);
 
     sp_after - sp_before
 }
@@ -202,52 +220,55 @@ mod tests {
     }
 
     #[test]
-    fn test_balance_bonus_perfect() {
-        // Perfect balance: all nutrients equal
+    fn test_balance_mult_perfect() {
+        // Perfect balance: all nutrients equal -> 2.0x
         let density = NutrientDensity {
             carbs: 10.0,
             protein: 10.0,
             fats: 10.0,
             vitamins: 10.0,
         };
-        let bonus = calculate_balance_bonus(&density);
-        assert!((bonus - 50.0).abs() < 0.01); // 100% balance -> +50 pp
+        let mult = calculate_balance_mult(&density);
+        assert!((mult - BALANCE_MULT_MAX).abs() < 0.01);
     }
 
     #[test]
-    fn test_balance_bonus_imbalanced() {
-        // Very imbalanced: one nutrient dominates
+    fn test_balance_mult_imbalanced() {
+        // Very imbalanced: ratio = 0.1 -> 0.5 + 0.1 * 1.5 = 0.65
         let density = NutrientDensity {
             carbs: 100.0,
             protein: 10.0,
             fats: 10.0,
             vitamins: 10.0,
         };
-        let bonus = calculate_balance_bonus(&density);
-        assert!((bonus - (-40.0)).abs() < 0.01); // 10/100 = 0.1 -> -40 pp
+        let mult = calculate_balance_mult(&density);
+        let expected = BALANCE_MULT_MIN + 0.1 * (BALANCE_MULT_MAX - BALANCE_MULT_MIN);
+        assert!((mult - expected).abs() < 0.01);
     }
 
     #[test]
-    fn test_variety_bonus() {
-        assert!((calculate_variety_bonus(0) - 0.0).abs() < 0.01);
-        assert!((calculate_variety_bonus(20) - 27.5).abs() < 0.1); // Half of cap
-        assert!(calculate_variety_bonus(100) < VARIETY_BONUS_CAP_PP); // Approaches but never exceeds cap
+    fn test_variety_mult() {
+        assert!((calculate_variety_mult(0) - 1.0).abs() < 0.01); // No variety = 1.0x
+                                                                 // 20 foods = halfway to max
+        let half_bonus = 1.0 + (VARIETY_MULT_MAX - 1.0) * 0.5;
+        assert!((calculate_variety_mult(20) - half_bonus).abs() < 0.01);
+        assert!(calculate_variety_mult(100) < VARIETY_MULT_MAX); // Approaches but never exceeds
     }
 
     #[test]
-    fn test_taste_bonus() {
+    fn test_taste_mult() {
         let food1 = sample_food("Good", 100.0, 10.0, 10.0, 10.0, 10.0, 3); // favorite
         let food2 = sample_food("Bad", 100.0, 10.0, 10.0, 10.0, 10.0, -3); // hated
 
         let mut stomach: HashMap<&Food, u32> = HashMap::new();
         stomach.insert(&food1, 1);
-        let bonus = calculate_taste_bonus(&stomach);
-        assert!((bonus - 30.0).abs() < 0.01); // +3 taste = +30%
+        let mult = calculate_taste_mult(&stomach);
+        assert!((mult - 1.3).abs() < 0.01); // +3 taste = 1.3x
 
         let mut stomach2: HashMap<&Food, u32> = HashMap::new();
         stomach2.insert(&food2, 1);
-        let bonus2 = calculate_taste_bonus(&stomach2);
-        assert!((bonus2 - (-30.0)).abs() < 0.01); // -3 taste = -30%
+        let mult2 = calculate_taste_mult(&stomach2);
+        assert!((mult2 - 0.7).abs() < 0.01); // -3 taste = 0.7x
     }
 
     #[test]
@@ -260,7 +281,8 @@ mod tests {
     #[test]
     fn test_calculate_sp_empty_stomach() {
         let stomach: HashMap<&Food, u32> = HashMap::new();
-        let sp = calculate_sp(&stomach, &[], 0);
+        let config = SpConfig::default();
+        let sp = calculate_sp(&stomach, &[], &config);
         assert!((sp - BASE_SKILL_POINTS).abs() < 0.01);
     }
 
@@ -268,8 +290,42 @@ mod tests {
     fn test_sp_delta() {
         let food = sample_food("Balanced", 500.0, 10.0, 10.0, 10.0, 10.0, 2);
         let stomach: HashMap<&Food, u32> = HashMap::new();
+        let config = SpConfig::default();
 
-        let delta = get_sp_delta(&stomach, &food, &[], 0);
+        let delta = get_sp_delta(&stomach, &food, &[], &config);
         assert!(delta > 0.0); // Adding food should increase SP
+    }
+
+    #[test]
+    fn test_craving_mult() {
+        let food = sample_food("Pizza", 500.0, 10.0, 10.0, 10.0, 10.0, 2);
+        let mut stomach: HashMap<&Food, u32> = HashMap::new();
+        stomach.insert(&food, 1);
+
+        // No craving = 1.0x
+        let mult_none = calculate_craving_mult(&stomach, &[]);
+        assert!((mult_none - 1.0).abs() < 0.01);
+
+        // Matching craving = 1.0 + CRAVING_MULT_PER_MATCH
+        let mult_match = calculate_craving_mult(&stomach, &["Pizza".to_string()]);
+        assert!((mult_match - (1.0 + CRAVING_MULT_PER_MATCH)).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_server_mult_affects_sp() {
+        let food = sample_food("Test", 500.0, 10.0, 10.0, 10.0, 10.0, 0);
+        let mut stomach: HashMap<&Food, u32> = HashMap::new();
+        stomach.insert(&food, 1);
+
+        let config_1x = SpConfig::default();
+        let config_2x = SpConfig {
+            server_mult: 2.0,
+            ..Default::default()
+        };
+
+        let sp_1x = calculate_sp(&stomach, &[], &config_1x);
+        let sp_2x = calculate_sp(&stomach, &[], &config_2x);
+
+        assert!((sp_2x / sp_1x - 2.0).abs() < 0.01);
     }
 }

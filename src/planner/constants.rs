@@ -1,23 +1,31 @@
 use std::collections::HashMap;
 use std::sync::LazyLock;
 
-/// Base skill points added to all SP calculations.
+/// Base skill points added after all multipliers.
 pub const BASE_SKILL_POINTS: f64 = 12.0;
 
 /// Calories per food required to qualify for variety bonus.
 pub const VARIETY_CAL_THRESHOLD: f64 = 2000.0;
 
-/// Asymptotic cap for variety bonus (percentage points).
-pub const VARIETY_BONUS_CAP_PP: f64 = 55.0;
+/// Maximum variety multiplier (1.0 = no bonus, 1.55 = +55%).
+pub const VARIETY_MULT_MAX: f64 = 1.55;
 
-/// Weight applied to taste bonus.
-pub const TASTE_WEIGHT: f64 = 1.0;
+/// Balance multiplier range: min (worst balance) to max (perfect balance).
+pub const BALANCE_MULT_MIN: f64 = 0.5;
+pub const BALANCE_MULT_MAX: f64 = 2.0;
 
-/// Per-bite craving bonus in the nutrition multiplier (percentage points).
-pub const CRAVING_BONUS_PP: f64 = 10.0;
+/// Taste multiplier range: -3 rating to +3 rating.
+pub const TASTE_MULT_MIN: f64 = 0.7;
+pub const TASTE_MULT_MAX: f64 = 1.3;
 
-/// Fraction (0..1) applied to final SP for satisfied cravings.
-pub const CRAVING_SATISFIED_FRAC: f64 = 0.10;
+/// Craving multiplier bonus per matched craving food.
+pub const CRAVING_MULT_PER_MATCH: f64 = 0.1;
+
+/// Default server skill gain multiplier.
+pub const DEFAULT_SERVER_MULT: f64 = 1.0;
+
+/// Default dinner party multiplier.
+pub const DEFAULT_DINNER_PARTY_MULT: f64 = 1.0;
 
 /// Minimum calories per unit before penalty applies.
 pub const CAL_FLOOR: f64 = 471.4887184802519;
@@ -46,17 +54,18 @@ pub const TASTE_DELTA_THRESHOLD: f64 = 0.01;
 /// Maximum iterations (bites) per planning loop.
 pub const MAX_ITERATIONS: usize = 100;
 
-/// Map from tastiness rating to multiplier.
+/// Map from tastiness rating to multiplier (centered at 1.0).
+/// Range: 0.7 (-3) to 1.3 (+3).
 pub static TASTINESS_MULTIPLIERS: LazyLock<HashMap<i8, f64>> = LazyLock::new(|| {
     let mut m = HashMap::new();
-    m.insert(-3, -0.30);
-    m.insert(-2, -0.20);
-    m.insert(-1, -0.10);
-    m.insert(0, 0.00);
-    m.insert(1, 0.10);
-    m.insert(2, 0.20);
-    m.insert(3, 0.30);
-    m.insert(99, 0.00); // unknown
+    m.insert(-3, 0.70);
+    m.insert(-2, 0.80);
+    m.insert(-1, 0.90);
+    m.insert(0, 1.00);
+    m.insert(1, 1.10);
+    m.insert(2, 1.20);
+    m.insert(3, 1.30);
+    m.insert(99, 1.00); // unknown = neutral
     m
 });
 

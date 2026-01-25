@@ -86,9 +86,24 @@ cargo run --bin tuner # Tune parameters
 ### Milestones
 
 1. **Complete CLI** — Finish core features, stabilize the planner
-   - [ ] Finalize SP/variety/taste scoring
-   - [ ] Polish user interface
-   - [ ] Comprehensive tests
+
+   **Verify/Fix Game Accuracy:**
+   - [ ] Formula: Restructure to multiplicative bonuses (match game)
+   - [ ] Balance: Verify current impl is 0.5x-2x multiplier (not additive pp)
+   - [ ] Variety: Confirm if count is per-item or per-food-category
+   - [ ] Craving: Verify multiplier behavior matches game
+
+   **Add Configurable Inputs:**
+   - [ ] Server skill gain multiplier (user-provided)
+   - [ ] Dinner Party multiplier (user-provided, CLI can't calculate)
+
+   **Testing:**
+   - [ ] Unit tests for each bonus calculation
+   - [ ] Integration test comparing to known game outcomes
+
+   **Design Decisions:**
+   - Unknown tastiness → neutral (not "Delicious")
+   - CLI is for debugging/simulation, not polish
 
 2. **Research Eco Modding** — Understand the platform
    - [ ] Review Eco modding docs/API

@@ -1,5 +1,5 @@
 use eco_diet_maker_rs::models::Food;
-use eco_diet_maker_rs::planner::generate_plan;
+use eco_diet_maker_rs::planner::{generate_plan, SpConfig};
 use eco_diet_maker_rs::state::FoodStateManager;
 
 fn sample_foods() -> Vec<Food> {
@@ -54,7 +54,8 @@ fn sample_foods() -> Vec<Food> {
 #[test]
 fn test_generate_plan_respects_calorie_budget() {
     let mut manager = FoodStateManager::new(sample_foods());
-    let plan = generate_plan(&mut manager, &[], 0, 1000.0);
+    let config = SpConfig::default();
+    let plan = generate_plan(&mut manager, &[], &config, 1000.0);
 
     let total_cal: f64 = plan.iter().map(|p| p.calories).sum();
 
@@ -69,7 +70,8 @@ fn test_generate_plan_respects_calorie_budget() {
 #[test]
 fn test_generate_plan_nonempty_for_available_foods() {
     let mut manager = FoodStateManager::new(sample_foods());
-    let plan = generate_plan(&mut manager, &[], 0, 2000.0);
+    let config = SpConfig::default();
+    let plan = generate_plan(&mut manager, &[], &config, 2000.0);
 
     assert!(
         !plan.is_empty(),
@@ -80,8 +82,9 @@ fn test_generate_plan_nonempty_for_available_foods() {
 #[test]
 fn test_generate_plan_prioritizes_cravings() {
     let mut manager = FoodStateManager::new(sample_foods());
+    let config = SpConfig::default();
     let cravings = vec!["Balanced".to_string()];
-    let plan = generate_plan(&mut manager, &cravings, 0, 500.0);
+    let plan = generate_plan(&mut manager, &cravings, &config, 500.0);
 
     // First item should be the craving if available
     assert!(!plan.is_empty());
@@ -96,7 +99,8 @@ fn test_generate_plan_prioritizes_cravings() {
 #[test]
 fn test_generate_plan_sp_increases_monotonically() {
     let mut manager = FoodStateManager::new(sample_foods());
-    let plan = generate_plan(&mut manager, &[], 0, 3000.0);
+    let config = SpConfig::default();
+    let plan = generate_plan(&mut manager, &[], &config, 3000.0);
 
     assert!(!plan.is_empty());
 
@@ -114,10 +118,11 @@ fn test_generate_plan_sp_increases_monotonically() {
 #[test]
 fn test_generate_plan_updates_state() {
     let mut manager = FoodStateManager::new(sample_foods());
+    let config = SpConfig::default();
 
     let before_available: u32 = manager.all_available().iter().map(|f| f.available).sum();
 
-    let plan = generate_plan(&mut manager, &[], 0, 1500.0);
+    let plan = generate_plan(&mut manager, &[], &config, 1500.0);
 
     let after_available: u32 = manager.all_available().iter().map(|f| f.available).sum();
     let total_stomach: u32 = manager.all_foods().iter().map(|f| f.stomach).sum();
@@ -143,7 +148,8 @@ fn test_generate_plan_empty_when_no_available() {
         .collect();
 
     let mut manager = FoodStateManager::new(foods);
-    let plan = generate_plan(&mut manager, &[], 0, 2000.0);
+    let config = SpConfig::default();
+    let plan = generate_plan(&mut manager, &[], &config, 2000.0);
 
     assert!(
         plan.is_empty(),
@@ -154,7 +160,8 @@ fn test_generate_plan_empty_when_no_available() {
 #[test]
 fn test_generate_plan_zero_budget() {
     let mut manager = FoodStateManager::new(sample_foods());
-    let plan = generate_plan(&mut manager, &[], 0, 0.0);
+    let config = SpConfig::default();
+    let plan = generate_plan(&mut manager, &[], &config, 0.0);
 
     assert!(
         plan.is_empty(),

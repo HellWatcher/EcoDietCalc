@@ -2,8 +2,8 @@ use std::collections::HashMap;
 
 use crate::models::Food;
 use crate::planner::calculations::{
-    calculate_sp, calculate_variety_bonus, count_variety_qualifying, get_sp_delta,
-    sum_all_weighted_nutrients,
+    calculate_sp, calculate_variety_mult, count_variety_qualifying, get_sp_delta,
+    sum_all_weighted_nutrients, SpConfig,
 };
 use crate::planner::constants::{MAX_ITERATIONS, VARIETY_CAL_THRESHOLD};
 use crate::state::FoodStateManager;
@@ -84,21 +84,21 @@ fn low_calorie_penalty(calories: f64, knobs: &TunerKnobs) -> f64 {
 /// Calculate soft-variety bias using tunable knobs.
 fn soft_variety_bias(stomach: &HashMap<&Food, u32>, food: &Food, knobs: &TunerKnobs) -> f64 {
     let count_before = count_variety_qualifying(stomach);
-    let bonus_before = calculate_variety_bonus(count_before);
+    let mult_before = calculate_variety_mult(count_before);
 
     let mut new_stomach = stomach.clone();
     let current = new_stomach.get(&food).copied().unwrap_or(0);
     new_stomach.insert(food, current + 1);
 
     let count_after = count_variety_qualifying(&new_stomach);
-    let bonus_after = calculate_variety_bonus(count_after);
+    let mult_after = calculate_variety_mult(count_after);
 
-    let delta_pp = bonus_after - bonus_before;
+    let delta_mult = mult_after - mult_before;
 
     let (density, _) = sum_all_weighted_nutrients(&new_stomach);
     let ns_after = density.sum();
 
-    knobs.soft_bias_gamma * ns_after * (delta_pp / 100.0)
+    knobs.soft_bias_gamma * ns_after * delta_mult
 }
 
 /// Calculate proximity bias using tunable knobs.
@@ -124,6 +124,7 @@ fn proximity_bias(stomach: &HashMap<&Food, u32>, food: &Food, knobs: &TunerKnobs
 fn choose_next_bite_with_knobs<'a>(
     manager: &'a FoodStateManager,
     knobs: &TunerKnobs,
+    config: &SpConfig,
 ) -> Option<&'a Food> {
     let available = manager.all_available();
     if available.is_empty() {
@@ -132,12 +133,11 @@ fn choose_next_bite_with_knobs<'a>(
 
     let stomach = manager.stomach_food_map();
     let cravings: &[String] = &[];
-    let cravings_satisfied = 0;
 
     let candidates: Vec<Candidate> = available
         .into_iter()
         .map(|food| {
-            let sp_delta = get_sp_delta(&stomach, food, cravings, cravings_satisfied);
+            let sp_delta = get_sp_delta(&stomach, food, cravings, config);
             let penalty = low_calorie_penalty(food.calories, knobs);
             let rank_score = sp_delta + penalty;
             let sv_bias = soft_variety_bias(&stomach, food, knobs);
@@ -191,6 +191,7 @@ fn generate_plan_with_knobs(
 ) -> (f64, usize) {
     let mut remaining = remaining_calories;
     let mut bites = 0;
+    let config = SpConfig::default();
 
     for _ in 0..MAX_ITERATIONS {
         if remaining <= 0.0 {
@@ -201,7 +202,7 @@ fn generate_plan_with_knobs(
             break;
         }
 
-        let food = match choose_next_bite_with_knobs(manager, knobs) {
+        let food = match choose_next_bite_with_knobs(manager, knobs, &config) {
             Some(f) => f,
             None => break,
         };
@@ -219,7 +220,7 @@ fn generate_plan_with_knobs(
     }
 
     let stomach = manager.stomach_food_map();
-    let final_sp = calculate_sp(&stomach, &[], 0);
+    let final_sp = calculate_sp(&stomach, &[], &config);
     (final_sp, bites)
 }
 
@@ -261,8 +262,16 @@ pub fn evaluate_knobs(knobs: &TunerKnobs, foods: &[Food], budgets: &[f64]) -> Ev
 
     let n = per_budget.len() as f64;
     let avg_final_sp = per_budget.iter().map(|r| r.final_sp).sum::<f64>() / n;
-    let avg_delta_sp_per_100kcal = per_budget.iter().map(|r| r.delta_sp_per_100kcal()).sum::<f64>() / n;
-    let avg_variety_count = per_budget.iter().map(|r| r.variety_count as f64).sum::<f64>() / n;
+    let avg_delta_sp_per_100kcal = per_budget
+        .iter()
+        .map(|r| r.delta_sp_per_100kcal())
+        .sum::<f64>()
+        / n;
+    let avg_variety_count = per_budget
+        .iter()
+        .map(|r| r.variety_count as f64)
+        .sum::<f64>()
+        / n;
 
     EvaluationResult {
         knobs: knobs.clone(),

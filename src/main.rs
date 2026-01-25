@@ -6,7 +6,7 @@ use eco_diet_maker_rs::error::Result;
 use eco_diet_maker_rs::interface::{
     collect_user_constraints, display_meal_plan, prompt_tastiness, prompt_yes_no,
 };
-use eco_diet_maker_rs::planner::generate_plan;
+use eco_diet_maker_rs::planner::{generate_plan, SpConfig};
 use eco_diet_maker_rs::state::{load_foods, save_foods, FoodStateManager};
 
 fn main() {
@@ -58,7 +58,7 @@ fn cmd_plan(file_path: &str) -> Result<()> {
     println!();
 
     // Collect user constraints
-    let (cravings, cravings_satisfied, remaining_cal) = collect_user_constraints(&available)?;
+    let (cravings, _cravings_satisfied, remaining_cal) = collect_user_constraints(&available)?;
 
     if remaining_cal <= 0.0 {
         println!("No remaining calories to plan for.");
@@ -73,7 +73,8 @@ fn cmd_plan(file_path: &str) -> Result<()> {
     println!();
 
     // Generate plan
-    let plan = generate_plan(&mut manager, &cravings, cravings_satisfied, remaining_cal);
+    let config = SpConfig::default();
+    let plan = generate_plan(&mut manager, &cravings, &config, remaining_cal);
 
     // Display results
     display_meal_plan(&plan);
