@@ -31,19 +31,25 @@ fn run() -> Result<()> {
     }
 }
 
-/// Generate a meal plan based on user constraints.
-fn cmd_plan(file_path: &str) -> Result<()> {
+/// Load foods from path, returning None if file doesn't exist.
+fn load_manager_from_path(file_path: &str) -> Result<Option<FoodStateManager>> {
     let path = Path::new(file_path);
-
     if !path.exists() {
         eprintln!("Food state file not found: {}", file_path);
         eprintln!("Please ensure food_state.json exists in the current directory.");
-        return Ok(());
+        return Ok(None);
     }
-
-    // Load foods
     let foods = load_foods(path)?;
-    let mut manager = FoodStateManager::new(foods);
+    Ok(Some(FoodStateManager::new(foods)))
+}
+
+/// Generate a meal plan based on user constraints.
+fn cmd_plan(file_path: &str) -> Result<()> {
+    let path = Path::new(file_path);
+    let mut manager = match load_manager_from_path(file_path)? {
+        Some(m) => m,
+        None => return Ok(()),
+    };
 
     println!("Loaded {} foods", manager.len());
 
@@ -94,15 +100,10 @@ fn cmd_plan(file_path: &str) -> Result<()> {
 /// Rate foods with unknown tastiness.
 fn cmd_rate_unknowns(file_path: &str) -> Result<()> {
     let path = Path::new(file_path);
-
-    if !path.exists() {
-        eprintln!("Food state file not found: {}", file_path);
-        return Ok(());
-    }
-
-    // Load foods
-    let foods = load_foods(path)?;
-    let mut manager = FoodStateManager::new(foods);
+    let mut manager = match load_manager_from_path(file_path)? {
+        Some(m) => m,
+        None => return Ok(()),
+    };
 
     // Find available foods with unknown tastiness
     let unknowns: Vec<String> = manager
@@ -158,15 +159,10 @@ fn cmd_reset(file_path: &str, stomach: bool, availability: bool, tastiness: bool
     }
 
     let path = Path::new(file_path);
-
-    if !path.exists() {
-        eprintln!("Food state file not found: {}", file_path);
-        return Ok(());
-    }
-
-    // Load foods
-    let foods = load_foods(path)?;
-    let mut manager = FoodStateManager::new(foods);
+    let mut manager = match load_manager_from_path(file_path)? {
+        Some(m) => m,
+        None => return Ok(()),
+    };
 
     if stomach {
         manager.reset_stomach();

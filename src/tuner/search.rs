@@ -4,7 +4,9 @@ use rand::rngs::StdRng;
 use rand::SeedableRng;
 
 use crate::models::Food;
-use crate::tuner::evaluation::{evaluate_knobs, EvaluationResult};
+use crate::tuner::evaluation::{
+    evaluate_knobs, pareto_frontier, select_balanced, EvaluationResult,
+};
 use crate::tuner::knobs::{KnobRanges, TunerKnobs};
 
 /// Configuration for the tuner.
@@ -33,10 +35,14 @@ impl Default for TunerConfig {
 
 /// Results from a tuning run.
 pub struct TunerResults {
-    /// All evaluation results, sorted best to worst.
+    /// All evaluation results, sorted best to worst by lexicographic comparison.
     pub results: Vec<EvaluationResult>,
     /// The baseline result using default constants.
     pub baseline: EvaluationResult,
+    /// Indices of Pareto-optimal (non-dominated) results.
+    pub pareto_indices: Vec<usize>,
+    /// Index of the most balanced Pareto-optimal result (recommended).
+    pub balanced_idx: Option<usize>,
 }
 
 /// Run random-search tuning.
@@ -48,10 +54,12 @@ pub fn run_tuner(config: TunerConfig, foods: &[Food]) -> TunerResults {
     let baseline_knobs = TunerKnobs::default();
     let baseline = evaluate_knobs(&baseline_knobs, foods, &config.budgets);
 
-    println!("Baseline: SP={:.2} delta/100kcal={:.3} variety={:.1}",
+    println!(
+        "Baseline: SP={:.2} delta/100kcal={:.3} variety={:.1} balance={:.3}",
         baseline.avg_final_sp,
         baseline.avg_delta_sp_per_100kcal,
-        baseline.avg_variety_count
+        baseline.avg_variety_count,
+        baseline.avg_balance_ratio
     );
     println!("    {}\n", baseline_knobs.display());
 
@@ -67,12 +75,13 @@ pub fn run_tuner(config: TunerConfig, foods: &[Food]) -> TunerResults {
         if result.avg_final_sp > best_sp {
             best_sp = result.avg_final_sp;
             println!(
-                "[{}/{}] New best: SP={:.2} delta/100kcal={:.3} variety={:.1}",
+                "[{}/{}] New best: SP={:.2} delta/100kcal={:.3} variety={:.1} balance={:.3}",
                 i + 1,
                 config.iterations,
                 result.avg_final_sp,
                 result.avg_delta_sp_per_100kcal,
-                result.avg_variety_count
+                result.avg_variety_count,
+                result.avg_balance_ratio
             );
         }
 
@@ -89,5 +98,28 @@ pub fn run_tuner(config: TunerConfig, foods: &[Food]) -> TunerResults {
     // Sort results by score (best first)
     results.sort_by(|a, b| b.cmp_score(a));
 
-    TunerResults { results, baseline }
+    // Compute Pareto frontier
+    let pareto_indices = pareto_frontier(&results);
+    let balanced_idx = select_balanced(&results, &pareto_indices);
+
+    println!(
+        "\nPareto frontier: {} non-dominated solutions",
+        pareto_indices.len()
+    );
+    if let Some(idx) = balanced_idx {
+        println!(
+            "Balanced pick (#{}): SP={:.2} variety={:.1} balance={:.3}",
+            idx + 1,
+            results[idx].avg_final_sp,
+            results[idx].avg_variety_count,
+            results[idx].avg_balance_ratio
+        );
+    }
+
+    TunerResults {
+        results,
+        baseline,
+        pareto_indices,
+        balanced_idx,
+    }
 }

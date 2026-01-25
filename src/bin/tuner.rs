@@ -5,7 +5,8 @@ use clap::Parser;
 
 use eco_diet_maker_rs::models::Food;
 use eco_diet_maker_rs::tuner::{
-    print_topk, run_tuner, write_best_json, write_csv, KnobRanges, TunerConfig,
+    print_pareto_frontier, print_topk, run_tuner, write_best_json, write_csv, KnobRanges,
+    TunerConfig,
 };
 
 #[derive(Parser, Debug)]
@@ -90,43 +91,53 @@ fn main() {
     // Run tuning
     let tuner_results = run_tuner(config, &foods);
 
-    // Print top-k
+    // Print Pareto frontier (primary output)
+    print_pareto_frontier(
+        &tuner_results.results,
+        &tuner_results.pareto_indices,
+        tuner_results.balanced_idx,
+    );
+
+    // Also print top-k by SP for reference
     print_topk(&tuner_results.results, args.topk);
 
-    // Compare best to baseline
-    if let Some(best) = tuner_results.results.first() {
-        let baseline = &tuner_results.baseline;
-        let sp_improvement = best.avg_final_sp - baseline.avg_final_sp;
-        let sp_pct = (sp_improvement / baseline.avg_final_sp) * 100.0;
+    // Get the balanced result (or fall back to top SP)
+    let best_idx = tuner_results.balanced_idx.unwrap_or(0);
+    let best = &tuner_results.results[best_idx];
+    let baseline = &tuner_results.baseline;
 
-        println!("=== Comparison to Baseline ===");
-        println!(
-            "Baseline: SP={:.2} delta/100kcal={:.3} variety={:.1}",
-            baseline.avg_final_sp, baseline.avg_delta_sp_per_100kcal, baseline.avg_variety_count
-        );
-        println!(
-            "Best:     SP={:.2} delta/100kcal={:.3} variety={:.1}",
-            best.avg_final_sp, best.avg_delta_sp_per_100kcal, best.avg_variety_count
-        );
-        println!(
-            "Change:   SP {:+.2} ({:+.2}%)",
-            sp_improvement, sp_pct
-        );
-        println!();
-    }
+    // Compare balanced result to baseline
+    let sp_improvement = best.avg_final_sp - baseline.avg_final_sp;
+    let sp_pct = (sp_improvement / baseline.avg_final_sp) * 100.0;
+    let variety_improvement = best.avg_variety_count - baseline.avg_variety_count;
+    let balance_improvement = best.avg_balance_ratio - baseline.avg_balance_ratio;
+
+    println!("=== Comparison: Balanced vs Baseline ===");
+    println!(
+        "Baseline: SP={:.2} variety={:.1} balance={:.3}",
+        baseline.avg_final_sp, baseline.avg_variety_count, baseline.avg_balance_ratio
+    );
+    println!(
+        "Balanced: SP={:.2} variety={:.1} balance={:.3}",
+        best.avg_final_sp, best.avg_variety_count, best.avg_balance_ratio
+    );
+    println!(
+        "Change:   SP {:+.2} ({:+.2}%)  variety {:+.1}  balance {:+.3}",
+        sp_improvement, sp_pct, variety_improvement, balance_improvement
+    );
+    println!();
 
     // Write outputs
     if let Err(e) = write_csv(&tuner_results.results, &args.csv) {
         eprintln!("Error writing CSV: {}", e);
     } else {
-        println!("Wrote results to {:?}", args.csv);
+        println!("Wrote all results to {:?}", args.csv);
     }
 
-    if let Some(best) = tuner_results.results.first() {
-        if let Err(e) = write_best_json(best, &args.json) {
-            eprintln!("Error writing JSON: {}", e);
-        } else {
-            println!("Wrote best result to {:?}", args.json);
-        }
+    // Save balanced result to JSON
+    if let Err(e) = write_best_json(best, &args.json) {
+        eprintln!("Error writing JSON: {}", e);
+    } else {
+        println!("Wrote balanced result to {:?}", args.json);
     }
 }

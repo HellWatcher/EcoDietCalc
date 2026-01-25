@@ -17,6 +17,8 @@ pub struct BudgetResult {
     pub total_calories: f64,
     pub variety_count: usize,
     pub bites: usize,
+    /// Balance ratio (min/max nutrient density), 0.0 to 1.0.
+    pub balance_ratio: f64,
 }
 
 impl BudgetResult {
@@ -37,6 +39,8 @@ pub struct EvaluationResult {
     pub avg_final_sp: f64,
     pub avg_delta_sp_per_100kcal: f64,
     pub avg_variety_count: f64,
+    /// Average balance ratio across budgets.
+    pub avg_balance_ratio: f64,
     pub per_budget: Vec<BudgetResult>,
 }
 
@@ -62,6 +66,104 @@ impl EvaluationResult {
             .partial_cmp(&other.avg_variety_count)
             .unwrap_or(std::cmp::Ordering::Equal)
     }
+
+    /// Check if this result is dominated by another.
+    ///
+    /// Dominated means: other is >= in ALL metrics and > in at least one.
+    pub fn is_dominated_by(&self, other: &Self) -> bool {
+        let dominated_sp = other.avg_final_sp >= self.avg_final_sp;
+        let dominated_variety = other.avg_variety_count >= self.avg_variety_count;
+        let dominated_balance = other.avg_balance_ratio >= self.avg_balance_ratio;
+        let dominated_efficiency = other.avg_delta_sp_per_100kcal >= self.avg_delta_sp_per_100kcal;
+
+        let all_geq =
+            dominated_sp && dominated_variety && dominated_balance && dominated_efficiency;
+
+        let any_strictly_better = other.avg_final_sp > self.avg_final_sp
+            || other.avg_variety_count > self.avg_variety_count
+            || other.avg_balance_ratio > self.avg_balance_ratio
+            || other.avg_delta_sp_per_100kcal > self.avg_delta_sp_per_100kcal;
+
+        all_geq && any_strictly_better
+    }
+}
+
+/// Extract Pareto-optimal (non-dominated) results.
+///
+/// Returns indices of results that are not dominated by any other result.
+pub fn pareto_frontier(results: &[EvaluationResult]) -> Vec<usize> {
+    results
+        .iter()
+        .enumerate()
+        .filter(|(_, candidate)| {
+            // Keep if no other result dominates this one
+            !results.iter().any(|other| candidate.is_dominated_by(other))
+        })
+        .map(|(idx, _)| idx)
+        .collect()
+}
+
+/// Select the most "balanced" result from a set using normalized distance to ideal.
+///
+/// The balanced result is the one closest to the ideal point (max of each metric)
+/// using normalized Euclidean distance. This avoids sacrificing any metric too much.
+pub fn select_balanced(results: &[EvaluationResult], indices: &[usize]) -> Option<usize> {
+    if indices.is_empty() {
+        return None;
+    }
+
+    // Find min/max for normalization
+    let frontier_results: Vec<&EvaluationResult> = indices.iter().map(|&i| &results[i]).collect();
+
+    let (min_sp, max_sp) = min_max(frontier_results.iter().map(|r| r.avg_final_sp));
+    let (min_var, max_var) = min_max(frontier_results.iter().map(|r| r.avg_variety_count));
+    let (min_bal, max_bal) = min_max(frontier_results.iter().map(|r| r.avg_balance_ratio));
+    let (min_eff, max_eff) = min_max(frontier_results.iter().map(|r| r.avg_delta_sp_per_100kcal));
+
+    // Find result with minimum distance to ideal (all metrics at 1.0 normalized)
+    let mut best_idx = indices[0];
+    let mut best_distance = f64::MAX;
+
+    for &idx in indices {
+        let r = &results[idx];
+
+        // Normalize each metric to 0-1 (1 = best)
+        let norm_sp = normalize(r.avg_final_sp, min_sp, max_sp);
+        let norm_var = normalize(r.avg_variety_count, min_var, max_var);
+        let norm_bal = normalize(r.avg_balance_ratio, min_bal, max_bal);
+        let norm_eff = normalize(r.avg_delta_sp_per_100kcal, min_eff, max_eff);
+
+        // Euclidean distance to ideal point (1, 1, 1, 1)
+        let distance = ((1.0 - norm_sp).powi(2)
+            + (1.0 - norm_var).powi(2)
+            + (1.0 - norm_bal).powi(2)
+            + (1.0 - norm_eff).powi(2))
+        .sqrt();
+
+        if distance < best_distance {
+            best_distance = distance;
+            best_idx = idx;
+        }
+    }
+
+    Some(best_idx)
+}
+
+/// Helper: find min and max of an iterator.
+fn min_max(iter: impl Iterator<Item = f64>) -> (f64, f64) {
+    let values: Vec<f64> = iter.collect();
+    let min = values.iter().cloned().fold(f64::INFINITY, f64::min);
+    let max = values.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
+    (min, max)
+}
+
+/// Helper: normalize a value to 0-1 range.
+fn normalize(value: f64, min: f64, max: f64) -> f64 {
+    if (max - min).abs() < 1e-10 {
+        1.0 // All values are the same
+    } else {
+        (value - min) / (max - min)
+    }
 }
 
 /// Candidate food with computed scores (for tuner-specific ranking).
@@ -70,6 +172,8 @@ struct Candidate<'a> {
     rank_score: f64,
     soft_variety_bias: f64,
     proximity_bias: f64,
+    balance_bias: f64,
+    repetition_penalty: f64,
 }
 
 /// Calculate low-calorie penalty using tunable knobs.
@@ -120,6 +224,65 @@ fn proximity_bias(stomach: &HashMap<&Food, u32>, food: &Food, knobs: &TunerKnobs
     knobs.tie_alpha * (grow - overshoot_penalty)
 }
 
+/// Calculate balance improvement bias.
+///
+/// Rewards foods that improve the nutrient balance ratio (min/max).
+fn balance_bias(stomach: &HashMap<&Food, u32>, food: &Food, knobs: &TunerKnobs) -> f64 {
+    if knobs.balance_bias_gamma == 0.0 {
+        return 0.0;
+    }
+
+    let (density_before, _) = sum_all_weighted_nutrients(stomach);
+    let balance_before = if density_before.max() > 0.0 {
+        density_before.min_nonzero() / density_before.max()
+    } else {
+        0.0
+    };
+
+    // Simulate adding food
+    let mut new_stomach = stomach.clone();
+    let current = new_stomach.get(&food).copied().unwrap_or(0);
+    new_stomach.insert(food, current + 1);
+
+    let (density_after, _) = sum_all_weighted_nutrients(&new_stomach);
+    let balance_after = if density_after.max() > 0.0 {
+        let min_val = density_after.min_nonzero();
+        if min_val == f64::MAX {
+            0.0
+        } else {
+            min_val / density_after.max()
+        }
+    } else {
+        0.0
+    };
+
+    // Reward improvement in balance ratio
+    let improvement = balance_after - balance_before;
+    knobs.balance_bias_gamma * improvement
+}
+
+/// Calculate repetition penalty.
+///
+/// Penalizes foods that are already heavily represented in the stomach.
+fn repetition_penalty(stomach: &HashMap<&Food, u32>, food: &Food, knobs: &TunerKnobs) -> f64 {
+    if knobs.repetition_penalty_gamma == 0.0 {
+        return 0.0;
+    }
+
+    let this_count = stomach.get(&food).copied().unwrap_or(0) as f64;
+    let total_bites: f64 = stomach.values().map(|&q| q as f64).sum();
+
+    if total_bites == 0.0 {
+        return 0.0;
+    }
+
+    // Fraction of stomach that's this food
+    let fraction = this_count / total_bites;
+
+    // Penalty increases with repetition
+    -knobs.repetition_penalty_gamma * fraction
+}
+
 /// Choose the next best bite using tunable knobs.
 fn choose_next_bite_with_knobs<'a>(
     manager: &'a FoodStateManager,
@@ -142,12 +305,16 @@ fn choose_next_bite_with_knobs<'a>(
             let rank_score = sp_delta + penalty;
             let sv_bias = soft_variety_bias(&stomach, food, knobs);
             let prox_bias = proximity_bias(&stomach, food, knobs);
+            let bal_bias = balance_bias(&stomach, food, knobs);
+            let rep_penalty = repetition_penalty(&stomach, food, knobs);
 
             Candidate {
                 food,
                 rank_score,
                 soft_variety_bias: sv_bias,
                 proximity_bias: prox_bias,
+                balance_bias: bal_bias,
+                repetition_penalty: rep_penalty,
             }
         })
         .collect();
@@ -168,8 +335,9 @@ fn choose_next_bite_with_knobs<'a>(
         .collect();
 
     finalists.sort_by(|a, b| {
-        let primary_a = a.rank_score + a.soft_variety_bias;
-        let primary_b = b.rank_score + b.soft_variety_bias;
+        // Primary score includes all biases
+        let primary_a = a.rank_score + a.soft_variety_bias + a.balance_bias + a.repetition_penalty;
+        let primary_b = b.rank_score + b.soft_variety_bias + b.balance_bias + b.repetition_penalty;
 
         match primary_b.partial_cmp(&primary_a) {
             Some(std::cmp::Ordering::Equal) | None => b
@@ -244,12 +412,26 @@ pub fn evaluate_budget(foods: &[Food], budget: f64, knobs: &TunerKnobs) -> Budge
     let variety_count = count_variety_qualifying(&stomach);
     let total_calories = manager.total_stomach_calories();
 
+    // Calculate balance ratio
+    let (density, _) = sum_all_weighted_nutrients(&stomach);
+    let balance_ratio = if density.max() > 0.0 {
+        let min_val = density.min_nonzero();
+        if min_val == f64::MAX {
+            0.0
+        } else {
+            min_val / density.max()
+        }
+    } else {
+        0.0
+    };
+
     BudgetResult {
         budget,
         final_sp,
         total_calories,
         variety_count,
         bites,
+        balance_ratio,
     }
 }
 
@@ -272,12 +454,14 @@ pub fn evaluate_knobs(knobs: &TunerKnobs, foods: &[Food], budgets: &[f64]) -> Ev
         .map(|r| r.variety_count as f64)
         .sum::<f64>()
         / n;
+    let avg_balance_ratio = per_budget.iter().map(|r| r.balance_ratio).sum::<f64>() / n;
 
     EvaluationResult {
         knobs: knobs.clone(),
         avg_final_sp,
         avg_delta_sp_per_100kcal,
         avg_variety_count,
+        avg_balance_ratio,
         per_budget,
     }
 }
@@ -354,6 +538,7 @@ mod tests {
             avg_final_sp: 100.0,
             avg_delta_sp_per_100kcal: 5.0,
             avg_variety_count: 3.0,
+            avg_balance_ratio: 0.8,
             per_budget: vec![],
         };
         let worse = EvaluationResult {
@@ -361,9 +546,106 @@ mod tests {
             avg_final_sp: 90.0,
             avg_delta_sp_per_100kcal: 6.0,
             avg_variety_count: 4.0,
+            avg_balance_ratio: 0.9,
             per_budget: vec![],
         };
 
         assert_eq!(better.cmp_score(&worse), std::cmp::Ordering::Greater);
+    }
+
+    #[test]
+    fn test_pareto_frontier() {
+        let knobs = TunerKnobs::default();
+
+        // Create results with different trade-offs
+        let results = vec![
+            // Dominated by result 1 (worse in everything)
+            EvaluationResult {
+                knobs: knobs.clone(),
+                avg_final_sp: 80.0,
+                avg_delta_sp_per_100kcal: 3.0,
+                avg_variety_count: 5.0,
+                avg_balance_ratio: 0.5,
+                per_budget: vec![],
+            },
+            // Max SP (pareto optimal)
+            EvaluationResult {
+                knobs: knobs.clone(),
+                avg_final_sp: 100.0,
+                avg_delta_sp_per_100kcal: 4.0,
+                avg_variety_count: 8.0,
+                avg_balance_ratio: 0.6,
+                per_budget: vec![],
+            },
+            // Max variety (pareto optimal)
+            EvaluationResult {
+                knobs: knobs.clone(),
+                avg_final_sp: 90.0,
+                avg_delta_sp_per_100kcal: 3.5,
+                avg_variety_count: 15.0,
+                avg_balance_ratio: 0.7,
+                per_budget: vec![],
+            },
+            // Balanced (pareto optimal)
+            EvaluationResult {
+                knobs: knobs.clone(),
+                avg_final_sp: 95.0,
+                avg_delta_sp_per_100kcal: 4.5,
+                avg_variety_count: 12.0,
+                avg_balance_ratio: 0.85,
+                per_budget: vec![],
+            },
+        ];
+
+        let frontier = pareto_frontier(&results);
+
+        // Result 0 should be dominated (not in frontier)
+        assert!(!frontier.contains(&0));
+        // Results 1, 2, 3 should be in frontier
+        assert!(frontier.contains(&1));
+        assert!(frontier.contains(&2));
+        assert!(frontier.contains(&3));
+        assert_eq!(frontier.len(), 3);
+    }
+
+    #[test]
+    fn test_select_balanced() {
+        let knobs = TunerKnobs::default();
+
+        let results = vec![
+            // Max SP, low on others
+            EvaluationResult {
+                knobs: knobs.clone(),
+                avg_final_sp: 100.0,
+                avg_delta_sp_per_100kcal: 4.0,
+                avg_variety_count: 5.0,
+                avg_balance_ratio: 0.5,
+                per_budget: vec![],
+            },
+            // Balanced across all
+            EvaluationResult {
+                knobs: knobs.clone(),
+                avg_final_sp: 90.0,
+                avg_delta_sp_per_100kcal: 4.5,
+                avg_variety_count: 12.0,
+                avg_balance_ratio: 0.8,
+                per_budget: vec![],
+            },
+            // Max variety, low SP
+            EvaluationResult {
+                knobs: knobs.clone(),
+                avg_final_sp: 75.0,
+                avg_delta_sp_per_100kcal: 3.0,
+                avg_variety_count: 20.0,
+                avg_balance_ratio: 0.6,
+                per_budget: vec![],
+            },
+        ];
+
+        let indices = vec![0, 1, 2];
+        let balanced = select_balanced(&results, &indices);
+
+        // Result 1 should be selected as most balanced
+        assert_eq!(balanced, Some(1));
     }
 }

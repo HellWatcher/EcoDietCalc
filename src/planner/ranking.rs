@@ -17,6 +17,33 @@ struct Candidate<'a> {
     proximity_bias: f64,
 }
 
+/// Snapshot of multipliers and SP at a point in time.
+struct StateSnapshot {
+    variety_mult: f64,
+    taste_mult: f64,
+    sp: f64,
+}
+
+/// Calculate current state snapshot from stomach.
+fn calculate_state_snapshot(
+    stomach: &HashMap<&Food, u32>,
+    cravings: &[String],
+    config: &SpConfig,
+) -> StateSnapshot {
+    let variety_count = count_variety_qualifying(stomach);
+    StateSnapshot {
+        variety_mult: calculate_variety_mult(variety_count),
+        taste_mult: calculate_taste_mult(stomach),
+        sp: calculate_sp(stomach, cravings, config),
+    }
+}
+
+/// Check if a food name matches any craving (case-insensitive).
+fn is_craving_match(food_name: &str, cravings: &[String]) -> bool {
+    let food_lower = food_name.to_lowercase();
+    cravings.iter().any(|c| c.to_lowercase() == food_lower)
+}
+
 /// Calculate low-calorie penalty.
 ///
 /// Quadratic penalty for foods below CAL_FLOOR.
@@ -205,9 +232,7 @@ pub fn generate_plan(
 
         // Calculate current state
         let stomach_before = manager.stomach_food_map();
-        let variety_before = calculate_variety_mult(count_variety_qualifying(&stomach_before));
-        let taste_before = calculate_taste_mult(&stomach_before);
-        let sp_before = calculate_sp(&stomach_before, cravings, config);
+        let state_before = calculate_state_snapshot(&stomach_before, cravings, config);
 
         // Try to pick a craving first, otherwise best bite
         let selected = pick_feasible_craving(manager, cravings, config)
@@ -218,10 +243,10 @@ pub fn generate_plan(
             None => break,
         };
 
-        // Check if food fits in remaining calories
-        if food.calories > remaining && plan.is_empty() {
-            // Allow first bite even if over budget
-        } else if food.calories > remaining {
+        // Check if food fits in remaining calories (allow first bite even if over budget)
+        let exceeds_budget = food.calories > remaining;
+        let is_first_bite = plan.is_empty();
+        if exceeds_budget && !is_first_bite {
             break;
         }
 
@@ -229,29 +254,25 @@ pub fn generate_plan(
         let food_calories = food.calories;
 
         // Check if this satisfies a craving
-        let is_craving = cravings
-            .iter()
-            .any(|c| c.to_lowercase() == food_name.to_lowercase());
+        let is_craving = is_craving_match(&food_name, cravings);
 
         // Consume the food
         let _ = manager.consume_food(&food_name);
 
         // Calculate new state
         let stomach_after = manager.stomach_food_map();
-        let variety_after = calculate_variety_mult(count_variety_qualifying(&stomach_after));
-        let taste_after = calculate_taste_mult(&stomach_after);
-        let sp_after = calculate_sp(&stomach_after, cravings, config);
+        let state_after = calculate_state_snapshot(&stomach_after, cravings, config);
 
-        let sp_gain = sp_after - sp_before;
-        // Delta in multiplier terms (e.g., 1.2 -> 1.3 shows as +0.1)
-        let variety_delta = variety_after - variety_before;
-        let taste_delta = taste_after - taste_before;
+        // Calculate deltas (e.g., 1.2 -> 1.3 shows as +0.1)
+        let sp_gain = state_after.sp - state_before.sp;
+        let variety_delta = state_after.variety_mult - state_before.variety_mult;
+        let taste_delta = state_after.taste_mult - state_before.taste_mult;
 
         plan.push(MealPlanItem::new(
             food_name,
             food_calories,
             sp_gain,
-            sp_after,
+            state_after.sp,
             is_craving,
             variety_delta,
             taste_delta,

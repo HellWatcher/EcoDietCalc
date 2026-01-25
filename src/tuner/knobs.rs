@@ -14,6 +14,10 @@ pub struct TunerKnobs {
     pub tie_epsilon: f64,
     pub cal_floor: f64,
     pub cal_penalty_gamma: f64,
+    /// Bonus for foods that improve nutrient balance ratio.
+    pub balance_bias_gamma: f64,
+    /// Penalty for excessive repetition of same food.
+    pub repetition_penalty_gamma: f64,
 }
 
 impl Default for TunerKnobs {
@@ -25,6 +29,9 @@ impl Default for TunerKnobs {
             tie_epsilon: TIE_EPSILON,
             cal_floor: CAL_FLOOR,
             cal_penalty_gamma: CAL_PENALTY_GAMMA,
+            // New knobs default to 0.0 (disabled) for backward compatibility
+            balance_bias_gamma: 0.0,
+            repetition_penalty_gamma: 0.0,
         }
     }
 }
@@ -38,20 +45,27 @@ impl TunerKnobs {
             tie_beta: rng.gen_range(ranges.tie_beta.0..=ranges.tie_beta.1),
             tie_epsilon: rng.gen_range(ranges.tie_epsilon.0..=ranges.tie_epsilon.1),
             cal_floor: rng.gen_range(ranges.cal_floor.0..=ranges.cal_floor.1),
-            cal_penalty_gamma: rng.gen_range(ranges.cal_penalty_gamma.0..=ranges.cal_penalty_gamma.1),
+            cal_penalty_gamma: rng
+                .gen_range(ranges.cal_penalty_gamma.0..=ranges.cal_penalty_gamma.1),
+            balance_bias_gamma: rng
+                .gen_range(ranges.balance_bias_gamma.0..=ranges.balance_bias_gamma.1),
+            repetition_penalty_gamma: rng
+                .gen_range(ranges.repetition_penalty_gamma.0..=ranges.repetition_penalty_gamma.1),
         }
     }
 
     /// Format knobs as a compact string for display.
     pub fn display(&self) -> String {
         format!(
-            "sbg={:.3} ta={:.3} tb={:.3} te={:.3} cf={:.1} cpg={:.3}",
+            "sbg={:.3} ta={:.3} tb={:.3} te={:.3} cf={:.1} cpg={:.3} bbg={:.3} rpg={:.3}",
             self.soft_bias_gamma,
             self.tie_alpha,
             self.tie_beta,
             self.tie_epsilon,
             self.cal_floor,
-            self.cal_penalty_gamma
+            self.cal_penalty_gamma,
+            self.balance_bias_gamma,
+            self.repetition_penalty_gamma
         )
     }
 }
@@ -71,6 +85,10 @@ pub struct KnobRanges {
     pub cal_floor: (f64, f64),
     /// (min, max) for CAL_PENALTY_GAMMA
     pub cal_penalty_gamma: (f64, f64),
+    /// (min, max) for BALANCE_BIAS_GAMMA
+    pub balance_bias_gamma: (f64, f64),
+    /// (min, max) for REPETITION_PENALTY_GAMMA
+    pub repetition_penalty_gamma: (f64, f64),
 }
 
 impl Default for KnobRanges {
@@ -82,6 +100,9 @@ impl Default for KnobRanges {
             tie_epsilon: (0.1, 1.0),
             cal_floor: (200.0, 500.0),
             cal_penalty_gamma: (0.0, 4.0),
+            // New knob ranges
+            balance_bias_gamma: (0.0, 3.0),
+            repetition_penalty_gamma: (0.0, 2.0),
         }
     }
 }
@@ -89,8 +110,8 @@ impl Default for KnobRanges {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rand::SeedableRng;
     use rand::rngs::StdRng;
+    use rand::SeedableRng;
 
     #[test]
     fn test_default_knobs_match_constants() {
@@ -101,6 +122,9 @@ mod tests {
         assert_eq!(knobs.tie_epsilon, TIE_EPSILON);
         assert_eq!(knobs.cal_floor, CAL_FLOOR);
         assert_eq!(knobs.cal_penalty_gamma, CAL_PENALTY_GAMMA);
+        // New knobs default to 0.0 (disabled)
+        assert_eq!(knobs.balance_bias_gamma, 0.0);
+        assert_eq!(knobs.repetition_penalty_gamma, 0.0);
     }
 
     #[test]
@@ -121,5 +145,10 @@ mod tests {
         assert!(knobs.cal_floor <= ranges.cal_floor.1);
         assert!(knobs.cal_penalty_gamma >= ranges.cal_penalty_gamma.0);
         assert!(knobs.cal_penalty_gamma <= ranges.cal_penalty_gamma.1);
+        // New knobs
+        assert!(knobs.balance_bias_gamma >= ranges.balance_bias_gamma.0);
+        assert!(knobs.balance_bias_gamma <= ranges.balance_bias_gamma.1);
+        assert!(knobs.repetition_penalty_gamma >= ranges.repetition_penalty_gamma.0);
+        assert!(knobs.repetition_penalty_gamma <= ranges.repetition_penalty_gamma.1);
     }
 }

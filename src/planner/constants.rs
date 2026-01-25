@@ -27,6 +27,10 @@ pub const DEFAULT_SERVER_MULT: f64 = 1.0;
 /// Default dinner party multiplier.
 pub const DEFAULT_DINNER_PARTY_MULT: f64 = 1.0;
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Tuner-derived constants (from hyperparameter optimization)
+// ─────────────────────────────────────────────────────────────────────────────
+
 /// Minimum calories per unit before penalty applies.
 pub const CAL_FLOOR: f64 = 471.4887184802519;
 
@@ -44,6 +48,10 @@ pub const TIE_ALPHA: f64 = 0.4239318414056884;
 
 /// Small malus when overshooting the variety threshold.
 pub const TIE_BETA: f64 = 0.03536204978722287;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Display thresholds
+// ─────────────────────────────────────────────────────────────────────────────
 
 /// Minimum delta to display variety change.
 pub const VARIETY_DELTA_THRESHOLD: f64 = 0.01;
