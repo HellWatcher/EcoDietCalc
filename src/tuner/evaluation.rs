@@ -45,15 +45,15 @@ pub struct EvaluationResult {
 }
 
 impl EvaluationResult {
-    /// Lexicographic comparison: (avg_final_sp, avg_delta_sp_per_100kcal, avg_variety_count).
+    /// Lexicographic comparison: (SP, efficiency, variety, balance).
     /// Higher is better for all metrics.
     pub fn cmp_score(&self, other: &Self) -> std::cmp::Ordering {
-        // Compare avg_final_sp first
+        // 1. Compare avg_final_sp first
         match self.avg_final_sp.partial_cmp(&other.avg_final_sp) {
             Some(std::cmp::Ordering::Equal) | None => {}
             Some(ord) => return ord,
         }
-        // Then avg_delta_sp_per_100kcal
+        // 2. Then avg_delta_sp_per_100kcal
         match self
             .avg_delta_sp_per_100kcal
             .partial_cmp(&other.avg_delta_sp_per_100kcal)
@@ -61,9 +61,14 @@ impl EvaluationResult {
             Some(std::cmp::Ordering::Equal) | None => {}
             Some(ord) => return ord,
         }
-        // Finally avg_variety_count
-        self.avg_variety_count
-            .partial_cmp(&other.avg_variety_count)
+        // 3. Then avg_variety_count
+        match self.avg_variety_count.partial_cmp(&other.avg_variety_count) {
+            Some(std::cmp::Ordering::Equal) | None => {}
+            Some(ord) => return ord,
+        }
+        // 4. Finally avg_balance_ratio
+        self.avg_balance_ratio
+            .partial_cmp(&other.avg_balance_ratio)
             .unwrap_or(std::cmp::Ordering::Equal)
     }
 
@@ -164,6 +169,82 @@ fn normalize(value: f64, min: f64, max: f64) -> f64 {
     } else {
         (value - min) / (max - min)
     }
+}
+
+/// Configuration for hill climbing refinement.
+#[derive(Debug, Clone)]
+pub struct HillClimbConfig {
+    /// Maximum iterations per result.
+    pub max_iterations: usize,
+    /// Perturbation factors to try (multiplicative).
+    pub factors: Vec<f64>,
+}
+
+impl Default for HillClimbConfig {
+    fn default() -> Self {
+        Self {
+            max_iterations: 20,
+            factors: vec![0.9, 0.95, 1.05, 1.1],
+        }
+    }
+}
+
+/// Refine a result using hill climbing.
+///
+/// Tries small perturbations to each knob, keeping changes that improve
+/// the result (not dominated by original). Returns the refined result.
+pub fn hill_climb(
+    initial: &EvaluationResult,
+    foods: &[Food],
+    budgets: &[f64],
+    ranges: &crate::tuner::knobs::KnobRanges,
+    config: &HillClimbConfig,
+) -> EvaluationResult {
+    let mut best = initial.clone();
+
+    for _iteration in 0..config.max_iterations {
+        let mut improved = false;
+
+        // Try perturbing each knob
+        for knob_idx in 0..TunerKnobs::NUM_KNOBS {
+            for &factor in &config.factors {
+                let candidate_knobs = best.knobs.perturb(knob_idx, factor, ranges);
+
+                // Skip if knobs didn't change (hit boundary)
+                if knobs_equal(&candidate_knobs, &best.knobs) {
+                    continue;
+                }
+
+                let candidate = evaluate_knobs(&candidate_knobs, foods, budgets);
+
+                // Accept if candidate dominates current best
+                if best.is_dominated_by(&candidate) {
+                    best = candidate;
+                    improved = true;
+                    break; // Move to next knob
+                }
+            }
+        }
+
+        if !improved {
+            break; // Local maximum reached
+        }
+    }
+
+    best
+}
+
+/// Check if two knob configurations are equal (within epsilon).
+fn knobs_equal(a: &TunerKnobs, b: &TunerKnobs) -> bool {
+    const EPS: f64 = 1e-9;
+    (a.soft_bias_gamma - b.soft_bias_gamma).abs() < EPS
+        && (a.tie_alpha - b.tie_alpha).abs() < EPS
+        && (a.tie_beta - b.tie_beta).abs() < EPS
+        && (a.tie_epsilon - b.tie_epsilon).abs() < EPS
+        && (a.cal_floor - b.cal_floor).abs() < EPS
+        && (a.cal_penalty_gamma - b.cal_penalty_gamma).abs() < EPS
+        && (a.balance_bias_gamma - b.balance_bias_gamma).abs() < EPS
+        && (a.repetition_penalty_gamma - b.repetition_penalty_gamma).abs() < EPS
 }
 
 /// Candidate food with computed scores (for tuner-specific ranking).
@@ -647,5 +728,56 @@ mod tests {
 
         // Result 1 should be selected as most balanced
         assert_eq!(balanced, Some(1));
+    }
+
+    #[test]
+    fn test_cmp_score_balance_tiebreaker() {
+        let knobs = TunerKnobs::default();
+
+        // Two results identical in SP, efficiency, variety - differ only in balance
+        let higher_balance = EvaluationResult {
+            knobs: knobs.clone(),
+            avg_final_sp: 100.0,
+            avg_delta_sp_per_100kcal: 5.0,
+            avg_variety_count: 8.0,
+            avg_balance_ratio: 0.85,
+            per_budget: vec![],
+        };
+        let lower_balance = EvaluationResult {
+            knobs,
+            avg_final_sp: 100.0,
+            avg_delta_sp_per_100kcal: 5.0,
+            avg_variety_count: 8.0,
+            avg_balance_ratio: 0.70,
+            per_budget: vec![],
+        };
+
+        // Higher balance should win
+        assert_eq!(
+            higher_balance.cmp_score(&lower_balance),
+            std::cmp::Ordering::Greater
+        );
+    }
+
+    #[test]
+    fn test_knobs_equal() {
+        use super::knobs_equal;
+
+        let knobs1 = TunerKnobs::default();
+        let knobs2 = TunerKnobs::default();
+        assert!(knobs_equal(&knobs1, &knobs2));
+
+        let mut knobs3 = TunerKnobs::default();
+        knobs3.soft_bias_gamma = 999.0;
+        assert!(!knobs_equal(&knobs1, &knobs3));
+    }
+
+    #[test]
+    fn test_hill_climb_config_default() {
+        let config = HillClimbConfig::default();
+        assert_eq!(config.max_iterations, 20);
+        assert_eq!(config.factors.len(), 4);
+        assert!(config.factors.contains(&0.9));
+        assert!(config.factors.contains(&1.1));
     }
 }

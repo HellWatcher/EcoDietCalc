@@ -5,8 +5,8 @@ use clap::Parser;
 
 use eco_diet_maker_rs::models::Food;
 use eco_diet_maker_rs::tuner::{
-    print_pareto_frontier, print_topk, run_tuner, write_best_json, write_csv, KnobRanges,
-    TunerConfig,
+    print_pareto_frontier, print_topk, run_tuner, write_best_json, write_csv, HillClimbConfig,
+    KnobRanges, TunerConfig,
 };
 
 #[derive(Parser, Debug)]
@@ -40,6 +40,10 @@ struct Args {
     /// Number of top results to display
     #[arg(long, default_value = "10")]
     topk: usize,
+
+    /// Disable hill climbing refinement
+    #[arg(long)]
+    no_hill_climb: bool,
 }
 
 fn parse_budgets(s: &str) -> Vec<f64> {
@@ -79,6 +83,12 @@ fn main() {
     println!("Testing budgets: {:?}", budgets);
 
     // Configure tuner
+    let hill_climb = if args.no_hill_climb {
+        None
+    } else {
+        Some(HillClimbConfig::default())
+    };
+
     let config = TunerConfig {
         iterations: args.iters,
         seed: args.seed,
@@ -86,6 +96,7 @@ fn main() {
         ranges: KnobRanges::default(),
         foods_path: args.foods.clone(),
         topk: args.topk,
+        hill_climb,
     };
 
     // Run tuning

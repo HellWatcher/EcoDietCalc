@@ -5,7 +5,7 @@ use rand::SeedableRng;
 
 use crate::models::Food;
 use crate::tuner::evaluation::{
-    evaluate_knobs, pareto_frontier, select_balanced, EvaluationResult,
+    evaluate_knobs, hill_climb, pareto_frontier, select_balanced, EvaluationResult, HillClimbConfig,
 };
 use crate::tuner::knobs::{KnobRanges, TunerKnobs};
 
@@ -17,6 +17,8 @@ pub struct TunerConfig {
     pub ranges: KnobRanges,
     pub foods_path: PathBuf,
     pub topk: usize,
+    /// Hill climbing configuration. Set to None to disable.
+    pub hill_climb: Option<HillClimbConfig>,
 }
 
 impl Default for TunerConfig {
@@ -29,6 +31,7 @@ impl Default for TunerConfig {
             ranges: KnobRanges::default(),
             topk: 10,
             foods_path: PathBuf::from("food_state.json"),
+            hill_climb: Some(HillClimbConfig::default()),
         }
     }
 }
@@ -98,14 +101,51 @@ pub fn run_tuner(config: TunerConfig, foods: &[Food]) -> TunerResults {
     // Sort results by score (best first)
     results.sort_by(|a, b| b.cmp_score(a));
 
-    // Compute Pareto frontier
-    let pareto_indices = pareto_frontier(&results);
-    let balanced_idx = select_balanced(&results, &pareto_indices);
+    // Compute initial Pareto frontier
+    let mut pareto_indices = pareto_frontier(&results);
 
     println!(
         "\nPareto frontier: {} non-dominated solutions",
         pareto_indices.len()
     );
+
+    // Hill climbing refinement on Pareto-optimal results
+    if let Some(ref hc_config) = config.hill_climb {
+        println!(
+            "Refining {} Pareto-optimal results with hill climbing...",
+            pareto_indices.len()
+        );
+
+        let mut refined_count = 0;
+        for &idx in &pareto_indices.clone() {
+            let original = &results[idx];
+            let refined = hill_climb(original, foods, &config.budgets, &config.ranges, hc_config);
+
+            // Check if refinement improved the result
+            if original.is_dominated_by(&refined) {
+                refined_count += 1;
+                results.push(refined);
+            }
+        }
+
+        if refined_count > 0 {
+            println!("  {} results improved by hill climbing", refined_count);
+
+            // Re-sort and recompute Pareto frontier with refined results
+            results.sort_by(|a, b| b.cmp_score(a));
+            pareto_indices = pareto_frontier(&results);
+
+            println!(
+                "  Updated Pareto frontier: {} non-dominated solutions",
+                pareto_indices.len()
+            );
+        } else {
+            println!("  No improvements found (already at local optima)");
+        }
+    }
+
+    let balanced_idx = select_balanced(&results, &pareto_indices);
+
     if let Some(idx) = balanced_idx {
         println!(
             "Balanced pick (#{}): SP={:.2} variety={:.1} balance={:.3}",

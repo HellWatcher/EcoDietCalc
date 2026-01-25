@@ -68,6 +68,57 @@ impl TunerKnobs {
             self.repetition_penalty_gamma
         )
     }
+
+    /// Create a copy with one knob multiplied by a factor.
+    ///
+    /// `knob_idx` maps to: 0=soft_bias_gamma, 1=tie_alpha, 2=tie_beta,
+    /// 3=tie_epsilon, 4=cal_floor, 5=cal_penalty_gamma, 6=balance_bias_gamma,
+    /// 7=repetition_penalty_gamma.
+    ///
+    /// The result is clamped to the given ranges.
+    pub fn perturb(&self, knob_idx: usize, factor: f64, ranges: &KnobRanges) -> Self {
+        let mut new = self.clone();
+        match knob_idx {
+            0 => {
+                new.soft_bias_gamma = (self.soft_bias_gamma * factor)
+                    .clamp(ranges.soft_bias_gamma.0, ranges.soft_bias_gamma.1);
+            }
+            1 => {
+                new.tie_alpha =
+                    (self.tie_alpha * factor).clamp(ranges.tie_alpha.0, ranges.tie_alpha.1);
+            }
+            2 => {
+                new.tie_beta = (self.tie_beta * factor).clamp(ranges.tie_beta.0, ranges.tie_beta.1);
+            }
+            3 => {
+                new.tie_epsilon =
+                    (self.tie_epsilon * factor).clamp(ranges.tie_epsilon.0, ranges.tie_epsilon.1);
+            }
+            4 => {
+                new.cal_floor =
+                    (self.cal_floor * factor).clamp(ranges.cal_floor.0, ranges.cal_floor.1);
+            }
+            5 => {
+                new.cal_penalty_gamma = (self.cal_penalty_gamma * factor)
+                    .clamp(ranges.cal_penalty_gamma.0, ranges.cal_penalty_gamma.1);
+            }
+            6 => {
+                new.balance_bias_gamma = (self.balance_bias_gamma * factor)
+                    .clamp(ranges.balance_bias_gamma.0, ranges.balance_bias_gamma.1);
+            }
+            7 => {
+                new.repetition_penalty_gamma = (self.repetition_penalty_gamma * factor).clamp(
+                    ranges.repetition_penalty_gamma.0,
+                    ranges.repetition_penalty_gamma.1,
+                );
+            }
+            _ => {} // Invalid index, return unchanged
+        }
+        new
+    }
+
+    /// Number of tunable knobs.
+    pub const NUM_KNOBS: usize = 8;
 }
 
 /// Min/max ranges for each tunable knob.
@@ -150,5 +201,56 @@ mod tests {
         assert!(knobs.balance_bias_gamma <= ranges.balance_bias_gamma.1);
         assert!(knobs.repetition_penalty_gamma >= ranges.repetition_penalty_gamma.0);
         assert!(knobs.repetition_penalty_gamma <= ranges.repetition_penalty_gamma.1);
+    }
+
+    #[test]
+    fn test_perturb_modifies_single_knob() {
+        let knobs = TunerKnobs {
+            soft_bias_gamma: 2.0,
+            tie_alpha: 0.5,
+            tie_beta: 0.1,
+            tie_epsilon: 0.5,
+            cal_floor: 350.0,
+            cal_penalty_gamma: 2.0,
+            balance_bias_gamma: 1.0,
+            repetition_penalty_gamma: 1.0,
+        };
+        let ranges = KnobRanges::default();
+
+        // Perturb soft_bias_gamma by 1.1x
+        let perturbed = knobs.perturb(0, 1.1, &ranges);
+        assert!((perturbed.soft_bias_gamma - 2.2).abs() < 0.001);
+        // Other knobs unchanged
+        assert_eq!(perturbed.tie_alpha, 0.5);
+        assert_eq!(perturbed.cal_floor, 350.0);
+
+        // Perturb cal_floor by 0.9x
+        let perturbed2 = knobs.perturb(4, 0.9, &ranges);
+        assert!((perturbed2.cal_floor - 315.0).abs() < 0.001);
+        // soft_bias_gamma unchanged
+        assert_eq!(perturbed2.soft_bias_gamma, 2.0);
+    }
+
+    #[test]
+    fn test_perturb_clamps_to_range() {
+        let knobs = TunerKnobs {
+            soft_bias_gamma: 5.5, // Near max of 6.0
+            tie_alpha: 0.05,      // Near min of 0.0
+            tie_beta: 0.1,
+            tie_epsilon: 0.5,
+            cal_floor: 350.0,
+            cal_penalty_gamma: 2.0,
+            balance_bias_gamma: 1.0,
+            repetition_penalty_gamma: 1.0,
+        };
+        let ranges = KnobRanges::default();
+
+        // Perturb soft_bias_gamma by 1.2x would exceed max
+        let perturbed = knobs.perturb(0, 1.2, &ranges);
+        assert_eq!(perturbed.soft_bias_gamma, 6.0); // Clamped to max
+
+        // Perturb tie_alpha by 0.5x would go below min
+        let perturbed2 = knobs.perturb(1, 0.5, &ranges);
+        assert_eq!(perturbed2.tie_alpha, 0.025); // 0.05 * 0.5, still above 0
     }
 }
