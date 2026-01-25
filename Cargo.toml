@@ -1,0 +1,23 @@
+[package]
+name = "eco_diet_maker_rs"
+version = "0.1.0"
+edition = "2024"
+description = "A meal planning CLI tool that optimizes for nutrition, variety, and taste"
+
+[dependencies]
+clap = { version = "4", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "1"
+dialoguer = "0.11"
+strsim = "0.11"
+rand = "0.8"
+csv = "1.3"
+
+[[bin]]
+name = "tuner"
+path = "src/bin/tuner.rs"
+
+[dev-dependencies]
+assert_float_eq = "1"
+tempfile = "3"
