@@ -2,7 +2,8 @@ use rand::Rng;
 use serde::{Deserialize, Serialize};
 
 use crate::planner::constants::{
-    CAL_FLOOR, CAL_PENALTY_GAMMA, SOFT_BIAS_GAMMA, TIE_ALPHA, TIE_BETA, TIE_EPSILON,
+    BALANCE_BIAS_GAMMA, CAL_FLOOR, CAL_PENALTY_GAMMA, REPETITION_PENALTY_GAMMA, SOFT_BIAS_GAMMA,
+    TIE_ALPHA, TIE_BETA, TIE_EPSILON,
 };
 
 /// Runtime-configurable planner knobs for tuning.
@@ -29,9 +30,8 @@ impl Default for TunerKnobs {
             tie_epsilon: TIE_EPSILON,
             cal_floor: CAL_FLOOR,
             cal_penalty_gamma: CAL_PENALTY_GAMMA,
-            // New knobs default to 0.0 (disabled) for backward compatibility
-            balance_bias_gamma: 0.0,
-            repetition_penalty_gamma: 0.0,
+            balance_bias_gamma: BALANCE_BIAS_GAMMA,
+            repetition_penalty_gamma: REPETITION_PENALTY_GAMMA,
         }
     }
 }
@@ -173,9 +173,8 @@ mod tests {
         assert_eq!(knobs.tie_epsilon, TIE_EPSILON);
         assert_eq!(knobs.cal_floor, CAL_FLOOR);
         assert_eq!(knobs.cal_penalty_gamma, CAL_PENALTY_GAMMA);
-        // New knobs default to 0.0 (disabled)
-        assert_eq!(knobs.balance_bias_gamma, 0.0);
-        assert_eq!(knobs.repetition_penalty_gamma, 0.0);
+        assert_eq!(knobs.balance_bias_gamma, BALANCE_BIAS_GAMMA);
+        assert_eq!(knobs.repetition_penalty_gamma, REPETITION_PENALTY_GAMMA);
     }
 
     #[test]

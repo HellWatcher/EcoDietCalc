@@ -29,25 +29,32 @@ pub const DEFAULT_DINNER_PARTY_MULT: f64 = 1.0;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Tuner-derived constants (from hyperparameter optimization)
+// Last updated: 2026-01-26 from tuner_best.json
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// Minimum calories per unit before penalty applies.
-pub const CAL_FLOOR: f64 = 471.4887184802519;
+pub const CAL_FLOOR: f64 = 395.0;
 
 /// Quadratic penalty strength for low-calorie foods.
-pub const CAL_PENALTY_GAMMA: f64 = 1.5545327695570985;
+pub const CAL_PENALTY_GAMMA: f64 = 2.479;
 
 /// Soft-variety ranking bias strength.
-pub const SOFT_BIAS_GAMMA: f64 = 3.705894603947275;
+pub const SOFT_BIAS_GAMMA: f64 = 3.606;
 
 /// Tie-break window in SP for near-equal candidates.
-pub const TIE_EPSILON: f64 = 0.4043990501583793;
+pub const TIE_EPSILON: f64 = 0.449;
 
 /// Proximity weight to variety threshold.
-pub const TIE_ALPHA: f64 = 0.4239318414056884;
+pub const TIE_ALPHA: f64 = 0.977;
 
 /// Small malus when overshooting the variety threshold.
-pub const TIE_BETA: f64 = 0.03536204978722287;
+pub const TIE_BETA: f64 = 0.076;
+
+/// Bonus for foods that improve nutrient balance ratio.
+pub const BALANCE_BIAS_GAMMA: f64 = 1.914;
+
+/// Penalty for excessive repetition of same food.
+pub const REPETITION_PENALTY_GAMMA: f64 = 1.255;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Display thresholds
