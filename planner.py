@@ -57,12 +57,7 @@ def _nutrient_sum(
         Returns 0.0 if there are no calories.
     """
     density, _ = sum_all_weighted_nutrients(stomach)
-    return (
-        density["carbs"]
-        + density["protein"]
-        + density["fats"]
-        + density["vitamins"]
-    )
+    return density["carbs"] + density["protein"] + density["fats"] + density["vitamins"]
 
 
 def fmt_signed(
@@ -107,17 +102,13 @@ def _soft_variety_bias(
     # Soft-variety delta (pp) after adding this food; scaled by
     # post-bite nutrient density
     before_sv = soft_variety_count(stomach)
-    after_sv = soft_variety_count(
-        simulate_stomach_with_added_food(stomach, food)
-    )
+    after_sv = soft_variety_count(simulate_stomach_with_added_food(stomach, food))
     delta_pp = get_variety_bonus(after_sv) - get_variety_bonus(before_sv)
 
-    ns_after = _nutrient_sum(
-        simulate_stomach_with_added_food(stomach, food)
-    )
-    assert isinstance(ns_after, (int, float)), (
-        f"ns_after type={type(ns_after)} val={ns_after}"
-    )
+    ns_after = _nutrient_sum(simulate_stomach_with_added_food(stomach, food))
+    assert isinstance(
+        ns_after, (int, float)
+    ), f"ns_after type={type(ns_after)} val={ns_after}"
 
     return SOFT_BIAS_GAMMA * ns_after * (delta_pp / 100.0)
 
@@ -290,11 +281,7 @@ def _choose_next_bite(
             manager.stomach,
             food,
         )
-        primary_rank = (
-            raw_delta
-            + _low_calorie_penalty(food)
-            + soft_variety_bias
-        )
+        primary_rank = raw_delta + _low_calorie_penalty(food) + soft_variety_bias
         scored_candidates.append(
             (
                 food,
@@ -324,6 +311,8 @@ def _apply_bite(
     cravings_satisfied,
     variety_count_now,
     meal_plan,
+    server_mult: float = 1.0,
+    dinner_party_mult: float = 1.0,
 ) -> tuple[float, int, int, int]:
     """Consume `food`, recompute SP/bonuses, append to log,
     and return updated state.
@@ -347,6 +336,8 @@ def _apply_bite(
     current_sp = manager.get_current_sp(
         cravings=cravings,
         cravings_satisfied=cravings_satisfied,
+        server_mult=server_mult,
+        dinner_party_mult=dinner_party_mult,
     )
 
     new_variety_count = variety_count(manager.stomach)
@@ -412,10 +403,7 @@ def validate_cravings(
     and suggestions.
     """
     # Build a normalized name index from the known foods
-    known_names = {
-        normalize_name(food.name)
-        for food in manager.foods.values()
-    }
+    known_names = {normalize_name(food.name) for food in manager.foods.values()}
     valid = []
     invalid = []
     suggestions: dict[str, list[str]] = {}
@@ -450,6 +438,9 @@ def plan_meal(
     cravings,
     cravings_satisfied,
     remaining_calories,
+    *,
+    server_mult: float = 1.0,
+    dinner_party_mult: float = 1.0,
 ):
     """Plan a sequence of bites under the current constraints.
 
@@ -463,6 +454,10 @@ def plan_meal(
         Number of cravings already satisfied today.
     remaining_calories : int
         Calorie budget for this plan.
+    server_mult : float, optional
+        Server skill gain multiplier. Default is 1.0.
+    dinner_party_mult : float, optional
+        Dinner party multiplier (1.0-3.0). Default is 1.0.
 
     Returns
     -------
@@ -472,6 +467,8 @@ def plan_meal(
     current_sp = manager.get_current_sp(
         cravings,
         cravings_satisfied,
+        server_mult=server_mult,
+        dinner_party_mult=dinner_party_mult,
     )
     variety_count_now = len(manager.unique_variety_foods())
     meal_plan = []
@@ -522,6 +519,8 @@ def plan_meal(
             cravings_satisfied=cravings_satisfied,
             variety_count_now=variety_count_now,
             meal_plan=meal_plan,
+            server_mult=server_mult,
+            dinner_party_mult=dinner_party_mult,
         )
 
     else:

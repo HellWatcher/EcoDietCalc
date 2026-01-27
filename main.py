@@ -62,6 +62,10 @@ def cmd_plan(
     tmp_constraints = collect_user_constraints()
     cravings, cravings_satisfied, remaining_calories = tmp_constraints
 
+    # Get multipliers from CLI args (with defaults)
+    server_mult = getattr(args, "server_mult", 1.0)
+    dinner_party_mult = getattr(args, "dinner_party", 1.0)
+
     # Block until all cravings are valid (or dropped/replaced by the user)
     while True:
         normalized = [normalize_name(c) for c in cravings]
@@ -73,7 +77,7 @@ def cmd_plan(
         print("\nThe following cravings are not in your foods:")
         for bad in invalid:
             if bad in suggestions and suggestions[bad]:
-                suggestion_str = ', '.join(suggestions[bad])
+                suggestion_str = ", ".join(suggestions[bad])
                 print(f"  - {bad}  (did you mean: {suggestion_str})")
             else:
                 print(f"  - {bad}")
@@ -96,6 +100,8 @@ def cmd_plan(
         cravings=cravings,
         cravings_satisfied=cravings_satisfied,
         remaining_calories=remaining_calories,
+        server_mult=server_mult,
+        dinner_party_mult=dinner_party_mult,
     )
 
     # Pretty-print the plan for the user

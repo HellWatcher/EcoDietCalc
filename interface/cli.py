@@ -33,6 +33,26 @@ def build_parser() -> argparse.ArgumentParser:
         help="-v for INFO, -vv for DEBUG",
     )
 
+    # Subcommand: plan meals
+    plan_parser = subparsers.add_parser(
+        "plan",
+        help="Generate a meal plan",
+    )
+    plan_parser.add_argument(
+        "-s",
+        "--server-mult",
+        type=float,
+        default=1.0,
+        help="Server skill gain multiplier (default: 1.0)",
+    )
+    plan_parser.add_argument(
+        "-d",
+        "--dinner-party",
+        type=float,
+        default=1.0,
+        help="Dinner party multiplier (1.0-3.0, default: 1.0)",
+    )
+
     # Subcommand: prompt to rate tastiness for available foods marked unknown
     subparsers.add_parser(
         "rate-unknowns",

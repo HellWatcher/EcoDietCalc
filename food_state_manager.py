@@ -144,6 +144,9 @@ class FoodStateManager:
         self,
         cravings: list[str] = [],
         cravings_satisfied: int = 0,
+        *,
+        server_mult: float = 1.0,
+        dinner_party_mult: float = 1.0,
     ) -> float:
         """Compute current SP given stomach state and cravings.
 
@@ -153,6 +156,10 @@ class FoodStateManager:
             Active cravings (names, case-insensitive). Default is empty.
         cravings_satisfied : int, optional
             Number of cravings already satisfied. Default is 0.
+        server_mult : float, optional
+            Server skill gain multiplier. Default is 1.0.
+        dinner_party_mult : float, optional
+            Dinner party multiplier (1.0-3.0). Default is 1.0.
 
         Returns
         -------
@@ -167,6 +174,8 @@ class FoodStateManager:
             cravings=cravings,
             cravings_satisfied=cravings_satisfied,
             unique_foods_24h=self.unique_variety_foods(),
+            server_mult=server_mult,
+            dinner_party_mult=dinner_party_mult,
         )
 
     def unique_variety_foods(

@@ -72,7 +72,9 @@ def _import_persistence() -> ModuleType:
 
         return _persistence
     except ModuleNotFoundError as exc:
-        raise ModuleNotFoundError("Could not import 'persistence' (tried 'persistence' and 'interface.persistence').") from exc
+        raise ModuleNotFoundError(
+            "Could not import 'persistence' (tried 'persistence' and 'interface.persistence')."
+        ) from exc
 
 
 # Bind once so it's available at runtime.
@@ -83,7 +85,7 @@ persistence = _import_persistence()
 # -----------------------
 
 #: Default calorie budgets evaluated for each trial.
-DEFAULT_BUDGETS: Tuple[int, int, int] = (900, 1200, 1500)
+DEFAULT_BUDGETS: Tuple[int, ...] = (5000, 10000, 20000, 40000)
 
 #: Ranges for random sampling of each knob (low, high).
 RANGE_SOFT_BIAS_GAMMA: Tuple[float, float] = (0.0, 6.0)
@@ -92,6 +94,12 @@ RANGE_TIE_BETA: Tuple[float, float] = (0.0, 0.2)
 RANGE_TIE_EPSILON: Tuple[float, float] = (0.1, 1.0)
 RANGE_CAL_FLOOR: Tuple[float, float] = (200.0, 500.0)
 RANGE_CAL_PENALTY_GAMMA: Tuple[float, float] = (0.0, 4.0)
+RANGE_BALANCE_BIAS_GAMMA: Tuple[float, float] = (0.0, 3.0)
+RANGE_REPETITION_PENALTY_GAMMA: Tuple[float, float] = (0.0, 2.0)
+
+#: Hill climbing defaults
+HILL_CLIMB_MAX_ITERATIONS: int = 20
+HILL_CLIMB_FACTORS: Tuple[float, ...] = (0.9, 0.95, 1.05, 1.1)
 
 
 @contextmanager
@@ -271,7 +279,16 @@ def safe_name_knobs(
     theta: Dict[str, float],
 ) -> Dict[str, float]:
     """Return a clean mapping for CSV/JSON dump with stable key order."""
-    keys = ["SOFT_BIAS_GAMMA", "TIE_ALPHA", "TIE_BETA", "TIE_EPSILON", "CAL_FLOOR", "CAL_PENALTY_GAMMA"]
+    keys = [
+        "SOFT_BIAS_GAMMA",
+        "TIE_ALPHA",
+        "TIE_BETA",
+        "TIE_EPSILON",
+        "CAL_FLOOR",
+        "CAL_PENALTY_GAMMA",
+        "BALANCE_BIAS_GAMMA",
+        "REPETITION_PENALTY_GAMMA",
+    ]
     return {k: float(theta[k]) for k in keys if k in theta}
 
 
@@ -315,6 +332,8 @@ def sample_theta(
         "TIE_EPSILON": samp("TIE_EPSILON"),
         "CAL_FLOOR": int(round(samp("CAL_FLOOR"))),
         "CAL_PENALTY_GAMMA": samp("CAL_PENALTY_GAMMA"),
+        "BALANCE_BIAS_GAMMA": samp("BALANCE_BIAS_GAMMA"),
+        "REPETITION_PENALTY_GAMMA": samp("REPETITION_PENALTY_GAMMA"),
     }
 
 
@@ -411,51 +430,223 @@ def evaluate_theta(
                 variety_threshold,
             )
 
+            # Calculate balance ratio (min/max nutrient density)
+            balance_ratio: float = calculations.get_balance_ratio(manager.stomach)
+
         per_budget.append(
             {
                 "budget": budget_int,
                 "final_sp": float(final_sp),
                 "delta_sp_per_100kcal": float(delta_sp_per_100kcal),
                 "variety_count": int(variety_count),
+                "balance_ratio": float(balance_ratio),
             },
         )
 
     n: int = len(per_budget)
     avg_final_sp: float = sum(x["final_sp"] for x in per_budget) / n
-    avg_delta_sp_per_100kcal: float = sum(x["delta_sp_per_100kcal"] for x in per_budget) / n
+    avg_delta_sp_per_100kcal: float = (
+        sum(x["delta_sp_per_100kcal"] for x in per_budget) / n
+    )
     avg_variety_count: float = sum(x["variety_count"] for x in per_budget) / n
+    avg_balance_ratio: float = sum(x["balance_ratio"] for x in per_budget) / n
 
     return {
         "theta": safe_name_knobs(theta),
         "avg_final_sp": float(avg_final_sp),
         "avg_delta_sp_per_100kcal": float(avg_delta_sp_per_100kcal),
         "avg_variety_count": float(avg_variety_count),
+        "avg_balance_ratio": float(avg_balance_ratio),
         "per_budget": per_budget,
     }
 
 
 def score_metrics(
     m: Dict[str, Any],
-) -> Tuple[float, float, float]:
+) -> Tuple[float, float, float, float]:
     """
     Lexicographic score tuple:
       1) avg_final_sp
       2) avg_delta_sp_per_100kcal
       3) avg_variety_count
-    Higher is better for all three.
+      4) avg_balance_ratio
+    Higher is better for all four.
     """
     return (
         m["avg_final_sp"],
         m["avg_delta_sp_per_100kcal"],
         m["avg_variety_count"],
+        m.get("avg_balance_ratio", 0.0),
     )
+
+
+def is_dominated_by(
+    a: Dict[str, Any],
+    b: Dict[str, Any],
+) -> bool:
+    """Check if result `a` is dominated by result `b`.
+
+    Dominated means: b is >= in ALL metrics and > in at least one.
+    """
+    dominated_sp = b["avg_final_sp"] >= a["avg_final_sp"]
+    dominated_efficiency = (
+        b["avg_delta_sp_per_100kcal"] >= a["avg_delta_sp_per_100kcal"]
+    )
+    dominated_variety = b["avg_variety_count"] >= a["avg_variety_count"]
+    dominated_balance = b.get("avg_balance_ratio", 0) >= a.get("avg_balance_ratio", 0)
+
+    all_geq = (
+        dominated_sp
+        and dominated_efficiency
+        and dominated_variety
+        and dominated_balance
+    )
+
+    any_strictly_better = (
+        b["avg_final_sp"] > a["avg_final_sp"]
+        or b["avg_delta_sp_per_100kcal"] > a["avg_delta_sp_per_100kcal"]
+        or b["avg_variety_count"] > a["avg_variety_count"]
+        or b.get("avg_balance_ratio", 0) > a.get("avg_balance_ratio", 0)
+    )
+
+    return all_geq and any_strictly_better
+
+
+def pareto_frontier(
+    results: List[Dict[str, Any]],
+) -> List[int]:
+    """Extract Pareto-optimal (non-dominated) result indices.
+
+    Returns indices of results that are not dominated by any other result.
+    """
+    return [
+        idx
+        for idx, candidate in enumerate(results)
+        if not any(is_dominated_by(candidate, other) for other in results)
+    ]
+
+
+def select_balanced(
+    results: List[Dict[str, Any]],
+    pareto_indices: List[int],
+) -> int | None:
+    """Select the most "balanced" result from Pareto frontier.
+
+    Uses normalized Euclidean distance to the ideal point (max of each metric).
+    """
+    if not pareto_indices:
+        return None
+
+    frontier = [results[i] for i in pareto_indices]
+
+    # Find min/max for normalization
+    sps = [r["avg_final_sp"] for r in frontier]
+    vars_ = [r["avg_variety_count"] for r in frontier]
+    bals = [r.get("avg_balance_ratio", 0) for r in frontier]
+    effs = [r["avg_delta_sp_per_100kcal"] for r in frontier]
+
+    min_sp, max_sp = min(sps), max(sps)
+    min_var, max_var = min(vars_), max(vars_)
+    min_bal, max_bal = min(bals), max(bals)
+    min_eff, max_eff = min(effs), max(effs)
+
+    def normalize(val: float, lo: float, hi: float) -> float:
+        if abs(hi - lo) < 1e-10:
+            return 1.0
+        return (val - lo) / (hi - lo)
+
+    best_idx = pareto_indices[0]
+    best_distance = float("inf")
+
+    for idx in pareto_indices:
+        r = results[idx]
+        norm_sp = normalize(r["avg_final_sp"], min_sp, max_sp)
+        norm_var = normalize(r["avg_variety_count"], min_var, max_var)
+        norm_bal = normalize(r.get("avg_balance_ratio", 0), min_bal, max_bal)
+        norm_eff = normalize(r["avg_delta_sp_per_100kcal"], min_eff, max_eff)
+
+        # Euclidean distance to ideal (1, 1, 1, 1)
+        distance = (
+            (1.0 - norm_sp) ** 2
+            + (1.0 - norm_var) ** 2
+            + (1.0 - norm_bal) ** 2
+            + (1.0 - norm_eff) ** 2
+        ) ** 0.5
+
+        if distance < best_distance:
+            best_distance = distance
+            best_idx = idx
+
+    return best_idx
+
+
+def perturb_theta(
+    theta: Dict[str, float],
+    knob_name: str,
+    factor: float,
+    ranges: Dict[str, Tuple[float, float]],
+) -> Dict[str, float]:
+    """Perturb a single knob by a factor, clamped to its range."""
+    new_theta = dict(theta)
+    lo, hi = ranges.get(knob_name, (0, 1e9))
+    new_val = theta[knob_name] * factor
+    new_val = max(lo, min(hi, new_val))
+    if knob_name == "CAL_FLOOR":
+        new_val = int(round(new_val))
+    new_theta[knob_name] = new_val
+    return new_theta
+
+
+def hill_climb(
+    initial: Dict[str, Any],
+    budgets: List[int],
+    seed: int,
+    ranges: Dict[str, Tuple[float, float]],
+    *,
+    max_iterations: int = HILL_CLIMB_MAX_ITERATIONS,
+    factors: Tuple[float, ...] = HILL_CLIMB_FACTORS,
+) -> Dict[str, Any]:
+    """Refine a result using hill climbing.
+
+    Tries small perturbations to each knob, keeping changes that improve.
+    """
+    best = initial
+    knob_names = list(initial["theta"].keys())
+
+    for _ in range(max_iterations):
+        improved = False
+
+        for knob_name in knob_names:
+            for factor in factors:
+                candidate_theta = perturb_theta(
+                    best["theta"], knob_name, factor, ranges
+                )
+
+                # Skip if unchanged
+                if candidate_theta == best["theta"]:
+                    continue
+
+                candidate = evaluate_theta(candidate_theta, budgets, seed)
+
+                # Accept if candidate dominates current best
+                if is_dominated_by(best, candidate):
+                    best = candidate
+                    improved = True
+                    break
+
+        if not improved:
+            break
+
+    return best
 
 
 # -------- main loop --------
 
 
 def main():
-    ap = argparse.ArgumentParser(description="Random-search tuner for planner knobs (minimal-touch).")
+    ap = argparse.ArgumentParser(
+        description="Random-search tuner for planner knobs (minimal-touch)."
+    )
     ap.add_argument(
         "--iters",
         type=int,
@@ -472,7 +663,9 @@ def main():
         "--budgets",
         type=str,
         default=",".join(str(x) for x in DEFAULT_BUDGETS),
-        help=(f"Comma-separated calorie budgets to evaluate (default: {','.join(str(x) for x in DEFAULT_BUDGETS)})"),
+        help=(
+            f"Comma-separated calorie budgets to evaluate (default: {','.join(str(x) for x in DEFAULT_BUDGETS)})"
+        ),
     )
     # Search space overrides
     ap.add_argument(
@@ -511,6 +704,23 @@ def main():
         default="",
         help="Range for CAL_PENALTY_GAMMA, e.g. '0,4' (default 0,4)",
     )
+    ap.add_argument(
+        "--balance-gamma",
+        type=str,
+        default="",
+        help="Range for BALANCE_BIAS_GAMMA, e.g. '0,3' (default 0,3)",
+    )
+    ap.add_argument(
+        "--rep-gamma",
+        type=str,
+        default="",
+        help="Range for REPETITION_PENALTY_GAMMA, e.g. '0,2' (default 0,2)",
+    )
+    ap.add_argument(
+        "--no-hill-climb",
+        action="store_true",
+        help="Disable hill climbing refinement",
+    )
 
     ap.add_argument(
         "--csv",
@@ -546,6 +756,10 @@ def main():
         "TIE_EPSILON": parse_range(args.tie_eps, RANGE_TIE_EPSILON),
         "CAL_FLOOR": parse_range(args.cal_floor, RANGE_CAL_FLOOR),
         "CAL_PENALTY_GAMMA": parse_range(args.cal_gamma, RANGE_CAL_PENALTY_GAMMA),
+        "BALANCE_BIAS_GAMMA": parse_range(args.balance_gamma, RANGE_BALANCE_BIAS_GAMMA),
+        "REPETITION_PENALTY_GAMMA": parse_range(
+            args.rep_gamma, RANGE_REPETITION_PENALTY_GAMMA
+        ),
     }
 
     rng = random.Random(
@@ -568,23 +782,55 @@ def main():
             metrics,
         )
 
-        rows.append(
-            {
-                **metrics["theta"],
-                "avg_final_sp": metrics["avg_final_sp"],
-                "avg_delta_sp_per_100kcal": metrics["avg_delta_sp_per_100kcal"],
-                "avg_variety_count": metrics["avg_variety_count"],
-                "per_budget": json.dumps(metrics["per_budget"]),
-            }
-        )
+        rows.append(metrics)
 
         if (best is None) or (score > best[0]):
             best = (score, metrics)
 
-        # Simple progress line
+        # Progress indicator every 10%
+        if i % max(1, args.iters // 10) == 0:
+            pct = (i / args.iters) * 100
+            print(f"\r{pct:.0f}% complete", end="", flush=True)
+
+    print()  # Newline after progress
+
+    # Compute Pareto frontier
+    pareto_indices = pareto_frontier(rows)
+    print(f"\nPareto frontier: {len(pareto_indices)} non-dominated solutions")
+
+    # Hill climbing refinement
+    if not args.no_hill_climb and pareto_indices:
         print(
-            f"[{i:>4}/{args.iters}] score={score!r} theta={metrics['theta']}",
-            flush=True,
+            f"Refining {len(pareto_indices)} Pareto-optimal results with hill climbing..."
+        )
+        refined_count = 0
+        for idx in pareto_indices.copy():
+            original = rows[idx]
+            refined = hill_climb(original, budgets, args.seed, ranges)
+
+            # Check if refinement improved
+            if is_dominated_by(original, refined):
+                refined_count += 1
+                rows.append(refined)
+
+        if refined_count > 0:
+            print(f"  {refined_count} results improved by hill climbing")
+            # Recompute Pareto frontier with refined results
+            pareto_indices = pareto_frontier(rows)
+            print(
+                f"  Updated Pareto frontier: {len(pareto_indices)} non-dominated solutions"
+            )
+        else:
+            print("  No improvements found (already at local optima)")
+
+    # Select balanced pick from Pareto frontier
+    balanced_idx = select_balanced(rows, pareto_indices)
+    if balanced_idx is not None:
+        balanced = rows[balanced_idx]
+        print(
+            f"Balanced pick: SP={balanced['avg_final_sp']:.2f} "
+            f"variety={balanced['avg_variety_count']:.1f} "
+            f"balance={balanced.get('avg_balance_ratio', 0):.3f}"
         )
 
     # Resolve output paths and ensure directories exist
@@ -593,8 +839,7 @@ def main():
     csv_path.parent.mkdir(parents=True, exist_ok=True)
     json_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # Write CSV
-
+    # Write CSV (flatten rows for CSV output)
     fieldnames = [
         "SOFT_BIAS_GAMMA",
         "TIE_ALPHA",
@@ -602,9 +847,12 @@ def main():
         "TIE_EPSILON",
         "CAL_FLOOR",
         "CAL_PENALTY_GAMMA",
+        "BALANCE_BIAS_GAMMA",
+        "REPETITION_PENALTY_GAMMA",
         "avg_final_sp",
         "avg_delta_sp_per_100kcal",
         "avg_variety_count",
+        "avg_balance_ratio",
         "per_budget",
     ]
     with open(
@@ -619,16 +867,31 @@ def main():
         )
         w.writeheader()
         for r in rows:
-            w.writerow(r)
+            flat = {
+                **r["theta"],
+                "avg_final_sp": r["avg_final_sp"],
+                "avg_delta_sp_per_100kcal": r["avg_delta_sp_per_100kcal"],
+                "avg_variety_count": r["avg_variety_count"],
+                "avg_balance_ratio": r.get("avg_balance_ratio", 0),
+                "per_budget": json.dumps(r["per_budget"]),
+            }
+            w.writerow(flat)
 
-    # Write JSON for best
+    # Write JSON for balanced (or best) pick
+    best_result = (
+        rows[balanced_idx]
+        if balanced_idx is not None
+        else (best[1] if best else rows[0])
+    )
     best_payload = {
-        "theta": best[1]["theta"],
-        "avg_final_sp": best[1]["avg_final_sp"],
-        "avg_delta_sp_per_100kcal": best[1]["avg_delta_sp_per_100kcal"],
-        "avg_variety_count": best[1]["avg_variety_count"],
-        "per_budget": best[1]["per_budget"],
-        "score_tuple": best[0],
+        "knobs": best_result["theta"],
+        "metrics": {
+            "avg_final_sp": best_result["avg_final_sp"],
+            "avg_delta_sp_per_100kcal": best_result["avg_delta_sp_per_100kcal"],
+            "avg_variety_count": best_result["avg_variety_count"],
+            "avg_balance_ratio": best_result.get("avg_balance_ratio", 0),
+        },
+        "per_budget": best_result["per_budget"],
     }
     with open(
         json_path,
@@ -645,17 +908,15 @@ def main():
     print("\nTop candidates (by score):")
     top = sorted(
         rows,
-        key=lambda r: (r["avg_final_sp"], r["avg_delta_sp_per_100kcal"], r["avg_variety_count"]),
+        key=lambda r: score_metrics(r),
         reverse=True,
     )[: args.topk]
-    for j, r in enumerate(
-        top,
-        1,
-    ):
+    for j, r in enumerate(top, 1):
+        t = r["theta"]
         print(
-            f"{j:>2}. SP={r['avg_final_sp']:.3f} | dSP/100kcal={r['avg_delta_sp_per_100kcal']:.3f} | variety={r['avg_variety_count']:.1f} || "
-            f"soft={r['SOFT_BIAS_GAMMA']:.3f}, tie(a,b,eps)=({r['TIE_ALPHA']:.3f},{r['TIE_BETA']:.3f},{r['TIE_EPSILON']:.3f}), "
-            f"cal_floor={r['CAL_FLOOR']}, gamma={r['CAL_PENALTY_GAMMA']:.3f}"
+            f"{j:>2}. SP={r['avg_final_sp']:.2f} | var={r['avg_variety_count']:.1f} | "
+            f"bal={r.get('avg_balance_ratio', 0):.3f} || "
+            f"soft={t['SOFT_BIAS_GAMMA']:.2f} cal_floor={t['CAL_FLOOR']:.0f}"
         )
 
     print(f"\nBest saved to: {json_path}")

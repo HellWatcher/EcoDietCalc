@@ -61,7 +61,9 @@ def _S(stomach) -> float:
     # sum_all_weighted_nutrients may return (density_dict, total_cal) or just the dict
     out = sum_all_weighted_nutrients(stomach)
     density = out[0] if isinstance(out, tuple) else out
-    return float(density["carbs"] + density["protein"] + density["fats"] + density["vitamins"])
+    return float(
+        density["carbs"] + density["protein"] + density["fats"] + density["vitamins"]
+    )
 
 
 def stomach_dict(*items):
@@ -96,7 +98,12 @@ def test_get_taste_bonus_matches_definition():
         ),
     )
 
-    expected = (TASTINESS_MULTIPLIERS[3] * 200 + TASTINESS_MULTIPLIERS[-3] * 200) / (200 + 200) * 100.0 * TASTE_WEIGHT
+    expected = (
+        (TASTINESS_MULTIPLIERS[3] * 200 + TASTINESS_MULTIPLIERS[-3] * 200)
+        / (200 + 200)
+        * 100.0
+        * TASTE_WEIGHT
+    )
     assert abs(get_taste_bonus(st) - expected) < 1e-9
 
 
@@ -156,8 +163,12 @@ def test_get_sp_satisfied_cravings_fraction_scales_total():
     cravings = []
     uniq_24h = {"fish"}
 
-    base = get_sp(st, cravings=cravings, unique_foods_24h=uniq_24h, cravings_satisfied=0)
-    plus1 = get_sp(st, cravings=cravings, unique_foods_24h=uniq_24h, cravings_satisfied=1)
+    base = get_sp(
+        st, cravings=cravings, unique_foods_24h=uniq_24h, cravings_satisfied=0
+    )
+    plus1 = get_sp(
+        st, cravings=cravings, unique_foods_24h=uniq_24h, cravings_satisfied=1
+    )
 
     expected_delta = _density_sum(st) * CRAVING_SATISFIED_FRAC  # no * calories or * qty
     assert abs((plus1 - base) - expected_delta) < 1e-9
@@ -202,12 +213,19 @@ def test_sp_delta_matches_difference(simple_manager_factory):
     f = foods[0]
     cravings, cs = [], 0
 
-    from calculations import _unique_variety_names, get_sp, get_sp_delta, simulate_stomach_with_added_food
+    from calculations import (
+        _unique_variety_names,
+        get_sp,
+        get_sp_delta,
+        simulate_stomach_with_added_food,
+    )
 
     before = dict(m.stomach)
     after = simulate_stomach_with_added_food(before, f)
 
-    truth = get_sp(after, cravings, cs, _unique_variety_names(after)) - get_sp(before, cravings, cs, _unique_variety_names(before))
+    truth = get_sp(after, cravings, cs, _unique_variety_names(after)) - get_sp(
+        before, cravings, cs, _unique_variety_names(before)
+    )
     approx = get_sp_delta(f, before, cravings, cs)
     assert abs(truth - approx) < 1e-9
 
@@ -243,7 +261,9 @@ def test_meal_plan_uses_true_delta(simple_manager_factory):
 
         after = simulate_stomach_with_added_food(before, food)
 
-        truth = get_sp(after, cravings, cs, _unique_variety_names(after)) - get_sp(before, cravings, cs, _unique_variety_names(before))
+        truth = get_sp(after, cravings, cs, _unique_variety_names(after)) - get_sp(
+            before, cravings, cs, _unique_variety_names(before)
+        )
 
         assert abs(item.sp_gain - truth) < 1e-6
 
@@ -290,11 +310,17 @@ def test_evaluate_bonus_with_addition_matches_direct_and_grows_on_threshold():
     # If a bite newly meets the per-food variety threshold, variety set must update
     hi = FoodLike("HiFood", VARIETY_CAL_THRESHOLD, 1, 1, 1, 1, 0)
     before = {}
-    predicted_pp = evaluate_bonus_with_addition(before, hi, cravings=[], variety_reference=set())
+    predicted_pp = evaluate_bonus_with_addition(
+        before, hi, cravings=[], variety_reference=set()
+    )
     after = simulate_stomach_with_added_food(before, hi)
-    direct_pp = calculate_nutrition_multiplier(after, cravings=[], unique_foods_24h={hi.name.lower()})
+    direct_pp = calculate_nutrition_multiplier(
+        after, cravings=[], unique_foods_24h={hi.name.lower()}
+    )
     assert math.isclose(predicted_pp, direct_pp, rel_tol=1e-9, abs_tol=1e-9)
-    assert predicted_pp >= calculate_nutrition_multiplier(before, cravings=[], unique_foods_24h=set())
+    assert predicted_pp >= calculate_nutrition_multiplier(
+        before, cravings=[], unique_foods_24h=set()
+    )
 
 
 def test_get_sp_delta_equals_difference():
@@ -313,3 +339,33 @@ def test_simulate_stomach_with_added_food_does_not_mutate():
     clone = simulate_stomach_with_added_food(stomach, food)
     assert stomach.get(food) == 1
     assert clone.get(food) == 2
+
+
+def test_craving_bonus_capped_at_three():
+    """Craving matches should be capped at CRAVING_MAX_COUNT (3)."""
+    from constants import CRAVING_MAX_COUNT
+    from calculations import calculate_nutrition_multiplier
+
+    # Create 5 foods, all matching cravings
+    foods = [FoodLike(f"Food{i}", 600, 10, 10, 10, 10, 2) for i in range(5)]
+    stomach = {f: 1 for f in foods}
+    cravings = [f"food{i}" for i in range(5)]
+    unique = set()
+
+    # With 5 matches, should only get bonus for 3
+    bonus_5 = calculate_nutrition_multiplier(stomach, cravings, unique)
+
+    # With 3 matches, should get same craving bonus
+    stomach_3 = {f: 1 for f in foods[:3]}
+    cravings_3 = [f"food{i}" for i in range(3)]
+    bonus_3 = calculate_nutrition_multiplier(stomach_3, cravings_3, unique)
+
+    # The craving portion should be capped (other bonuses differ due to different stomach)
+    # Just verify that 5 matches doesn't give 5x the per-match bonus
+    from constants import CRAVING_BONUS_PP
+
+    max_craving_bonus = CRAVING_MAX_COUNT * CRAVING_BONUS_PP
+    # Extract just the craving portion by comparing with no cravings
+    bonus_no_crave = calculate_nutrition_multiplier(stomach, [], unique)
+    craving_portion = bonus_5 - bonus_no_crave
+    assert craving_portion <= max_craving_bonus + 0.01  # Allow small float tolerance
