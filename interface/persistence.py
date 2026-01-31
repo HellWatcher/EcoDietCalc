@@ -196,10 +196,7 @@ def log_data_issues(
                 log_file.write(f"  - {name}\\n")
             log_file.write("\\n")
         if not (
-            stomach_unknown
-            or available_unknown
-            or invalid_entries
-            or taste_unknown
+            stomach_unknown or available_unknown or invalid_entries or taste_unknown
         ):
             log_file.write("[INFO] No issues found.\n")
 
@@ -207,6 +204,8 @@ def log_data_issues(
 def load_food_state(
     reset_stomach=False,
     reset_tastiness=False,
+    *,
+    skip_prompts=False,
 ):
     """Load foods and construct a ``FoodStateManager``.
 
@@ -219,6 +218,8 @@ def load_food_state(
         If ``True``, clear all stomach counts.
     reset_tastiness : bool
         If ``True``, clear all unknown/known tastiness values to default.
+    skip_prompts : bool
+        If ``True``, skip interactive prompts (for non-interactive use).
 
     Returns
     -------
@@ -238,7 +239,7 @@ def load_food_state(
     if reset_tastiness:
         for food in food_dict:
             food.tastiness = 99
-            if food.available > 0:
+            if food.available > 0 and not skip_prompts:
                 food.tastiness = prompt_for_tastiness(food.name)
 
     # Build manager from (possibly reset) data
@@ -246,20 +247,22 @@ def load_food_state(
 
     # Unknown-tastiness preflight: prompt for items that are available now
     # and still unknown
-    unknowns = []
-    for food in manager.available.keys():
-        if manager.available.get(food, 0) > 0 and getattr(
-            food, "tastiness", 99
-        ) == 99:
-            unknowns.append(food)
-    if unknowns:
-        # Short warning message split across two prints to stay under
-        # the line-length limit.
-        print(f"[WARN] {len(unknowns)} unknown tastiness items.")
-        print("(neutral effect).")
-        if prompt_yes_no("Would you like to rate them now?"):
-            for food in unknowns:
-                food.tastiness = prompt_for_tastiness(food.name)
+    if not skip_prompts:
+        unknowns = []
+        for food in manager.available.keys():
+            if (
+                manager.available.get(food, 0) > 0
+                and getattr(food, "tastiness", 99) == 99
+            ):
+                unknowns.append(food)
+        if unknowns:
+            # Short warning message split across two prints to stay under
+            # the line-length limit.
+            print(f"[WARN] {len(unknowns)} unknown tastiness items.")
+            print("(neutral effect).")
+            if prompt_yes_no("Would you like to rate them now?"):
+                for food in unknowns:
+                    food.tastiness = prompt_for_tastiness(food.name)
 
     if reset_stomach or reset_tastiness:
         save_food_dict(

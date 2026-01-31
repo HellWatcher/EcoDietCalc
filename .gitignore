@@ -341,3 +341,9 @@ pip-wheel-metadata/
 *.dist-info/
 .cache/
 coverage.xml
+
+# Claude Code
+.codebase-index.json
+SPEC.md
+docs/
+validation/
