@@ -22,13 +22,13 @@ from calculations import (
     variety_count,
 )
 from constants import (
-    CAL_FLOOR,
-    CAL_PENALTY_GAMMA,
+    LOW_CALORIE_THRESHOLD,
+    LOW_CALORIE_PENALTY_STRENGTH,
     MAX_ITERATIONS,
-    SOFT_BIAS_GAMMA,
-    TIE_ALPHA,
-    TIE_BETA,
-    TIE_EPSILON,
+    SOFT_VARIETY_BIAS_STRENGTH,
+    PROXIMITY_APPROACH_WEIGHT,
+    PROXIMITY_OVERSHOOT_PENALTY,
+    TIEBREAK_SCORE_WINDOW_SP,
     VARIETY_CAL_THRESHOLD,
 )
 from food_state_manager import (
@@ -101,16 +101,20 @@ def _soft_variety_bias(
     """
     # Soft-variety delta (pp) after adding this food; scaled by
     # post-bite nutrient density
-    before_sv = soft_variety_count(stomach)
-    after_sv = soft_variety_count(simulate_stomach_with_added_food(stomach, food))
-    delta_pp = get_variety_bonus(after_sv) - get_variety_bonus(before_sv)
+    soft_variety_before = soft_variety_count(stomach)
+    soft_variety_after = soft_variety_count(
+        simulate_stomach_with_added_food(stomach, food)
+    )
+    variety_delta_pp = get_variety_bonus(soft_variety_after) - get_variety_bonus(
+        soft_variety_before
+    )
 
-    ns_after = _nutrient_sum(simulate_stomach_with_added_food(stomach, food))
+    nutrient_sum_after = _nutrient_sum(simulate_stomach_with_added_food(stomach, food))
     assert isinstance(
-        ns_after, (int, float)
-    ), f"ns_after type={type(ns_after)} val={ns_after}"
+        nutrient_sum_after, (int, float)
+    ), f"nutrient_sum_after type={type(nutrient_sum_after)} val={nutrient_sum_after}"
 
-    return SOFT_BIAS_GAMMA * ns_after * (delta_pp / 100.0)
+    return SOFT_VARIETY_BIAS_STRENGTH * nutrient_sum_after * (variety_delta_pp / 100.0)
 
 
 def _proximity_bias(
@@ -136,12 +140,18 @@ def _proximity_bias(
     # Favor moving toward the variety threshold (VARIETY_CAL_THRESHOLD) for
     # THIS food; small malus if overshooting
     count_before = stomach.get(food, 0)
-    p_before = (food.calories * count_before) / VARIETY_CAL_THRESHOLD
-    p_after = (food.calories * (count_before + 1)) / VARIETY_CAL_THRESHOLD
-    grow = max(0.0, min(1.0, p_after) - min(1.0, p_before))
-    over = max(0.0, p_after - 1.0)
-    prox = grow - over * (TIE_BETA / TIE_ALPHA if TIE_ALPHA > 0 else 0.0)
-    return TIE_ALPHA * prox
+    progress_before = (food.calories * count_before) / VARIETY_CAL_THRESHOLD
+    progress_after = (food.calories * (count_before + 1)) / VARIETY_CAL_THRESHOLD
+    growth_toward_threshold = max(
+        0.0, min(1.0, progress_after) - min(1.0, progress_before)
+    )
+    overshoot_amount = max(0.0, progress_after - 1.0)
+    proximity_score = growth_toward_threshold - overshoot_amount * (
+        PROXIMITY_OVERSHOOT_PENALTY / PROXIMITY_APPROACH_WEIGHT
+        if PROXIMITY_APPROACH_WEIGHT > 0
+        else 0.0
+    )
+    return PROXIMITY_APPROACH_WEIGHT * proximity_score
 
 
 def _low_calorie_penalty(
@@ -159,12 +169,16 @@ def _low_calorie_penalty(
     float
         Non-positive penalty (0 if at/above the floor).
     """
-    # Quadratic penalty below CAL_FLOOR:
-    # -CAL_PENALTY_GAMMA * (1 - cal/CAL_FLOOR)^2
-    if food.calories >= CAL_FLOOR:
+    # Quadratic penalty below LOW_CALORIE_THRESHOLD:
+    # -LOW_CALORIE_PENALTY_STRENGTH * (1 - cal/threshold)^2
+    if food.calories >= LOW_CALORIE_THRESHOLD:
         return 0.0
-    x = 1.0 - (food.calories / CAL_FLOOR)  # 0 at floor, -> 1 as calories -> 0
-    return -CAL_PENALTY_GAMMA * (x * x)
+    calorie_deficit_ratio = 1.0 - (
+        food.calories / LOW_CALORIE_THRESHOLD
+    )  # 0 at threshold, -> 1 as calories -> 0
+    return -LOW_CALORIE_PENALTY_STRENGTH * (
+        calorie_deficit_ratio * calorie_deficit_ratio
+    )
 
 
 def update_cravings(
@@ -260,11 +274,11 @@ def _choose_next_bite(
     if not candidates:
         return None, 0.0
 
-    # 2) Keep near-equals within TIE_EPSILON of the best rank_score
+    # 2) Keep near-equals within TIEBREAK_SCORE_WINDOW_SP of the best rank_score
     near_candidates = [
         (food, raw_delta, rank_score)
         for (food, raw_delta, rank_score) in candidates
-        if (best_rank_score - rank_score) <= TIE_EPSILON
+        if (best_rank_score - rank_score) <= TIEBREAK_SCORE_WINDOW_SP
     ]
 
     # Sort by (primary_rank, proximity_bias); pick the last (highest)
@@ -423,12 +437,12 @@ def validate_cravings(
 
     if invalid:
         logger.warning("Ignoring invalid cravings: %s", ", ".join(invalid))
-        for bad in invalid:
-            if bad in suggestions:
+        for invalid_craving in invalid:
+            if invalid_craving in suggestions:
                 logger.info(
                     "Did you mean: %s → %s",
-                    bad,
-                    ", ".join(suggestions[bad]),
+                    invalid_craving,
+                    ", ".join(suggestions[invalid_craving]),
                 )
     return valid, invalid, suggestions
 

@@ -120,11 +120,11 @@ def sum_all_weighted_nutrients(
         return totals, 0.0
 
     for food, quantity in stomach.items():
-        w = (food.calories * quantity) / total_cal
-        totals["carbs"] += food.carbs * w
-        totals["protein"] += food.protein * w
-        totals["fats"] += food.fats * w
-        totals["vitamins"] += food.vitamins * w
+        calorie_weight = (food.calories * quantity) / total_cal
+        totals["carbs"] += food.carbs * calorie_weight
+        totals["protein"] += food.protein * calorie_weight
+        totals["fats"] += food.fats * calorie_weight
+        totals["vitamins"] += food.vitamins * calorie_weight
 
     return totals, total_cal
 
@@ -172,9 +172,11 @@ def calculate_balance_ratio(
     # If all totals are zero, ratio is 0; otherwise use the min among positives
     if not any(nutrients):
         return 0.0
-    max_nut = max(nutrients)
-    min_nut = min(count for count in nutrients if count > 0)
-    return min_nut / max_nut if max_nut > 0 else 0.0
+    max_nutrient = max(nutrients)
+    min_nutrient = min(
+        nutrient_value for nutrient_value in nutrients if nutrient_value > 0
+    )
+    return min_nutrient / max_nutrient if max_nutrient > 0 else 0.0
 
 
 def get_taste_bonus(
@@ -500,19 +502,23 @@ def get_balance_ratio(
         density["fats"],
         density["vitamins"],
     ]
-    max_nut = max(nutrients)
-    min_nut = min(count for count in nutrients if count > 0) if any(nutrients) else 0
-    return min_nut / max_nut if max_nut > 0 else 0
+    max_nutrient = max(nutrients)
+    min_nutrient = (
+        min(nutrient_value for nutrient_value in nutrients if nutrient_value > 0)
+        if any(nutrients)
+        else 0
+    )
+    return min_nutrient / max_nutrient if max_nutrient > 0 else 0
 
 
 def get_variety_bonus(
-    quantity,
+    unique_food_count,
 ):
     """Variety bonus from the number of qualifying foods.
 
     Parameters
     ----------
-    quantity : int
+    unique_food_count : int
         Count of foods meeting the variety calorie threshold.
 
     Returns
@@ -523,7 +529,7 @@ def get_variety_bonus(
 
     # Exponential cap: each +20 qualifying foods halves the remaining gap
     # to the cap
-    return VARIETY_BONUS_CAP_PP * (1 - 0.5 ** (quantity / 20))
+    return VARIETY_BONUS_CAP_PP * (1 - 0.5 ** (unique_food_count / 20))
 
 
 def taste_delta_for_added_unit(

@@ -71,21 +71,21 @@ BASE_SKILL_POINTS = 12
 # ─────────────────────────────────────────────────────────────────────────────
 
 # Strength of the soft-variety ranking bias.
-SOFT_BIAS_GAMMA = 3.61
+SOFT_VARIETY_BIAS_STRENGTH = 3.61
 
 # Tie-break window (in SP) for near-equal candidates.
-TIE_EPSILON = 0.449
+TIEBREAK_SCORE_WINDOW_SP = 0.449
 
-# Proximity weight toward the 2000-cal threshold (alpha) and
-# small malus when already past 1.0 (beta).
-TIE_ALPHA = 0.977
-TIE_BETA = 0.076
+# Proximity weight toward the 2000-cal threshold and
+# small malus when already past 1.0.
+PROXIMITY_APPROACH_WEIGHT = 0.977
+PROXIMITY_OVERSHOOT_PENALTY = 0.076
 
 # Bonus for foods that improve nutrient balance ratio.
-BALANCE_BIAS_GAMMA: Final[float] = 1.91
+BALANCE_IMPROVEMENT_STRENGTH: Final[float] = 1.91
 
 # Penalty for excessive repetition of same food.
-REPETITION_PENALTY_GAMMA: Final[float] = 1.25
+REPETITION_PENALTY_STRENGTH: Final[float] = 1.25
 
 # Scalars aren't runtime-frozen; Final + UPPERCASE signals "do not reassign"
 TASTE_WEIGHT: Final[float] = 1.0
@@ -94,11 +94,11 @@ TASTE_WEIGHT: Final[float] = 1.0
 VARIETY_DELTA_THRESHOLD: Final[float] = 0.01
 TASTE_DELTA_THRESHOLD: Final[float] = 0.01
 
-# Penalty applies per unit; shape is quadratic below CAL_FLOOR
-CAL_FLOOR: Final[int] = 395  # calories/unit
+# Penalty applies per unit; shape is quadratic below threshold
+LOW_CALORIE_THRESHOLD: Final[int] = 395  # calories/unit
 
 # Strength of the low-calorie penalty (>=1; higher = harsher).
-CAL_PENALTY_GAMMA: Final[float] = 2.48
+LOW_CALORIE_PENALTY_STRENGTH: Final[float] = 2.48
 
 # Asymptotic cap for variety bonus (see get_variety_bonus), in pp
 VARIETY_BONUS_CAP_PP: Final[float] = 55.0

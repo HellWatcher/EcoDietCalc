@@ -88,14 +88,14 @@ persistence = _import_persistence()
 DEFAULT_BUDGETS: Tuple[int, ...] = (5000, 10000, 20000, 40000)
 
 #: Ranges for random sampling of each knob (low, high).
-RANGE_SOFT_BIAS_GAMMA: Tuple[float, float] = (0.0, 6.0)
-RANGE_TIE_ALPHA: Tuple[float, float] = (0.0, 1.0)
-RANGE_TIE_BETA: Tuple[float, float] = (0.0, 0.2)
-RANGE_TIE_EPSILON: Tuple[float, float] = (0.1, 1.0)
-RANGE_CAL_FLOOR: Tuple[float, float] = (200.0, 500.0)
-RANGE_CAL_PENALTY_GAMMA: Tuple[float, float] = (0.0, 4.0)
-RANGE_BALANCE_BIAS_GAMMA: Tuple[float, float] = (0.0, 3.0)
-RANGE_REPETITION_PENALTY_GAMMA: Tuple[float, float] = (0.0, 2.0)
+RANGE_SOFT_VARIETY_BIAS_STRENGTH: Tuple[float, float] = (0.0, 6.0)
+RANGE_PROXIMITY_APPROACH_WEIGHT: Tuple[float, float] = (0.0, 1.0)
+RANGE_PROXIMITY_OVERSHOOT_PENALTY: Tuple[float, float] = (0.0, 0.2)
+RANGE_TIEBREAK_SCORE_WINDOW_SP: Tuple[float, float] = (0.1, 1.0)
+RANGE_LOW_CALORIE_THRESHOLD: Tuple[float, float] = (200.0, 500.0)
+RANGE_LOW_CALORIE_PENALTY_STRENGTH: Tuple[float, float] = (0.0, 4.0)
+RANGE_BALANCE_IMPROVEMENT_STRENGTH: Tuple[float, float] = (0.0, 3.0)
+RANGE_REPETITION_PENALTY_STRENGTH: Tuple[float, float] = (0.0, 2.0)
 
 #: Hill climbing defaults
 HILL_CLIMB_MAX_ITERATIONS: int = 20
@@ -280,14 +280,14 @@ def safe_name_knobs(
 ) -> Dict[str, float]:
     """Return a clean mapping for CSV/JSON dump with stable key order."""
     keys = [
-        "SOFT_BIAS_GAMMA",
-        "TIE_ALPHA",
-        "TIE_BETA",
-        "TIE_EPSILON",
-        "CAL_FLOOR",
-        "CAL_PENALTY_GAMMA",
-        "BALANCE_BIAS_GAMMA",
-        "REPETITION_PENALTY_GAMMA",
+        "SOFT_VARIETY_BIAS_STRENGTH",
+        "PROXIMITY_APPROACH_WEIGHT",
+        "PROXIMITY_OVERSHOOT_PENALTY",
+        "TIEBREAK_SCORE_WINDOW_SP",
+        "LOW_CALORIE_THRESHOLD",
+        "LOW_CALORIE_PENALTY_STRENGTH",
+        "BALANCE_IMPROVEMENT_STRENGTH",
+        "REPETITION_PENALTY_STRENGTH",
     ]
     return {k: float(theta[k]) for k in keys if k in theta}
 
@@ -314,7 +314,7 @@ def sample_theta(
     rng: random.Random,
     ranges: Dict[str, Tuple[float, float]],
 ):
-    """Sample a theta dict within given ranges. CAL_FLOOR is rounded to int."""
+    """Sample a theta dict within given ranges. LOW_CALORIE_THRESHOLD is rounded to int."""
 
     def samp(
         name,
@@ -326,14 +326,14 @@ def sample_theta(
         )
 
     return {
-        "SOFT_BIAS_GAMMA": samp("SOFT_BIAS_GAMMA"),
-        "TIE_ALPHA": samp("TIE_ALPHA"),
-        "TIE_BETA": samp("TIE_BETA"),
-        "TIE_EPSILON": samp("TIE_EPSILON"),
-        "CAL_FLOOR": int(round(samp("CAL_FLOOR"))),
-        "CAL_PENALTY_GAMMA": samp("CAL_PENALTY_GAMMA"),
-        "BALANCE_BIAS_GAMMA": samp("BALANCE_BIAS_GAMMA"),
-        "REPETITION_PENALTY_GAMMA": samp("REPETITION_PENALTY_GAMMA"),
+        "SOFT_VARIETY_BIAS_STRENGTH": samp("SOFT_VARIETY_BIAS_STRENGTH"),
+        "PROXIMITY_APPROACH_WEIGHT": samp("PROXIMITY_APPROACH_WEIGHT"),
+        "PROXIMITY_OVERSHOOT_PENALTY": samp("PROXIMITY_OVERSHOOT_PENALTY"),
+        "TIEBREAK_SCORE_WINDOW_SP": samp("TIEBREAK_SCORE_WINDOW_SP"),
+        "LOW_CALORIE_THRESHOLD": int(round(samp("LOW_CALORIE_THRESHOLD"))),
+        "LOW_CALORIE_PENALTY_STRENGTH": samp("LOW_CALORIE_PENALTY_STRENGTH"),
+        "BALANCE_IMPROVEMENT_STRENGTH": samp("BALANCE_IMPROVEMENT_STRENGTH"),
+        "REPETITION_PENALTY_STRENGTH": samp("REPETITION_PENALTY_STRENGTH"),
     }
 
 
@@ -351,8 +351,9 @@ def evaluate_theta(
     ----------
     theta
         Mapping of knob names to values. Expected keys:
-        'SOFT_BIAS_GAMMA', 'TIE_ALPHA', 'TIE_BETA', 'TIE_EPSILON',
-        'CAL_FLOOR', 'CAL_PENALTY_GAMMA'.
+        'SOFT_VARIETY_BIAS_STRENGTH', 'PROXIMITY_APPROACH_WEIGHT',
+        'PROXIMITY_OVERSHOOT_PENALTY', 'TIEBREAK_SCORE_WINDOW_SP',
+        'LOW_CALORIE_THRESHOLD', 'LOW_CALORIE_PENALTY_STRENGTH'.
     budgets
         Calorie budgets to evaluate (e.g., 900, 1200, 1500).
     seed
@@ -370,7 +371,11 @@ def evaluate_theta(
     """
 
     # Deterministic per-theta seed; kept for potential future stochastic logic.
-    (seed + int(theta["CAL_FLOOR"]) + int(theta["SOFT_BIAS_GAMMA"] * 1_000.0))
+    (
+        seed
+        + int(theta["LOW_CALORIE_THRESHOLD"])
+        + int(theta["SOFT_VARIETY_BIAS_STRENGTH"] * 1_000.0)
+    )
 
     per_budget: List[Dict[str, Any]] = []
 
@@ -591,7 +596,7 @@ def perturb_theta(
     lo, hi = ranges.get(knob_name, (0, 1e9))
     new_val = theta[knob_name] * factor
     new_val = max(lo, min(hi, new_val))
-    if knob_name == "CAL_FLOOR":
+    if knob_name == "LOW_CALORIE_THRESHOLD":
         new_val = int(round(new_val))
     new_theta[knob_name] = new_val
     return new_theta
@@ -672,49 +677,49 @@ def main():
         "--soft",
         type=str,
         default="",
-        help="Range for SOFT_BIAS_GAMMA, e.g. '0,6' (default 0,6)",
+        help="Range for SOFT_VARIETY_BIAS_STRENGTH, e.g. '0,6' (default 0,6)",
     )
     ap.add_argument(
-        "--tie-alpha",
+        "--proximity-approach",
         type=str,
         default="",
-        help="Range for TIE_ALPHA, e.g. '0,1' (default 0,1)",
+        help="Range for PROXIMITY_APPROACH_WEIGHT, e.g. '0,1' (default 0,1)",
     )
     ap.add_argument(
-        "--tie-beta",
+        "--proximity-overshoot",
         type=str,
         default="",
-        help="Range for TIE_BETA, e.g. '0,0.2' (default 0,0.2)",
+        help="Range for PROXIMITY_OVERSHOOT_PENALTY, e.g. '0,0.2' (default 0,0.2)",
     )
     ap.add_argument(
-        "--tie-eps",
+        "--tiebreak-window",
         type=str,
         default="",
-        help="Range for TIE_EPSILON, e.g. '0.1,1.0' (default 0.1,1.0)",
+        help="Range for TIEBREAK_SCORE_WINDOW_SP, e.g. '0.1,1.0' (default 0.1,1.0)",
     )
     ap.add_argument(
-        "--cal-floor",
+        "--low-cal-threshold",
         type=str,
         default="",
-        help="Range for CAL_FLOOR, e.g. '200,500' (default 200,500)",
+        help="Range for LOW_CALORIE_THRESHOLD, e.g. '200,500' (default 200,500)",
     )
     ap.add_argument(
-        "--cal-gamma",
+        "--low-cal-penalty",
         type=str,
         default="",
-        help="Range for CAL_PENALTY_GAMMA, e.g. '0,4' (default 0,4)",
+        help="Range for LOW_CALORIE_PENALTY_STRENGTH, e.g. '0,4' (default 0,4)",
     )
     ap.add_argument(
-        "--balance-gamma",
+        "--balance-strength",
         type=str,
         default="",
-        help="Range for BALANCE_BIAS_GAMMA, e.g. '0,3' (default 0,3)",
+        help="Range for BALANCE_IMPROVEMENT_STRENGTH, e.g. '0,3' (default 0,3)",
     )
     ap.add_argument(
-        "--rep-gamma",
+        "--rep-strength",
         type=str,
         default="",
-        help="Range for REPETITION_PENALTY_GAMMA, e.g. '0,2' (default 0,2)",
+        help="Range for REPETITION_PENALTY_STRENGTH, e.g. '0,2' (default 0,2)",
     )
     ap.add_argument(
         "--no-hill-climb",
@@ -750,15 +755,29 @@ def main():
 
     # Default ranges
     ranges = {
-        "SOFT_BIAS_GAMMA": parse_range(args.soft, RANGE_SOFT_BIAS_GAMMA),
-        "TIE_ALPHA": parse_range(args.tie_alpha, RANGE_TIE_ALPHA),
-        "TIE_BETA": parse_range(args.tie_beta, RANGE_TIE_BETA),
-        "TIE_EPSILON": parse_range(args.tie_eps, RANGE_TIE_EPSILON),
-        "CAL_FLOOR": parse_range(args.cal_floor, RANGE_CAL_FLOOR),
-        "CAL_PENALTY_GAMMA": parse_range(args.cal_gamma, RANGE_CAL_PENALTY_GAMMA),
-        "BALANCE_BIAS_GAMMA": parse_range(args.balance_gamma, RANGE_BALANCE_BIAS_GAMMA),
-        "REPETITION_PENALTY_GAMMA": parse_range(
-            args.rep_gamma, RANGE_REPETITION_PENALTY_GAMMA
+        "SOFT_VARIETY_BIAS_STRENGTH": parse_range(
+            args.soft, RANGE_SOFT_VARIETY_BIAS_STRENGTH
+        ),
+        "PROXIMITY_APPROACH_WEIGHT": parse_range(
+            args.proximity_approach, RANGE_PROXIMITY_APPROACH_WEIGHT
+        ),
+        "PROXIMITY_OVERSHOOT_PENALTY": parse_range(
+            args.proximity_overshoot, RANGE_PROXIMITY_OVERSHOOT_PENALTY
+        ),
+        "TIEBREAK_SCORE_WINDOW_SP": parse_range(
+            args.tiebreak_window, RANGE_TIEBREAK_SCORE_WINDOW_SP
+        ),
+        "LOW_CALORIE_THRESHOLD": parse_range(
+            args.low_cal_threshold, RANGE_LOW_CALORIE_THRESHOLD
+        ),
+        "LOW_CALORIE_PENALTY_STRENGTH": parse_range(
+            args.low_cal_penalty, RANGE_LOW_CALORIE_PENALTY_STRENGTH
+        ),
+        "BALANCE_IMPROVEMENT_STRENGTH": parse_range(
+            args.balance_strength, RANGE_BALANCE_IMPROVEMENT_STRENGTH
+        ),
+        "REPETITION_PENALTY_STRENGTH": parse_range(
+            args.rep_strength, RANGE_REPETITION_PENALTY_STRENGTH
         ),
     }
 
@@ -841,14 +860,14 @@ def main():
 
     # Write CSV (flatten rows for CSV output)
     fieldnames = [
-        "SOFT_BIAS_GAMMA",
-        "TIE_ALPHA",
-        "TIE_BETA",
-        "TIE_EPSILON",
-        "CAL_FLOOR",
-        "CAL_PENALTY_GAMMA",
-        "BALANCE_BIAS_GAMMA",
-        "REPETITION_PENALTY_GAMMA",
+        "SOFT_VARIETY_BIAS_STRENGTH",
+        "PROXIMITY_APPROACH_WEIGHT",
+        "PROXIMITY_OVERSHOOT_PENALTY",
+        "TIEBREAK_SCORE_WINDOW_SP",
+        "LOW_CALORIE_THRESHOLD",
+        "LOW_CALORIE_PENALTY_STRENGTH",
+        "BALANCE_IMPROVEMENT_STRENGTH",
+        "REPETITION_PENALTY_STRENGTH",
         "avg_final_sp",
         "avg_delta_sp_per_100kcal",
         "avg_variety_count",
@@ -916,7 +935,7 @@ def main():
         print(
             f"{j:>2}. SP={r['avg_final_sp']:.2f} | var={r['avg_variety_count']:.1f} | "
             f"bal={r.get('avg_balance_ratio', 0):.3f} || "
-            f"soft={t['SOFT_BIAS_GAMMA']:.2f} cal_floor={t['CAL_FLOOR']:.0f}"
+            f"soft={t['SOFT_VARIETY_BIAS_STRENGTH']:.2f} low_cal={t['LOW_CALORIE_THRESHOLD']:.0f}"
         )
 
     print(f"\nBest saved to: {json_path}")

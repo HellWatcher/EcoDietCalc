@@ -59,25 +59,78 @@ def build_parser() -> argparse.ArgumentParser:
         help="Rate unknown tastiness for available foods",
     )
 
+    # Subcommand: predict SP for a food (validation mode)
+    predict_parser = subparsers.add_parser(
+        "predict",
+        help="Predict SP for eating a specific food (validation mode)",
+    )
+    predict_parser.add_argument(
+        "--food",
+        "-f",
+        type=str,
+        required=True,
+        help="Name of the food to predict",
+    )
+    predict_parser.add_argument(
+        "--quantity",
+        "-q",
+        type=int,
+        default=1,
+        help="Number of units to eat (default: 1)",
+    )
+    predict_parser.add_argument(
+        "--cravings",
+        "-c",
+        type=str,
+        default="",
+        help="Comma-separated craving names (default: none)",
+    )
+    predict_parser.add_argument(
+        "--satisfied",
+        type=int,
+        default=0,
+        help="Number of cravings already satisfied today (default: 0)",
+    )
+    predict_parser.add_argument(
+        "--variety-count",
+        type=int,
+        default=0,
+        help="Current variety count before eating (default: 0 = empty stomach)",
+    )
+    predict_parser.add_argument(
+        "-s",
+        "--server-mult",
+        type=float,
+        default=1.0,
+        help="Server skill gain multiplier (default: 1.0)",
+    )
+    predict_parser.add_argument(
+        "-d",
+        "--dinner-party",
+        type=float,
+        default=1.0,
+        help="Dinner party multiplier (1.0-3.0, default: 1.0)",
+    )
+
     # Subcommand: reset parts of on-disk state (choose which via flags)
-    show_parser = subparsers.add_parser(
+    reset_parser = subparsers.add_parser(
         "reset",
         help="Reset parts of state",
     )
     # Toggle: clear current stomach counts
-    show_parser.add_argument(
+    reset_parser.add_argument(
         "--stomach",
         action="store_true",
         help="Reset current stomach",
     )
     # Toggle: clear availability counts
-    show_parser.add_argument(
+    reset_parser.add_argument(
         "--availability",
         action="store_true",
         help="Reset availability counts",
     )
     # Toggle: clear all tastiness ratings (set to unknown)
-    show_parser.add_argument(
+    reset_parser.add_argument(
         "--tastiness",
         action="store_true",
         help="Clear all tastiness ratings",
