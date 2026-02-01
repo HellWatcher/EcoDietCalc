@@ -11,7 +11,7 @@ def build_parser() -> argparse.ArgumentParser:
     argparse.ArgumentParser
         Configured parser with subcommands (``plan``,
         ``rate-unknowns``, ``reset``) and global options
-        (e.g., verbosity).
+        (e.g., verbosity, config file).
     """
     parser = argparse.ArgumentParser(
         prog="eco",
@@ -31,6 +31,16 @@ def build_parser() -> argparse.ArgumentParser:
         action="count",
         default=0,
         help="-v for INFO, -vv for DEBUG",
+    )
+
+    # Global --config for custom configuration file
+    parser.add_argument(
+        "--config",
+        "-c",
+        type=str,
+        default=None,
+        metavar="PATH",
+        help="Path to custom config YAML file (default: config.default.yml)",
     )
 
     # Subcommand: plan meals

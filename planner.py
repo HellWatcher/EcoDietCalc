@@ -37,7 +37,7 @@ from food_state_manager import (
 from models.food import (
     Food,
 )
-from models.plan import append_meal_log
+from models.plan import MealPlanItem, append_meal_log
 
 logger = logging.getLogger(__name__)
 
@@ -485,7 +485,7 @@ def plan_meal(
         dinner_party_mult=dinner_party_mult,
     )
     variety_count_now = len(manager.unique_variety_foods())
-    meal_plan = []
+    meal_plan: list[MealPlanItem] = []
     cravings = [normalize_name(name) for name in cravings]
     cravings = validate_cravings(manager, cravings)[0]
 

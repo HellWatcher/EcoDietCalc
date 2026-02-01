@@ -1,5 +1,9 @@
 """Domain constants for meal planning and scoring (immutable mappings).
 
+Constants are loaded from config.default.yml (or custom config if specified
+via CLI --config flag). Use `config.set_config_path()` before importing
+this module to override the config file.
+
 Conventions
 -----------
 - Percentages are **percentage points (pp)** unless noted.
@@ -9,7 +13,7 @@ Conventions
 Notes
 -----
 `TASTINESS_MULTIPLIERS` and `TASTINESS_NAMES` are exposed as read-only
-mappings (via `MappingProxyType`). Adjust values here to tune behavior.
+mappings (via `MappingProxyType`). Adjust values in config file to tune behavior.
 """
 
 # Read-only mapping wrapper + explicit "constant" typing
@@ -20,6 +24,11 @@ from typing import (
     Final,
     Mapping,
 )
+
+from config import get_cached_config
+
+# Load config once at module import
+_cfg = get_cached_config()
 
 # --- Tastiness ---------------------------------------------------------------
 
@@ -56,71 +65,86 @@ TASTINESS_MULTIPLIERS: Final[Mapping[int, float]] = MappingProxyType(
 TASTINESS_NAMES: Final[Mapping[int, str]] = MappingProxyType(_TASTINESS_NAMES_DICT)
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Game rules (from config)
+# ─────────────────────────────────────────────────────────────────────────────
+
 # Calories required per food for variety bonus eligibility
-VARIETY_CAL_THRESHOLD = 2000
-
-# Max food additions allowed in a single planning loop (safety)
-MAX_ITERATIONS = 100
-
-# Default base SP points
-BASE_SKILL_POINTS = 12
+VARIETY_CAL_THRESHOLD: Final[int] = _cfg.game_rules.variety_cal_threshold
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Tuner-derived constants (from hyperparameter optimization)
-# Last updated: 2026-01-27 from tuner_best.json
+# Safety limits (from config)
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Max food additions allowed in a single planning loop (safety)
+MAX_ITERATIONS: Final[int] = _cfg.safety.max_iterations
+
+# Default base SP points
+BASE_SKILL_POINTS: Final[int] = _cfg.safety.base_skill_points
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Tuner-derived constants (from config)
 # ─────────────────────────────────────────────────────────────────────────────
 
 # Strength of the soft-variety ranking bias.
-SOFT_VARIETY_BIAS_STRENGTH = 3.61
+SOFT_VARIETY_BIAS_STRENGTH: Final[float] = _cfg.algorithm.soft_variety_bias_strength
 
 # Tie-break window (in SP) for near-equal candidates.
-TIEBREAK_SCORE_WINDOW_SP = 0.449
+TIEBREAK_SCORE_WINDOW_SP: Final[float] = _cfg.algorithm.tiebreak_score_window_sp
 
 # Proximity weight toward the 2000-cal threshold and
 # small malus when already past 1.0.
-PROXIMITY_APPROACH_WEIGHT = 0.977
-PROXIMITY_OVERSHOOT_PENALTY = 0.076
+PROXIMITY_APPROACH_WEIGHT: Final[float] = _cfg.algorithm.proximity_approach_weight
+PROXIMITY_OVERSHOOT_PENALTY: Final[float] = _cfg.algorithm.proximity_overshoot_penalty
 
 # Bonus for foods that improve nutrient balance ratio.
-BALANCE_IMPROVEMENT_STRENGTH: Final[float] = 1.91
+BALANCE_IMPROVEMENT_STRENGTH: Final[float] = _cfg.algorithm.balance_improvement_strength
 
 # Penalty for excessive repetition of same food.
-REPETITION_PENALTY_STRENGTH: Final[float] = 1.25
+REPETITION_PENALTY_STRENGTH: Final[float] = _cfg.algorithm.repetition_penalty_strength
 
 # Scalars aren't runtime-frozen; Final + UPPERCASE signals "do not reassign"
-TASTE_WEIGHT: Final[float] = 1.0
-
-# Hide noise in displays (minimum absolute delta to show, in pp)
-VARIETY_DELTA_THRESHOLD: Final[float] = 0.01
-TASTE_DELTA_THRESHOLD: Final[float] = 0.01
-
-# Penalty applies per unit; shape is quadratic below threshold
-LOW_CALORIE_THRESHOLD: Final[int] = 395  # calories/unit
-
-# Strength of the low-calorie penalty (>=1; higher = harsher).
-LOW_CALORIE_PENALTY_STRENGTH: Final[float] = 2.48
-
-# Asymptotic cap for variety bonus (see get_variety_bonus), in pp
-VARIETY_BONUS_CAP_PP: Final[float] = 55.0
+TASTE_WEIGHT: Final[float] = _cfg.algorithm.taste_weight
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Craving system constants (from game mechanics)
+# Display thresholds (from config)
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Hide noise in displays (minimum absolute delta to show, in pp)
+VARIETY_DELTA_THRESHOLD: Final[float] = _cfg.display.variety_delta_threshold
+TASTE_DELTA_THRESHOLD: Final[float] = _cfg.display.taste_delta_threshold
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Algorithm parameters (from config)
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Penalty applies per unit; shape is quadratic below threshold
+LOW_CALORIE_THRESHOLD: Final[int] = _cfg.algorithm.low_calorie_threshold
+
+# Strength of the low-calorie penalty (>=1; higher = harsher).
+LOW_CALORIE_PENALTY_STRENGTH: Final[float] = _cfg.algorithm.low_calorie_penalty_strength
+
+# Asymptotic cap for variety bonus (see get_variety_bonus), in pp
+VARIETY_BONUS_CAP_PP: Final[float] = _cfg.algorithm.variety_bonus_cap_pp
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Craving system constants (from config)
 # ─────────────────────────────────────────────────────────────────────────────
 
 # Per-bite craving bonus (+30% each match)
-CRAVING_BONUS_PP: Final[float] = 30.0
+CRAVING_BONUS_PP: Final[float] = _cfg.game_rules.craving_bonus_pp
 
 # Maximum number of cravings that can be active (stacks up to 3 = +90% max)
-CRAVING_MAX_COUNT: Final[int] = 3
+CRAVING_MAX_COUNT: Final[int] = _cfg.game_rules.craving_max_count
 
 # Minimum calories for a food to become a craving
-CRAVING_MIN_CALORIES: Final[int] = 500
+CRAVING_MIN_CALORIES: Final[int] = _cfg.game_rules.craving_min_calories
 
 # Minimum tastiness for a food to become a craving (1 = "good" or higher)
-CRAVING_MIN_TASTINESS: Final[int] = 1
+CRAVING_MIN_TASTINESS: Final[int] = _cfg.game_rules.craving_min_tastiness
 
 # Minimum nutrient sum for a food to become a craving
-CRAVING_MIN_NUTRIENT_SUM: Final[int] = 24
+CRAVING_MIN_NUTRIENT_SUM: Final[int] = _cfg.game_rules.craving_min_nutrient_sum
 
 # Final SP multiplier: (1 + satisfied_count * CRAVING_SATISFIED_FRAC)
-CRAVING_SATISFIED_FRAC: Final[float] = 0.10  # fraction 0..1
+CRAVING_SATISFIED_FRAC: Final[float] = _cfg.game_rules.craving_satisfied_frac

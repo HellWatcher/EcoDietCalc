@@ -16,6 +16,30 @@ Notes
 Use `python -m <package> plan` to run planning from the shell.
 """
 
+# Early config path detection - must happen before importing constants
+import sys
+
+
+def _detect_config_path() -> str | None:
+    """Extract --config or -c from sys.argv before full parsing."""
+    args = sys.argv[1:]
+    for i, arg in enumerate(args):
+        if arg in ("--config", "-c") and i + 1 < len(args):
+            return args[i + 1]
+        if arg.startswith("--config="):
+            return arg.split("=", 1)[1]
+    return None
+
+
+# Set config path before any other imports that use constants
+_early_config = _detect_config_path()
+if _early_config:
+    from config import set_config_path
+
+    set_config_path(_early_config)
+
+
+# Now safe to import modules that depend on constants
 from calculations import (
     calculate_balance_bonus,
     get_sp,
@@ -349,6 +373,10 @@ def main():
     parser = build_parser()
     args = parser.parse_args()
     setup_logging(args.verbose)
+
+    # Note: --config was already processed early for config loading
+    # (see top of file). The args.config attribute is available but
+    # the config has already been applied.
 
     # Fallback: default to "plan" when no subcommand is provided (back-compat)
     command = args.cmd or "plan"

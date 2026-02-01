@@ -1,0 +1,67 @@
+# EcoDietMaker Configuration
+# Copy this file to config.yml and modify as needed
+
+algorithm:
+  # Strength of the soft-variety ranking bias
+  soft_variety_bias_strength: 3.61
+
+  # Tie-break window (in SP) for near-equal candidates
+  tiebreak_score_window_sp: 0.449
+
+  # Proximity weight toward the 2000-cal threshold
+  proximity_approach_weight: 0.977
+
+  # Small penalty when already past 1.0 progress
+  proximity_overshoot_penalty: 0.076
+
+  # Calories below this threshold incur quadratic penalty
+  low_calorie_threshold: 395
+
+  # Strength of the low-calorie penalty (>= 1; higher = harsher)
+  low_calorie_penalty_strength: 2.48
+
+  # Asymptotic cap for variety bonus (percentage points)
+  variety_bonus_cap_pp: 55.0
+
+  # Weight applied to taste bonus
+  taste_weight: 1.0
+
+  # Bonus for foods that improve nutrient balance ratio
+  balance_improvement_strength: 1.91
+
+  # Penalty for excessive repetition of same food
+  repetition_penalty_strength: 1.25
+
+game_rules:
+  # Calories required per food for variety bonus eligibility
+  variety_cal_threshold: 2000
+
+  # Per-bite craving bonus (percentage points, +30% each match)
+  craving_bonus_pp: 30.0
+
+  # Maximum number of cravings that can be active (stacks up to 3 = +90% max)
+  craving_max_count: 3
+
+  # Final SP multiplier: (1 + satisfied_count * craving_satisfied_frac)
+  craving_satisfied_frac: 0.10
+
+  # Minimum calories for a food to become a craving
+  craving_min_calories: 500
+
+  # Minimum tastiness for a food to become a craving (1 = "good" or higher)
+  craving_min_tastiness: 1
+
+  # Minimum nutrient sum for a food to become a craving
+  craving_min_nutrient_sum: 24
+
+safety:
+  # Maximum food additions allowed in a single planning loop
+  max_iterations: 100
+
+  # Default base SP points
+  base_skill_points: 12
+
+display:
+  # Hide noise in displays (minimum absolute delta to show, in pp)
+  variety_delta_threshold: 0.01
+  taste_delta_threshold: 0.01
