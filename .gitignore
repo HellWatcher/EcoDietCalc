@@ -344,6 +344,8 @@ coverage.xml
 
 # Claude Code
 .codebase-index.json
+.claude/
+.serena/
 SPEC.md
 docs/
 validation/
