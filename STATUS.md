@@ -1,33 +1,37 @@
 # Project Status
 
-Last updated: 2026-02-01
+Last updated: 2026-02-06
 
 ## Current State
 
 Core meal planning algorithm is complete and working. Recent work focused on:
-- Added comprehensive unit tests for planner ranking functions
-- Added integration tests for full meal planning pipeline
-- Externalized tunable constants to YAML config file
+
+- Rewrote README with accurate project description, usage docs, and correct repo name (EcoDietCalc)
+- Cleaned up gitignore, unignored SPEC.md and docs/
+- Updated CLAUDE.md to remove global overlap and fix stale refs
+- Added changelog tracking project history
 
 ## Test Coverage
 
-| Module | Coverage | Notes |
-|--------|----------|-------|
-| `calculations.py` | Good | 14 tests covering SP, bonuses, variety |
-| `planner.py` | Good | 21 tests for ranking functions |
-| `integration` | Good | 16 tests for full planning pipeline |
-| `interface/*` | None | CLI, prompts, persistence, render untested |
-| `food_state_manager.py` | Partial | Used in integration tests |
+| Module                  | Coverage | Notes                                      |
+| ----------------------- | -------- | ------------------------------------------ |
+| `calculations.py`       | Good     | 14 tests covering SP, bonuses, variety     |
+| `planner.py`            | Good     | 21 tests for ranking functions             |
+| `integration`           | Good     | 16 tests for full planning pipeline        |
+| `interface/*`           | None     | CLI, prompts, persistence, render untested |
+| `food_state_manager.py` | Partial  | Used in integration tests                  |
 
 ## Recent Changes (2026-02-01)
 
 ### New Files
+
 - `tests/test_planner.py` — Unit tests for `_low_calorie_penalty`, `_soft_variety_bias`, `_proximity_bias`, `_choose_next_bite`
 - `tests/test_integration.py` — Integration tests for full plan generation, availability limits, multipliers, edge cases
 - `config.py` — Config loader with dataclasses and YAML support
 - `config.default.yml` — Default configuration with all tunable constants
 
 ### Modified Files
+
 - `constants.py` — Now loads values from config file
 - `interface/cli.py` — Added `--config` flag for custom config
 - `main.py` — Early config detection for CLI `--config` flag
@@ -46,6 +50,7 @@ python main.py --config my_config.yml plan
 ```
 
 Config structure:
+
 - `algorithm.*` — Tuner-derived ranking parameters
 - `game_rules.*` — Game mechanics constants (variety threshold, cravings)
 - `safety.*` — Iteration limits, base SP
@@ -73,5 +78,7 @@ Config structure:
 
 ## Session Log
 
+- 2026-02-06: Rewrote README — fixed project name to EcoDietCalc, added full usage/config/layout docs
+- 2026-02-06: Cleaned up gitignore, CLAUDE.md, added CHANGELOG.md (previous sessions)
 - 2026-02-01: Added planner tests, integration tests, config file system
 - 2026-02-01: Created STATUS.md for efficient context loading
