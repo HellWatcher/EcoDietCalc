@@ -30,12 +30,12 @@ The Python codebase serves as the canonical algorithm reference. Once validated 
 
 The algorithm optimizes for total Skill Points gained per meal, considering:
 
-| Component | Description | Status |
-|-----------|-------------|--------|
-| **Base SP** | Fixed base (12) + per-nutrient averages across stomach. Formula: `12 + avg(C) + avg(P) + avg(F) + avg(V)` | Verified |
-| **Variety Bonus** | Asymptotic bonus: `55% × (1 - 0.5^(food_count/20))`. Requires ≥2000cal per food, 24hr decay per bite. | Formula needs testing (continuous vs discrete at 20-food intervals) |
-| **Tastiness Modifier** | Per-food rating (-3 to +3), maps to ±10% per point. Randomized per save. | Verified |
-| **Craving Bonus** | +10% per satisfied craving (max 3 cravings, +30% total). One bite satisfies. Bonus persists while food is in stomach. | Verified |
+| Component              | Description                                                                                                           | Status                                                              |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| **Base SP**            | Fixed base (12) + per-nutrient averages across stomach. Formula: `12 + avg(C) + avg(P) + avg(F) + avg(V)`             | Verified                                                            |
+| **Variety Bonus**      | Asymptotic bonus: `55% × (1 - 0.5^(food_count/20))`. Requires ≥2000cal per food, 24hr decay per bite.                 | Formula needs testing (continuous vs discrete at 20-food intervals) |
+| **Tastiness Modifier** | Per-food rating (-3 to +3), maps to ±10% per point. Randomized per save.                                              | Verified                                                            |
+| **Craving Bonus**      | +10% per satisfied craving (max 3 cravings, +30% total). One bite satisfies. Bonus persists while food is in stomach. | Verified                                                            |
 
 ### Selection Algorithm
 
@@ -84,13 +84,13 @@ If a craving is satisfiable within the calorie budget, it takes priority over th
 
 ## Out of Scope (V1)
 
-| Feature | Reason |
-|---------|--------|
-| Recipe crafting suggestions | Focus on eating optimization only |
-| Multi-day planning | Single meal/day scope for v1 |
-| Multiplayer plan sharing | Solo optimization first |
-| Food price/economy factors | Complexity; defer to v2 |
-| "Next bite" real-time mode | Full meal planning is higher value |
+| Feature                     | Reason                                                                               |
+| --------------------------- | ------------------------------------------------------------------------------------ |
+| Recipe crafting suggestions | Focus on eating optimization only                                                    |
+| Multi-day planning          | Single meal/day scope for v1                                                         |
+| Multiplayer plan sharing    | Solo optimization first                                                              |
+| Food price/economy factors  | Complexity; defer to v2                                                              |
+| "Next bite" real-time mode  | Deferred to v2 — well-suited for mod (live stomach access); full meal planning first |
 
 ---
 
@@ -112,6 +112,7 @@ EcoDietMaker/
 ```
 
 **Key dependencies:**
+
 - Python 3.13+
 - No external ML libraries (pure algorithmic)
 
@@ -127,6 +128,7 @@ EcoDietMakerMod/
 ```
 
 **Integration points:**
+
 - Eco's `IServerPlugin` interface for mod loading
 - `FoodItem` and `Stomach` game objects for data access
 - `UIManager` for custom panel rendering
@@ -233,6 +235,7 @@ Where:
 ### Phase 2: Automated Regression
 
 Once formulas are validated:
+
 - Encode test cases as `pytest` fixtures
 - Run on every commit to prevent regressions
 - Add edge cases as discovered
@@ -248,6 +251,7 @@ Once formulas are validated:
 ## Phased Roadmap
 
 ### Phase 1: Algorithm Validation (Current Priority)
+
 - [x] Document current formula assumptions
 - [x] Create in-game test protocol
 - [ ] Run validation tests, record results
@@ -255,12 +259,14 @@ Once formulas are validated:
 - [ ] Achieve <5% SP prediction error
 
 ### Phase 2: Python Polish
+
 - [ ] Add missing unit tests
 - [ ] Improve error handling and edge cases
 - [ ] Clean up code for porting readability
 - [ ] Document all formulas with game citations
 
 ### Phase 3: C# Mod Prototype
+
 - [ ] Learn Eco modding basics (tutorials, sample mods)
 - [ ] Create minimal "hello world" Eco mod
 - [ ] Implement food inventory reading
@@ -268,12 +274,14 @@ Once formulas are validated:
 - [ ] Basic console output of meal plan
 
 ### Phase 4: C# Mod UI
+
 - [ ] Design in-game panel mockup
 - [ ] Implement UI rendering
 - [ ] Add interactivity (craving input, plan generation)
 - [ ] Polish and test
 
 ### Phase 5: Community Release
+
 - [ ] Write installation instructions
 - [ ] Create mod workshop page
 - [ ] Gather feedback and iterate
@@ -329,14 +337,14 @@ V1 is complete when:
 
 From `tuner_best.json` (last tuned 2026-01-27):
 
-| Parameter | Value | Description |
-|-----------|-------|-------------|
-| `SOFT_BIAS_GAMMA` | 3.61 | Soft-variety ranking bias strength |
-| `TIE_EPSILON` | 0.449 | Tie-break window (SP) |
-| `TIE_ALPHA` | 0.977 | Proximity weight toward 2000cal |
-| `TIE_BETA` | 0.076 | Overshoot malus |
-| `BALANCE_BIAS_GAMMA` | 1.91 | Nutrient balance bonus |
-| `REPETITION_PENALTY_GAMMA` | 1.25 | Same-food repetition penalty |
-| `CAL_FLOOR` | 395 | Low-calorie penalty threshold |
-| `CAL_PENALTY_GAMMA` | 2.48 | Low-calorie penalty strength |
-| `VARIETY_BONUS_CAP_PP` | 55.0 | Max variety bonus (pp) |
+| Parameter                  | Value | Description                        |
+| -------------------------- | ----- | ---------------------------------- |
+| `SOFT_BIAS_GAMMA`          | 3.61  | Soft-variety ranking bias strength |
+| `TIE_EPSILON`              | 0.449 | Tie-break window (SP)              |
+| `TIE_ALPHA`                | 0.977 | Proximity weight toward 2000cal    |
+| `TIE_BETA`                 | 0.076 | Overshoot malus                    |
+| `BALANCE_BIAS_GAMMA`       | 1.91  | Nutrient balance bonus             |
+| `REPETITION_PENALTY_GAMMA` | 1.25  | Same-food repetition penalty       |
+| `CAL_FLOOR`                | 395   | Low-calorie penalty threshold      |
+| `CAL_PENALTY_GAMMA`        | 2.48  | Low-calorie penalty strength       |
+| `VARIETY_BONUS_CAP_PP`     | 55.0  | Max variety bonus (pp)             |

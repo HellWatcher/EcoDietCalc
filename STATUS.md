@@ -114,9 +114,7 @@ Config structure:
 
 ## Feature Ideas
 
-- **Multi-meal planning**: Daily/weekly plans with nutrient targets
-- **Export formats**: CSV/JSON output for meal plans
-- **Food categories**: Breakfast/lunch/dinner/snack classification
+- **"Next bite" real-time mode**: Mod reads live stomach state and suggests what to eat next — natural fit for in-game integration since the mod has direct access to stomach contents
 
 ## Architecture Notes
 
