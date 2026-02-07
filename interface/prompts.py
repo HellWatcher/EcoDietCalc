@@ -13,7 +13,7 @@ from constants import (
 )
 
 
-def prompt_for_cravings_satisfied():
+def prompt_for_cravings_satisfied() -> int:
     """Prompt the user for how many cravings have been satisfied today.
 
     Returns
@@ -58,17 +58,14 @@ def prompt_max_calories(
         try:
             val = int(input(prompt).strip())
             if val < current_cal:
-                print(
-                    "Maximum must be greater than or "
-                    "or equal to current intake."
-                )
+                print("Maximum must be greater than or " "or equal to current intake.")
             else:
                 return val
         except ValueError:
             print("That doesn't seem to be a number.")
 
 
-def collect_user_constraints():
+def collect_user_constraints() -> tuple[list[str], int, int]:
     """Collect user-defined constraints for meal planning.
 
     Order:
@@ -94,8 +91,8 @@ def collect_user_constraints():
 
 
 def prompt_for_tastiness(
-    food_name,
-):
+    food_name: str,
+) -> int:
     """Prompt user for tastiness rating for a given food item.
 
     Parameters
@@ -117,9 +114,7 @@ def prompt_for_tastiness(
 
     # Show human labels for valid ratings. Exclude 99 (unknown) from hints.
     hint_items = [
-        f"{key}: {TASTINESS_NAMES[key]}"
-        for key in sorted(TASTINESS_NAMES)
-        if key != 99
+        f"{key}: {TASTINESS_NAMES[key]}" for key in sorted(TASTINESS_NAMES) if key != 99
     ]
     hint_str = ", ".join(hint_items)
     print("  Hints:", hint_str)
@@ -130,12 +125,12 @@ def prompt_for_tastiness(
         if value == "":
             return 99  # Skip and keep as unknown
         try:
-            value = int(value)
+            rating = int(value)
 
             # Validate against constants rather than hardcoded bounds; changing
             # the scale only requires edits in `constants.py`.
-            if value in TASTINESS_MULTIPLIERS:
-                return value
+            if rating in TASTINESS_MULTIPLIERS:
+                return rating
             print("Invalid value. Valid: -3 to 3, or 99 for unknown.")
         except ValueError:
             print("Enter an integer or press Enter to skip.")

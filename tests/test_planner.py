@@ -6,6 +6,7 @@ _proximity_bias) and the full bite selection pipeline (_choose_next_bite).
 
 import math
 
+from conftest import make_food
 from constants import (
     LOW_CALORIE_PENALTY_STRENGTH,
     LOW_CALORIE_THRESHOLD,
@@ -25,34 +26,10 @@ from planner import (
 # --- Fixtures and helpers ---
 
 
-def make_food(
-    name: str,
-    calories: int,
-    carbs: float = 10.0,
-    protein: float = 10.0,
-    fats: float = 10.0,
-    vitamins: float = 10.0,
-    tastiness: int = 0,
-    available: int = 10,
-) -> Food:
-    """Create a Food instance with sensible defaults."""
-    return Food(
-        name=name,
-        calories=calories,
-        carbs=carbs,
-        protein=protein,
-        fats=fats,
-        vitamins=vitamins,
-        tastiness=tastiness,
-        stomach=0,
-        available=available,
-    )
-
-
 class DummyManager(FoodStateManager):
     """Minimal manager for testing ranking logic."""
 
-    def __init__(self, foods: list[Food]):
+    def __init__(self, foods: list[Food]) -> None:
         super().__init__(foods)
 
 
@@ -62,7 +39,7 @@ class DummyManager(FoodStateManager):
 class TestLowCaloriePenalty:
     """Tests for quadratic low-calorie penalty."""
 
-    def test_zero_calories_gives_max_penalty(self):
+    def test_zero_calories_gives_max_penalty(self) -> None:
         """Food with 0 calories should get the maximum penalty."""
         food = make_food("Empty", calories=0)
         penalty = _low_calorie_penalty(food)
@@ -70,20 +47,20 @@ class TestLowCaloriePenalty:
         expected = -LOW_CALORIE_PENALTY_STRENGTH
         assert math.isclose(penalty, expected, rel_tol=1e-9)
 
-    def test_at_threshold_no_penalty(self):
+    def test_at_threshold_no_penalty(self) -> None:
         """Food exactly at the threshold should have no penalty."""
         food = make_food("Threshold", calories=LOW_CALORIE_THRESHOLD)
         penalty = _low_calorie_penalty(food)
         assert penalty == 0.0
 
-    def test_above_threshold_no_penalty(self):
+    def test_above_threshold_no_penalty(self) -> None:
         """Food above the threshold should have no penalty."""
         food = make_food("High", calories=500)
         assert 500 > LOW_CALORIE_THRESHOLD  # sanity check
         penalty = _low_calorie_penalty(food)
         assert penalty == 0.0
 
-    def test_half_threshold_quadratic_penalty(self):
+    def test_half_threshold_quadratic_penalty(self) -> None:
         """Food at half the threshold should get 1/4 penalty (quadratic)."""
         half_cal = LOW_CALORIE_THRESHOLD // 2
         food = make_food("Half", calories=half_cal)
@@ -93,7 +70,7 @@ class TestLowCaloriePenalty:
         expected = -LOW_CALORIE_PENALTY_STRENGTH * (deficit_ratio**2)
         assert math.isclose(penalty, expected, rel_tol=1e-6)
 
-    def test_200_calories_penalty(self):
+    def test_200_calories_penalty(self) -> None:
         """Test specific value: 200 calories."""
         food = make_food("LowCal", calories=200)
         penalty = _low_calorie_penalty(food)
@@ -110,7 +87,7 @@ class TestLowCaloriePenalty:
 class TestSoftVarietyBias:
     """Tests for soft variety bias ranking adjustment."""
 
-    def test_empty_stomach_new_food_positive_bias(self):
+    def test_empty_stomach_new_food_positive_bias(self) -> None:
         """Adding a food to empty stomach should give positive variety bias."""
         food = make_food(
             "HighNutrient",
@@ -125,7 +102,7 @@ class TestSoftVarietyBias:
         # Should be positive: new food adds variety
         assert bias > 0
 
-    def test_food_already_at_variety_cap_zero_bias(self):
+    def test_food_already_at_variety_cap_zero_bias(self) -> None:
         """Food that's already well past variety threshold contributes 0 delta."""
         food = make_food("BigFood", calories=VARIETY_CAL_THRESHOLD)
         # Already eaten enough to max variety contribution
@@ -134,7 +111,7 @@ class TestSoftVarietyBias:
         # Variety delta should be 0 since already capped
         assert math.isclose(bias, 0.0, abs_tol=0.01)
 
-    def test_low_nutrient_food_smaller_bias(self):
+    def test_low_nutrient_food_smaller_bias(self) -> None:
         """Low-nutrient food should have smaller bias than high-nutrient."""
         low_food = make_food(
             "LowNutrient",
@@ -160,7 +137,7 @@ class TestSoftVarietyBias:
         # High nutrient food should have larger bias
         assert high_bias > low_bias
 
-    def test_bias_scales_with_strength_constant(self):
+    def test_bias_scales_with_strength_constant(self) -> None:
         """Verify bias is scaled by SOFT_VARIETY_BIAS_STRENGTH."""
         food = make_food(
             "Test",
@@ -183,7 +160,7 @@ class TestSoftVarietyBias:
 class TestProximityBias:
     """Tests for proximity bias (progress toward variety threshold)."""
 
-    def test_progress_toward_threshold_positive(self):
+    def test_progress_toward_threshold_positive(self) -> None:
         """Moving from 0 toward threshold should give positive bias."""
         food = make_food("Medium", calories=1000)
         stomach: dict[Food, int] = {}
@@ -192,7 +169,7 @@ class TestProximityBias:
         # growth_toward_threshold = 0.5 - 0 = 0.5
         assert bias > 0
 
-    def test_already_at_full_progress_no_additional_growth(self):
+    def test_already_at_full_progress_no_additional_growth(self) -> None:
         """Food already at 1.0 progress shouldn't gain additional proximity."""
         food = make_food("BigFood", calories=VARIETY_CAL_THRESHOLD)
         # Already eaten 1 unit (at threshold)
@@ -204,7 +181,7 @@ class TestProximityBias:
         # So bias should be negative (overshoot penalty)
         assert bias < 0 or math.isclose(bias, 0.0, abs_tol=0.01)
 
-    def test_overshoot_small_penalty(self):
+    def test_overshoot_small_penalty(self) -> None:
         """Overshooting the threshold should incur a small penalty."""
         food = make_food("VeryBig", calories=3000)
         stomach: dict[Food, int] = {}
@@ -216,7 +193,7 @@ class TestProximityBias:
         # This should still be positive but less than if no overshoot
         assert bias >= -1.0  # Not a huge penalty
 
-    def test_small_food_incremental_progress(self):
+    def test_small_food_incremental_progress(self) -> None:
         """Small food gives proportional progress."""
         food = make_food("Small", calories=500)  # 25% of threshold
         stomach: dict[Food, int] = {}
@@ -233,7 +210,7 @@ class TestProximityBias:
 class TestChooseNextBite:
     """Tests for the full ranking pipeline."""
 
-    def test_all_foods_exceed_budget_returns_none(self):
+    def test_all_foods_exceed_budget_returns_none(self) -> None:
         """When all foods exceed calorie budget, returns (None, 0.0)."""
         foods = [
             make_food("Big1", calories=1000),
@@ -252,7 +229,7 @@ class TestChooseNextBite:
         assert food is None
         assert delta == 0.0
 
-    def test_single_candidate_returns_that_food(self):
+    def test_single_candidate_returns_that_food(self) -> None:
         """With one feasible candidate, returns it."""
         expensive = make_food("Expensive", calories=1000)
         cheap = make_food("Cheap", calories=100)
@@ -270,7 +247,7 @@ class TestChooseNextBite:
         assert food is not None
         assert food.name == "Cheap"
 
-    def test_higher_sp_food_preferred(self):
+    def test_higher_sp_food_preferred(self) -> None:
         """Food with higher SP delta should be preferred."""
         # Same calories, different nutrients
         low_nutrient = make_food(
@@ -292,7 +269,7 @@ class TestChooseNextBite:
         assert food is not None
         assert food.name == "High"
 
-    def test_low_calorie_food_penalized(self):
+    def test_low_calorie_food_penalized(self) -> None:
         """Very low calorie food should be penalized vs higher calorie."""
         tiny = make_food("Tiny", calories=20, carbs=5, protein=5, fats=5, vitamins=5)
         medium = make_food(
@@ -312,7 +289,7 @@ class TestChooseNextBite:
         assert food is not None
         assert food.name == "Medium"
 
-    def test_empty_manager_returns_none(self):
+    def test_empty_manager_returns_none(self) -> None:
         """Empty food list returns (None, 0.0)."""
         manager = DummyManager([])
 
@@ -326,7 +303,7 @@ class TestChooseNextBite:
         assert food is None
         assert delta == 0.0
 
-    def test_unavailable_foods_excluded(self):
+    def test_unavailable_foods_excluded(self) -> None:
         """Foods with zero availability should not be selected."""
         available = make_food("Available", calories=500, available=5)
         unavailable = make_food(
@@ -358,7 +335,7 @@ class TestChooseNextBite:
 class TestProximityTiebreak:
     """Tests for proximity bias as tie-breaker among near-equal candidates."""
 
-    def test_near_equal_scores_use_proximity(self):
+    def test_near_equal_scores_use_proximity(self) -> None:
         """When scores are within TIEBREAK_SCORE_WINDOW_SP, proximity breaks tie."""
         # Create two foods with very similar SP but different proximity effects
         food_far = make_food(
@@ -380,7 +357,7 @@ class TestProximityTiebreak:
         # One of them should be selected; exact choice depends on full scoring
         assert food is not None
 
-    def test_variety_considerations_in_ranking(self):
+    def test_variety_considerations_in_ranking(self) -> None:
         """Foods that improve variety should be ranked higher."""
         # Two foods with similar base nutrients but one adds variety
         food_a = make_food(

@@ -1,27 +1,54 @@
 # Project Status
 
-Last updated: 2026-02-06
+Last updated: 2026-02-07
 
 ## Current State
 
-Core meal planning algorithm is complete and working. Recent work focused on:
-
-- Rewrote README with accurate project description, usage docs, and correct repo name (EcoDietCalc)
-- Cleaned up gitignore, unignored SPEC.md and docs/
-- Updated CLAUDE.md to remove global overlap and fix stale refs
-- Added changelog tracking project history
+Phase 2 (Python Polish) complete. 101 tests, mypy clean. All interface modules now tested.
 
 ## Test Coverage
 
-| Module                  | Coverage | Notes                                      |
-| ----------------------- | -------- | ------------------------------------------ |
-| `calculations.py`       | Good     | 14 tests covering SP, bonuses, variety     |
-| `planner.py`            | Good     | 21 tests for ranking functions             |
-| `integration`           | Good     | 16 tests for full planning pipeline        |
-| `interface/*`           | None     | CLI, prompts, persistence, render untested |
-| `food_state_manager.py` | Partial  | Used in integration tests                  |
+| Module                     | Coverage | Notes                                    |
+| -------------------------- | -------- | ---------------------------------------- |
+| `calculations.py`          | Good     | 14 tests covering SP, bonuses, variety   |
+| `planner.py`               | Good     | 21 tests for ranking functions           |
+| `integration`              | Good     | 16 tests for full planning pipeline      |
+| `config.py`                | Good     | 9 tests for load, validation, merging    |
+| `interface/cli.py`         | Good     | 7 tests for parser subcommands and flags |
+| `interface/persistence.py` | Good     | 11 tests for read/save/log/load          |
+| `interface/prompts.py`     | Good     | 13 tests for all prompt functions        |
+| `interface/render.py`      | Good     | 4 tests for display_meal_plan            |
+| `main.py (cmd_predict)`    | Good     | 5 tests for predict subcommand           |
+| `food_state_manager.py`    | Partial  | Used in integration tests                |
 
-## Recent Changes (2026-02-01)
+## Recent Changes (2026-02-07) — Phase 2: Python Polish
+
+### Bug Fixes
+
+- Fixed escaped `\\n` (literal backslash-n) in `interface/persistence.py:log_data_issues()` — 8 f-string writes now use real newlines
+- Fixed mutable default argument `cravings: list[str] = []` → `cravings: list[str] | None = None` in `food_state_manager.py:get_current_sp()`
+
+### Test Infrastructure
+
+- Consolidated `make_food()` helper from `test_planner.py` and `test_integration.py` into `tests/conftest.py`
+
+### New Test Files
+
+- `tests/test_config.py` — 9 tests for config loading, validation, merging, missing files
+- `tests/test_cli.py` — 7 tests for CLI argument parser
+- `tests/test_persistence.py` — 11 tests for JSON I/O, data integrity logging, load_food_state
+- `tests/test_prompts.py` — 13 tests for interactive prompt functions
+- `tests/test_render.py` — 4 tests for meal plan display
+- `tests/test_cmd_predict.py` — 5 tests for predict subcommand
+
+### Type Annotations
+
+- Added type hints to `Food.__init__` parameters
+- Added return types to `prompts.py` functions (`prompt_for_cravings_satisfied`, `prompt_for_tastiness`, `collect_user_constraints`)
+- Added `-> None` return types to all test methods in `test_planner.py` and `test_integration.py`
+- Fixed type error in `prompt_for_tastiness` (variable shadowing `str`/`int`)
+
+## Previous Changes (2026-02-01)
 
 ### New Files
 
@@ -58,9 +85,11 @@ Config structure:
 
 ## Known Gaps
 
-- [ ] `cmd_predict` untested (useful for validation)
-- [ ] Interface modules (`interface/*`) have no tests
-- [ ] No edge case tests for config validation errors
+- [x] ~~`cmd_predict` untested~~ — 5 tests added
+- [x] ~~Interface modules (`interface/*`) have no tests~~ — all covered
+- [x] ~~No edge case tests for config validation errors~~ — 9 tests added
+- [ ] `tune/tuner.py` has no type annotations (annotation-unchecked warning)
+- [ ] `food_state_manager.py` only tested indirectly via integration tests
 
 ## Feature Ideas
 
@@ -78,6 +107,7 @@ Config structure:
 
 ## Session Log
 
+- 2026-02-07: Phase 2 Python Polish — 2 bug fixes, 6 new test files (49 tests), type annotations, test helper consolidation
 - 2026-02-06: Rewrote README — fixed project name to EcoDietCalc, added full usage/config/layout docs
 - 2026-02-06: Cleaned up gitignore, CLAUDE.md, added CHANGELOG.md (previous sessions)
 - 2026-02-01: Added planner tests, integration tests, config file system

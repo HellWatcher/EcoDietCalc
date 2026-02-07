@@ -142,7 +142,7 @@ class FoodStateManager:
 
     def get_current_sp(
         self,
-        cravings: list[str] = [],
+        cravings: list[str] | None = None,
         cravings_satisfied: int = 0,
         *,
         server_mult: float = 1.0,
@@ -166,6 +166,7 @@ class FoodStateManager:
         float
             Current SP value.
         """
+        cravings = cravings or []
 
         # Pass (stomach, cravings, cravings_satisfied,
         # unique_foods_24h) — unique set, not list

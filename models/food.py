@@ -45,16 +45,16 @@ class Food:
 
     def __init__(
         self,
-        name,
-        calories,
-        carbs,
-        protein,
-        fats,
-        vitamins,
-        tastiness,
-        stomach=0,
-        available=0,
-    ):
+        name: str,
+        calories: int,
+        carbs: int,
+        protein: int,
+        fats: int,
+        vitamins: int,
+        tastiness: int,
+        stomach: int = 0,
+        available: int = 0,
+    ) -> None:
         # Keep the display name as given; numeric fields are normalized to int
         self.name = name
         self.calories = int(calories)
@@ -70,9 +70,7 @@ class Food:
         # Validate tastiness against the canonical multipliers scale.
         # Edit the scale in `constants.py` if needed.
         if self.tastiness not in TASTINESS_MULTIPLIERS:
-            raise ValueError(
-                f"Invalid tastiness value: {self.tastiness}"
-            )
+            raise ValueError(f"Invalid tastiness value: {self.tastiness}")
 
     def sum_nutrients(
         self,
@@ -120,11 +118,7 @@ class Food:
 
         # Guard divide-by-zero when total nutrients are 0
         total_nutrients = self.sum_nutrients()
-        return (
-            self.calories / total_nutrients
-            if total_nutrients
-            else float("inf")
-        )
+        return self.calories / total_nutrients if total_nutrients else float("inf")
 
     def __eq__(
         self,
@@ -175,10 +169,7 @@ class Food:
             Short summary (name, nutrients, calories).
         """
         # Short, user-facing label (avoid leaking internal fields)
-        return (
-            f"{self.name}; {self.sum_nutrients()} Nutrients, "
-            f"{self.calories} Cal"
-        )
+        return f"{self.name}; {self.sum_nutrients()} Nutrients, " f"{self.calories} Cal"
 
     def __repr__(
         self,

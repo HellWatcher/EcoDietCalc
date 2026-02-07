@@ -7,40 +7,15 @@ Tests the complete meal planning pipeline including:
 - Variety accumulation
 """
 
+from conftest import make_food
 from food_state_manager import FoodStateManager
-from models.food import Food
 from planner import plan_meal
-
-
-def make_food(
-    name: str,
-    calories: int,
-    carbs: float = 10.0,
-    protein: float = 10.0,
-    fats: float = 10.0,
-    vitamins: float = 10.0,
-    tastiness: int = 0,
-    stomach: int = 0,
-    available: int = 10,
-) -> Food:
-    """Create a Food instance with sensible defaults."""
-    return Food(
-        name=name,
-        calories=calories,
-        carbs=carbs,
-        protein=protein,
-        fats=fats,
-        vitamins=vitamins,
-        tastiness=tastiness,
-        stomach=stomach,
-        available=available,
-    )
 
 
 class TestFullPlanGeneration:
     """Integration tests for complete meal planning."""
 
-    def test_plan_respects_calorie_budget(self, simple_manager_factory):
+    def test_plan_respects_calorie_budget(self, simple_manager_factory) -> None:
         """Total calories consumed should not exceed budget."""
         manager = simple_manager_factory()
         calorie_budget = 2000
@@ -57,7 +32,7 @@ class TestFullPlanGeneration:
         total_calories = sum(item.calories for item in meal_plan)
         assert total_calories <= calorie_budget
 
-    def test_plan_items_have_valid_sp_gain(self, simple_manager_factory):
+    def test_plan_items_have_valid_sp_gain(self, simple_manager_factory) -> None:
         """Each item in the plan should have a reasonable sp_gain."""
         manager = simple_manager_factory()
 
@@ -76,7 +51,7 @@ class TestFullPlanGeneration:
             assert hasattr(item, "sp_gain")
             assert isinstance(item.sp_gain, (int, float))
 
-    def test_craving_items_consumed_when_available(self, simple_manager_factory):
+    def test_craving_items_consumed_when_available(self, simple_manager_factory) -> None:
         """Craving foods should be consumed if available and within budget."""
         manager = simple_manager_factory()
         # Use a food name that exists in the fixture
@@ -93,7 +68,7 @@ class TestFullPlanGeneration:
         consumed_names = [item.name for item in meal_plan]
         assert craving_name in consumed_names
 
-    def test_variety_count_increases(self, simple_manager_factory):
+    def test_variety_count_increases(self, simple_manager_factory) -> None:
         """Variety-qualifying foods should contribute to variety count."""
         manager = simple_manager_factory()
 
@@ -117,7 +92,7 @@ class TestFullPlanGeneration:
 class TestPlanRespectsAvailability:
     """Tests that planning respects food availability limits."""
 
-    def test_limited_availability_not_exceeded(self):
+    def test_limited_availability_not_exceeded(self) -> None:
         """Foods with limited availability should not be over-consumed."""
         # Create a food with very limited availability
         limited_food = make_food("Limited", calories=500, available=2)
@@ -137,7 +112,7 @@ class TestPlanRespectsAvailability:
         limited_count = sum(1 for item in meal_plan if item.name == "Limited")
         assert limited_count <= 2
 
-    def test_zero_availability_excluded(self):
+    def test_zero_availability_excluded(self) -> None:
         """Foods with zero availability should not appear in plan."""
         unavailable = make_food("Unavailable", calories=500, available=0)
         available = make_food("Available", calories=500, available=10)
@@ -155,7 +130,7 @@ class TestPlanRespectsAvailability:
         consumed_names = [item.name for item in meal_plan]
         assert "Unavailable" not in consumed_names
 
-    def test_availability_decrements_during_planning(self):
+    def test_availability_decrements_during_planning(self) -> None:
         """Availability should decrement as foods are consumed."""
         food = make_food("TestFood", calories=500, available=5)
         manager = FoodStateManager([food])
@@ -181,7 +156,7 @@ class TestPlanRespectsAvailability:
 class TestEmptyStomachToFull:
     """Tests for planning from an empty stomach."""
 
-    def test_empty_stomach_produces_plan(self, simple_manager_factory):
+    def test_empty_stomach_produces_plan(self, simple_manager_factory) -> None:
         """Fresh manager with empty stomach should produce a plan."""
         manager = simple_manager_factory()
 
@@ -198,7 +173,7 @@ class TestEmptyStomachToFull:
         # Should have produced a non-empty plan
         assert len(meal_plan) > 0
 
-    def test_sp_increases_from_zero(self, simple_manager_factory):
+    def test_sp_increases_from_zero(self, simple_manager_factory) -> None:
         """SP should increase from zero after eating."""
         manager = simple_manager_factory()
 
@@ -220,7 +195,7 @@ class TestEmptyStomachToFull:
         total_sp_gain = sum(item.sp_gain for item in meal_plan)
         assert abs(final_sp - initial_sp - total_sp_gain) < 0.01
 
-    def test_large_budget_uses_variety(self, simple_manager_factory):
+    def test_large_budget_uses_variety(self, simple_manager_factory) -> None:
         """With large budget, planner should use multiple foods for variety."""
         manager = simple_manager_factory()
 
@@ -239,7 +214,7 @@ class TestEmptyStomachToFull:
 class TestMultiplierSupport:
     """Tests for server and dinner party multipliers."""
 
-    def test_server_multiplier_affects_sp(self, simple_manager_factory):
+    def test_server_multiplier_affects_sp(self, simple_manager_factory) -> None:
         """Server multiplier should scale SP gain."""
         manager1 = simple_manager_factory()
         manager2 = simple_manager_factory()
@@ -273,7 +248,7 @@ class TestMultiplierSupport:
         # With 2x server mult, SP should be approximately 2x
         assert sp2 > sp1
 
-    def test_dinner_party_multiplier_affects_sp(self, simple_manager_factory):
+    def test_dinner_party_multiplier_affects_sp(self, simple_manager_factory) -> None:
         """Dinner party multiplier should scale SP gain."""
         manager1 = simple_manager_factory()
         manager2 = simple_manager_factory()
@@ -310,7 +285,7 @@ class TestMultiplierSupport:
 class TestEdgeCases:
     """Edge case tests for meal planning."""
 
-    def test_zero_calorie_budget_empty_plan(self, simple_manager_factory):
+    def test_zero_calorie_budget_empty_plan(self, simple_manager_factory) -> None:
         """Zero calorie budget should produce empty plan."""
         manager = simple_manager_factory()
 
@@ -323,7 +298,7 @@ class TestEdgeCases:
 
         assert len(meal_plan) == 0
 
-    def test_tiny_budget_no_affordable_food(self):
+    def test_tiny_budget_no_affordable_food(self) -> None:
         """Budget smaller than any food should produce empty plan."""
         # All foods cost at least 100 calories
         foods = [
@@ -341,7 +316,7 @@ class TestEdgeCases:
 
         assert len(meal_plan) == 0
 
-    def test_invalid_craving_ignored(self, simple_manager_factory):
+    def test_invalid_craving_ignored(self, simple_manager_factory) -> None:
         """Invalid craving names should be gracefully ignored."""
         manager = simple_manager_factory()
 
@@ -357,7 +332,7 @@ class TestEdgeCases:
         # The plan just won't have the invalid craving satisfied
         assert len(meal_plan) >= 0  # May or may not have items
 
-    def test_single_food_manager(self):
+    def test_single_food_manager(self) -> None:
         """Manager with single food should work correctly."""
         food = make_food("OnlyFood", calories=500, available=5)
         manager = FoodStateManager([food])

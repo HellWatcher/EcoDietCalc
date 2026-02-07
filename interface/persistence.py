@@ -178,23 +178,23 @@ def log_data_issues(
             log_file.write("[WARN] STOMACH entries not in food_state:\n")
             # De-duplicate and sort for stable, readable output
             for name in sorted(set(stomach_unknown)):
-                log_file.write(f"  - {name}\\n")
-            log_file.write("\\n")
+                log_file.write(f"  - {name}\n")
+            log_file.write("\n")
         if available_unknown:
             log_file.write("[WARN] AVAILABLE entries not in food_state:\n")
             for name in sorted(set(available_unknown)):
-                log_file.write(f"  - {name}\\n")
-            log_file.write("\\n")
+                log_file.write(f"  - {name}\n")
+            log_file.write("\n")
         if invalid_entries:
             log_file.write("[WARN] Invalid tastiness values in food_state:\n")
             for name in sorted(set(invalid_entries)):
-                log_file.write(f"  - {name}\\n")
-            log_file.write("\\n")
+                log_file.write(f"  - {name}\n")
+            log_file.write("\n")
         if taste_unknown:
             log_file.write("[INFO] Foods with unknown tastiness (99):\n")
             for name in sorted(set(taste_unknown)):
-                log_file.write(f"  - {name}\\n")
-            log_file.write("\\n")
+                log_file.write(f"  - {name}\n")
+            log_file.write("\n")
         if not (
             stomach_unknown or available_unknown or invalid_entries or taste_unknown
         ):
