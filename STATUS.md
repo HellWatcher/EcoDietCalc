@@ -4,13 +4,13 @@ Last updated: 2026-02-07
 
 ## Current State
 
-Phase 2 (Python Polish) complete. 101 tests, mypy clean. All interface modules now tested.
+Phase 2 (Python Polish) complete. 98 tests, mypy clean. All interface modules now tested.
 
 ## Test Coverage
 
 | Module                     | Coverage | Notes                                    |
 | -------------------------- | -------- | ---------------------------------------- |
-| `calculations.py`          | Good     | 14 tests covering SP, bonuses, variety   |
+| `calculations.py`          | Good     | 11 tests covering SP, bonuses, variety   |
 | `planner.py`               | Good     | 21 tests for ranking functions           |
 | `integration`              | Good     | 16 tests for full planning pipeline      |
 | `config.py`                | Good     | 9 tests for load, validation, merging    |
@@ -21,7 +21,28 @@ Phase 2 (Python Polish) complete. 101 tests, mypy clean. All interface modules n
 | `main.py (cmd_predict)`    | Good     | 5 tests for predict subcommand           |
 | `food_state_manager.py`    | Partial  | Used in integration tests                |
 
-## Recent Changes (2026-02-07) — Phase 2: Python Polish
+## Recent Changes (2026-02-07) — Craving System Cleanup
+
+### Removed
+
+- `can_be_craving()` and `normalized_cravings()` from `calculations.py` — game provides craving info directly
+- Per-bite craving match bonus (`CRAVING_BONUS_PP`, `CRAVING_MAX_COUNT`) from calculations, constants, config
+- `CRAVING_MIN_CALORIES`, `CRAVING_MIN_TASTINESS`, `CRAVING_MIN_NUTRIENT_SUM` from constants, config, config.default.yml
+- 3 tests for removed craving match logic (`test_calculations.py`)
+- Craving match display from `cmd_predict` output (`main.py`)
+
+### Kept
+
+- `CRAVING_SATISFIED_FRAC` (10% per satisfied craving) — still used in SP formula
+- Planner craving prioritization flow (`_pick_feasible_craving`, `update_cravings`)
+- `MealPlanItem.craving` field for plan output
+
+### Updated
+
+- `SPEC.md`, `docs/FORMULAS.md`, `docs/TEST_PROTOCOL.md` — removed craving eligibility docs, renumbered tests (T1-T9)
+- `.gitignore` — added `.ruff_cache/`
+
+## Previous Changes (2026-02-07) — Phase 2: Python Polish
 
 ### Bug Fixes
 
@@ -107,6 +128,7 @@ Config structure:
 
 ## Session Log
 
+- 2026-02-07: Craving cleanup — removed eligibility system (can*be_craving, CRAVING_MIN*\*, per-bite match bonus), kept satisfied frac and planner flow
 - 2026-02-07: Phase 2 Python Polish — 2 bug fixes, 6 new test files (49 tests), type annotations, test helper consolidation
 - 2026-02-06: Rewrote README — fixed project name to EcoDietCalc, added full usage/config/layout docs
 - 2026-02-06: Cleaned up gitignore, CLAUDE.md, added CHANGELOG.md (previous sessions)
