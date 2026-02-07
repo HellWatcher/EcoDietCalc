@@ -5,7 +5,7 @@ Last updated: 2026-02-07
 ## Current State
 
 Phase 2 (Python Polish) complete. 98 tests, mypy clean. All interface modules now tested.
-Phase 3 (C# Mod) started — scaffold and read-only chat commands in place.
+Phase 3 (C# Mod) started — scaffold and read-only chat commands confirmed working on Eco 0.12 server.
 
 ## Test Coverage
 
