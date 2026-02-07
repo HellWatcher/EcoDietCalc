@@ -22,12 +22,25 @@ Phase 3 (C# Mod) started — scaffold and read-only chat commands in place.
 | `main.py (cmd_predict)`    | Good     | 5 tests for predict subcommand           |
 | `food_state_manager.py`    | Partial  | Used in integration tests                |
 
-## Recent Changes (2026-02-07) — C# Mod Scaffold
+## Recent Changes (2026-02-07) — Mod Runtime Fixes
+
+### Fixed
+
+- Target framework `net9.0` → `net8.0` — Eco 0.12 runs on .NET 8.0, net9.0 caused `ReflectionTypeLoadException`
+- Chat command alias `diet` → `ecodiet` — Eco has a built-in `/diet` command, duplicate key crashed `ChatCommandService`
+- Method name `EcoDiet` → `EcoDietRoot` — Eco registers both method name and alias as keys; same name (case-insensitive) caused duplicate key
+
+### Confirmed Working
+
+- Mod loads on Eco 0.12 server without errors
+- Commands available as `/ecodiet stomach`, `/ecodiet nutrients`, `/ecodiet cravings`, `/ecodiet taste`, `/ecodiet multipliers`
+
+## Previous Changes (2026-02-07) — C# Mod Scaffold
 
 ### Added
 
-- `mod/EcoDietMod/` — C# class library targeting net9.0 with `Eco.ReferenceAssemblies` NuGet package
-- `mod/EcoDietMod/DietCommands.cs` — 5 read-only chat commands (`/diet stomach`, `/diet nutrients`, `/diet cravings`, `/diet taste`, `/diet multipliers`)
+- `mod/EcoDietMod/` — C# class library targeting net8.0 with `Eco.ReferenceAssemblies` NuGet package
+- `mod/EcoDietMod/DietCommands.cs` — 5 read-only chat commands (`/ecodiet stomach`, `/ecodiet nutrients`, `/ecodiet cravings`, `/ecodiet taste`, `/ecodiet multipliers`)
 - `mod/.gitignore` — excludes build artifacts
 - Serena memory `eco-mod-api-surface.md` — documents Eco API types for food/diet
 
@@ -146,6 +159,7 @@ Config structure:
 
 ## Session Log
 
+- 2026-02-07: Mod runtime fixes — net8.0 target, /ecodiet command rename, confirmed working on Eco 0.12
 - 2026-02-07: C# mod scaffold — created mod/EcoDietMod with read-only chat commands, explored Eco API surface
 - 2026-02-07: Craving cleanup — removed eligibility system (can*be_craving, CRAVING_MIN*\*, per-bite match bonus), kept satisfied frac and planner flow
 - 2026-02-07: Phase 2 Python Polish — 2 bug fixes, 6 new test files (49 tests), type annotations, test helper consolidation

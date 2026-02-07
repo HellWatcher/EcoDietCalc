@@ -15,13 +15,13 @@ namespace EcoDietMod;
 [ChatCommandHandler]
 public static class DietCommands
 {
-    [ChatCommand("EcoDiet commands — view your stomach, nutrients, and cravings", "diet")]
-    public static void Diet(User user)
+    [ChatCommand("EcoDiet commands — view your stomach, nutrients, and cravings", "ecodiet")]
+    public static void EcoDietRoot(User user)
     {
-        user.MsgLocStr("EcoDiet commands: /diet stomach, /diet nutrients, /diet cravings, /diet taste, /diet multipliers");
+        user.MsgLocStr("EcoDiet commands: /ecodiet stomach, /ecodiet nutrients, /ecodiet cravings, /ecodiet taste, /ecodiet multipliers");
     }
 
-    [ChatSubCommand("Diet", "Show current stomach contents", "stomach")]
+    [ChatSubCommand("EcoDietRoot", "Show current stomach contents", "stomach")]
     public static void Stomach(User user)
     {
         var stomach = user.Stomach;
@@ -47,7 +47,7 @@ public static class DietCommands
         user.MsgLocStr(sb.ToString());
     }
 
-    [ChatSubCommand("Diet", "Show current nutrient levels (carbs/protein/fat/vitamins)", "nutrients")]
+    [ChatSubCommand("EcoDietRoot", "Show current nutrient levels (carbs/protein/fat/vitamins)", "nutrients")]
     public static void Nutrients(User user)
     {
         var stomach = user.Stomach;
@@ -65,7 +65,7 @@ public static class DietCommands
         user.MsgLocStr(sb.ToString());
     }
 
-    [ChatSubCommand("Diet", "Show current craving and craving multiplier", "cravings")]
+    [ChatSubCommand("EcoDietRoot", "Show current craving and craving multiplier", "cravings")]
     public static void Cravings(User user)
     {
         var stomach = user.Stomach;
@@ -79,7 +79,7 @@ public static class DietCommands
         user.MsgLocStr(sb.ToString());
     }
 
-    [ChatSubCommand("Diet", "Show taste preferences for foods in your stomach", "taste")]
+    [ChatSubCommand("EcoDietRoot", "Show taste preferences for foods in your stomach", "taste")]
     public static void Taste(User user)
     {
         var stomach = user.Stomach;
@@ -110,7 +110,7 @@ public static class DietCommands
         user.MsgLocStr(sb.ToString());
     }
 
-    [ChatSubCommand("Diet", "Show all SP multipliers (variety, balanced diet, taste, craving, dinner party)", "multipliers")]
+    [ChatSubCommand("EcoDietRoot", "Show all SP multipliers (variety, balanced diet, taste, craving, dinner party)", "multipliers")]
     public static void Multipliers(User user)
     {
         var stomach = user.Stomach;
