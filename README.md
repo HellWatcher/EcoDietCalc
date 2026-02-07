@@ -2,7 +2,7 @@
 
 SP (Skill Point) optimization tool for the video game **[Eco](https://play.eco/)**. Calculates optimal food consumption sequences to maximize skill point gain based on the game's nutrition mechanics: variety bonuses, tastiness modifiers, cravings, and nutrient density.
 
-Python prototype for algorithm R&D, with a C# Eco mod for in-game data access (in progress).
+Python prototype for algorithm R&D, with a C# Eco server mod for in-game data access.
 
 ## Quick Start
 
@@ -79,18 +79,65 @@ tests/                   Pytest suite mirroring source structure
 mod/EcoDietMod/          C# Eco mod (read-only game data access)
 ```
 
-## C# Mod
+## Eco Mod
 
-The `mod/EcoDietMod/` directory contains an Eco server mod that exposes food/diet game data via chat commands:
+The `mod/EcoDietMod/` directory contains an Eco server mod that exposes food/diet game data via chat commands. Compatible with Eco 0.12.x.
+
+### In-Game Commands
+
+| Command                | Description                                                       |
+| ---------------------- | ----------------------------------------------------------------- |
+| `/ecodiet`             | List available subcommands                                        |
+| `/ecodiet stomach`     | Current stomach contents and calories                             |
+| `/ecodiet nutrients`   | Nutrient levels (carbs, protein, fat, vitamins)                   |
+| `/ecodiet cravings`    | Active craving and craving multiplier                             |
+| `/ecodiet taste`       | Discovered taste preferences and multipliers                      |
+| `/ecodiet multipliers` | All SP multipliers (variety, balanced diet, taste, craving, etc.) |
+
+### Building the Mod
+
+#### Prerequisites
+
+- [.NET 8.0 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
+
+Verify your install:
 
 ```bash
-# Build the mod (requires .NET 8+ SDK)
-cd mod/EcoDietMod && dotnet build -c Release
-
-# Deploy: copy EcoDietMod.dll to your Eco server's Mods/ folder
+dotnet --version   # Should show 8.x.x
 ```
 
-In-game commands: `/diet stomach`, `/diet nutrients`, `/diet cravings`, `/diet taste`, `/diet multipliers`
+#### Linux
+
+```bash
+cd mod/EcoDietMod
+dotnet build -c Release
+```
+
+Output: `bin/Release/net8.0/EcoDietMod.dll`
+
+#### Windows
+
+```powershell
+cd mod\EcoDietMod
+dotnet build -c Release
+```
+
+Output: `bin\Release\net8.0\EcoDietMod.dll`
+
+### Installing the Mod
+
+1. Build the mod (see above)
+2. Copy `EcoDietMod.dll` to your Eco server's `Mods/` folder
+3. Restart the server
+4. Verify by running `/ecodiet` in chat
+
+The `Mods/` folder is in your server's root directory — typically:
+
+- **Linux (Steam):** `~/.local/share/Steam/steamapps/common/Eco/Eco_Data/Server/Mods/`
+- **Windows (Steam):** `C:\Program Files (x86)\Steam\steamapps\common\Eco\Eco_Data\Server\Mods\`
+- **Windows (standalone):** wherever you extracted the server, e.g. `C:\EcoServer\Mods\`
+
+> **Note:** Only `EcoDietMod.dll` needs to be copied. The mod's NuGet dependencies (`Eco.ReferenceAssemblies`) are already part of the server runtime.
 
 ## Development
 
@@ -102,7 +149,7 @@ pytest
 mypy .
 
 # Build mod (C#)
-dotnet build mod/EcoDietMod
+cd mod/EcoDietMod && dotnet build -c Release
 ```
 
 ## License
