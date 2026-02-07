@@ -6,6 +6,21 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Added
+
+- 49 new tests across config, CLI, persistence, prompts, render, and cmd_predict (101 total)
+- Type annotations on `Food.__init__`, `prompts.py`, and all test methods
+- Shared `make_food()` helper consolidated in `conftest.py`
+
+### Fixed
+
+- Escaped `\n` literal in `persistence.py` `log_data_issues()` (was printing backslash-n instead of newline)
+- Mutable default argument in `food_state_manager.py`
+
+### Removed
+
+- Craving eligibility system (`can_be_craving()`, `normalized_cravings()`, per-bite craving match bonus) — game provides craving info directly, making prediction unnecessary
+
 ## [0.3.0] - 2026-02-01
 
 ### Added
