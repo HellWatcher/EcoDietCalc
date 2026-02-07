@@ -5,6 +5,7 @@ Last updated: 2026-02-07
 ## Current State
 
 Phase 2 (Python Polish) complete. 98 tests, mypy clean. All interface modules now tested.
+Phase 3 (C# Mod) started — scaffold and read-only chat commands in place.
 
 ## Test Coverage
 
@@ -21,7 +22,25 @@ Phase 2 (Python Polish) complete. 98 tests, mypy clean. All interface modules no
 | `main.py (cmd_predict)`    | Good     | 5 tests for predict subcommand           |
 | `food_state_manager.py`    | Partial  | Used in integration tests                |
 
-## Recent Changes (2026-02-07) — Craving System Cleanup
+## Recent Changes (2026-02-07) — C# Mod Scaffold
+
+### Added
+
+- `mod/EcoDietMod/` — C# class library targeting net9.0 with `Eco.ReferenceAssemblies` NuGet package
+- `mod/EcoDietMod/DietCommands.cs` — 5 read-only chat commands (`/diet stomach`, `/diet nutrients`, `/diet cravings`, `/diet taste`, `/diet multipliers`)
+- `mod/.gitignore` — excludes build artifacts
+- Serena memory `eco-mod-api-surface.md` — documents Eco API types for food/diet
+
+### Discovered (Eco API Surface)
+
+- `User.Stomach` provides direct access to `Contents`, `Nutrients`, `Calories`, all SP multipliers
+- `StomachEntry` has `Food` (FoodItem) and `TimeEaten` (double)
+- `TasteBuds.FoodToTaste` maps food types to `ItemTaste` (7-level preference enum + multiplier)
+- `Cravings` class has `GetMult()`, `IsCravingFood()`, config statics
+- `Stomach` has events (`GlobalFoodEatenEvent`, `CravingSatisfiedEvent`) useful for future real-time mode
+- Chat command pattern: `[ChatCommandHandler]` class + `[ChatCommand]`/`[ChatSubCommand]` methods
+
+## Previous Changes (2026-02-07) — Craving System Cleanup
 
 ### Removed
 
@@ -114,7 +133,8 @@ Config structure:
 
 ## Feature Ideas
 
-- **"Next bite" real-time mode**: Mod reads live stomach state and suggests what to eat next — natural fit for in-game integration since the mod has direct access to stomach contents
+- **"Next bite" real-time mode**: Mod reads live stomach state and suggests what to eat next — natural fit for in-game integration since the mod has direct access to stomach contents via `Stomach.Contents` and events like `GlobalFoodEatenEvent`
+- **Export game state to JSON**: Mod writes stomach/nutrient/craving data to JSON for the Python planner to consume — bridge approach before full C# port
 
 ## Architecture Notes
 
@@ -126,6 +146,7 @@ Config structure:
 
 ## Session Log
 
+- 2026-02-07: C# mod scaffold — created mod/EcoDietMod with read-only chat commands, explored Eco API surface
 - 2026-02-07: Craving cleanup — removed eligibility system (can*be_craving, CRAVING_MIN*\*, per-bite match bonus), kept satisfied frac and planner flow
 - 2026-02-07: Phase 2 Python Polish — 2 bug fixes, 6 new test files (49 tests), type annotations, test helper consolidation
 - 2026-02-06: Rewrote README — fixed project name to EcoDietCalc, added full usage/config/layout docs

@@ -2,7 +2,7 @@
 
 SP (Skill Point) optimization tool for the video game **[Eco](https://play.eco/)**. Calculates optimal food consumption sequences to maximize skill point gain based on the game's nutrition mechanics: variety bonuses, tastiness modifiers, cravings, and nutrient density.
 
-Currently a Python prototype for algorithm R&D; intended to be ported to a C# Eco mod once validated.
+Python prototype for algorithm R&D, with a C# Eco mod for in-game data access (in progress).
 
 ## Quick Start
 
@@ -76,16 +76,33 @@ interface/               CLI, prompts, rendering, persistence
 models/                  Food and MealPlanItem domain models
 tune/                    Algorithm parameter tuner
 tests/                   Pytest suite mirroring source structure
+mod/EcoDietMod/          C# Eco mod (read-only game data access)
 ```
+
+## C# Mod
+
+The `mod/EcoDietMod/` directory contains an Eco server mod that exposes food/diet game data via chat commands:
+
+```bash
+# Build the mod (requires .NET 8+ SDK)
+cd mod/EcoDietMod && dotnet build -c Release
+
+# Deploy: copy EcoDietMod.dll to your Eco server's Mods/ folder
+```
+
+In-game commands: `/diet stomach`, `/diet nutrients`, `/diet cravings`, `/diet taste`, `/diet multipliers`
 
 ## Development
 
 ```bash
-# Run tests
+# Run tests (Python)
 pytest
 
-# Type check
+# Type check (Python)
 mypy .
+
+# Build mod (C#)
+dotnet build mod/EcoDietMod
 ```
 
 ## License

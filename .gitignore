@@ -41,5 +41,9 @@ log.txt
 .claude/
 .serena/
 
+# .NET / C# mod
+bin/
+obj/
+
 # Project-specific
 validation/

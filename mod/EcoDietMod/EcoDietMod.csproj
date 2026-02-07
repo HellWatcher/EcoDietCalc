@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>EcoDietMod</RootNamespace>
+    <AssemblyName>EcoDietMod</AssemblyName>
+    <!-- Eco server targets Windows; suppress cross-platform warnings -->
+    <NoWarn>CA1416</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Eco.ReferenceAssemblies" Version="0.12.0.6-beta-release-961" />
+  </ItemGroup>
+
+</Project>

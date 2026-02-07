@@ -15,12 +15,12 @@ EcoDietMaker is an SP (Skill Point) optimization tool for the video game **Eco**
    - Hyperparameter tuning (variety bias, calorie penalties, etc.)
    - In-game validation before porting
 
-2. **C# Eco Mod (Future)** - Final deliverable
-   - Native integration with Eco's Unity/C# architecture
-   - Real-time food inventory sync
-   - In-game UI for meal planning
+2. **C# Eco Mod (In Progress)** - Final deliverable
+   - Uses `Eco.ReferenceAssemblies` NuGet package (v0.12.0.6-beta, net8.0+)
+   - Chat commands for reading stomach, nutrients, cravings, taste, SP multipliers
+   - Future: algorithm port, real-time suggestions, in-game UI
 
-The Python codebase serves as the canonical algorithm reference. Once validated against actual gameplay, logic will be manually ported to C#.
+The Python codebase serves as the canonical algorithm reference. The C# mod currently provides read-only access to game data; algorithm porting follows once the data layer is validated.
 
 ---
 
@@ -72,9 +72,9 @@ If a craving is satisfiable within the calorie budget, it takes priority over th
 - [ ] Comprehensive test suite for edge cases
 - [ ] Documentation of formulas with citations
 
-### C# Mod (Future)
+### C# Mod (In Progress)
 
-- [ ] Read player's food inventory from game data
+- [x] Read player stomach contents, nutrients, cravings, taste preferences, SP multipliers
 - [ ] Generate optimized meal plan for remaining daily calories
 - [ ] Display SP breakdown (variety %, tastiness %, craving status)
 - [ ] In-game UI panel (minimal, non-intrusive)
@@ -116,22 +116,23 @@ EcoDietMaker/
 - Python 3.13+
 - No external ML libraries (pure algorithmic)
 
-### C# Mod Architecture (Planned)
+### C# Mod Architecture
 
 ```
-EcoDietMakerMod/
-├── EcoDietMakerMod.cs   # Mod entry point
-├── Planner.cs           # Ported selection algorithm
-├── SPCalculator.cs      # Ported SP formulas
-├── FoodInventoryReader.cs # Game data integration
-└── UI/                  # In-game panel
+mod/EcoDietMod/
+├── EcoDietMod.csproj    # net9.0, Eco.ReferenceAssemblies NuGet
+├── DietCommands.cs      # Chat commands (read-only game data)
+├── Planner.cs           # Ported selection algorithm (planned)
+├── SPCalculator.cs      # Ported SP formulas (planned)
+└── UI/                  # In-game panel (planned)
 ```
 
 **Integration points:**
 
-- Eco's `IServerPlugin` interface for mod loading
-- `FoodItem` and `Stomach` game objects for data access
-- `UIManager` for custom panel rendering
+- `[ChatCommandHandler]` + `[ChatCommand]`/`[ChatSubCommand]` for chat commands
+- `User.Stomach` → `Contents`, `Nutrients`, `TasteBuds`, `Cravings`, SP multipliers
+- `Stomach` events (`GlobalFoodEatenEvent`, `CravingSatisfiedEvent`) for real-time mode
+- `User.MsgLocStr()` for player messaging
 
 ---
 
@@ -265,11 +266,12 @@ Once formulas are validated:
 - [ ] Clean up code for porting readability
 - [ ] Document all formulas with game citations
 
-### Phase 3: C# Mod Prototype
+### Phase 3: C# Mod Prototype (In Progress)
 
-- [ ] Learn Eco modding basics (tutorials, sample mods)
-- [ ] Create minimal "hello world" Eco mod
-- [ ] Implement food inventory reading
+- [x] Learn Eco modding basics (API surface exploration via decompilation)
+- [x] Create mod scaffold with NuGet reference assemblies
+- [x] Implement food/stomach/nutrient/craving/taste data reading via chat commands
+- [ ] Validate data accuracy against in-game values
 - [ ] Port core SP calculation
 - [ ] Basic console output of meal plan
 
