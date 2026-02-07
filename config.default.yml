@@ -36,23 +36,10 @@ game_rules:
   # Calories required per food for variety bonus eligibility
   variety_cal_threshold: 2000
 
-  # Per-bite craving bonus (percentage points, +30% each match)
-  craving_bonus_pp: 30.0
-
-  # Maximum number of cravings that can be active (stacks up to 3 = +90% max)
-  craving_max_count: 3
-
   # Final SP multiplier: (1 + satisfied_count * craving_satisfied_frac)
   craving_satisfied_frac: 0.10
 
-  # Minimum calories for a food to become a craving
-  craving_min_calories: 500
 
-  # Minimum tastiness for a food to become a craving (1 = "good" or higher)
-  craving_min_tastiness: 1
-
-  # Minimum nutrient sum for a food to become a craving
-  craving_min_nutrient_sum: 24
 
 safety:
   # Maximum food additions allowed in a single planning loop

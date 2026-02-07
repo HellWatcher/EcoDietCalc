@@ -49,8 +49,6 @@ from calculations import (
     sum_all_weighted_nutrients,
 )
 from constants import (
-    CRAVING_BONUS_PP,
-    CRAVING_MAX_COUNT,
     CRAVING_SATISFIED_FRAC,
     VARIETY_CAL_THRESHOLD,
 )
@@ -266,12 +264,6 @@ def cmd_predict(
 
     taste_pp = get_taste_bonus(stomach)
 
-    # Craving match bonus
-    cravings_set = {c.lower() for c in cravings}
-    is_craving = food.name.lower() in cravings_set
-    craving_match_count = 1 if is_craving else 0
-    craving_pp = min(craving_match_count, CRAVING_MAX_COUNT) * CRAVING_BONUS_PP
-
     # Build unique foods set for SP calculation
     unique_foods_24h = {food.name.lower()} if food_qualifies else set()
 
@@ -304,9 +296,8 @@ def cmd_predict(
         f"  Variety:         {variety_pp:+.2f} pp (count={variety_count}, qualifies={food_qualifies})"
     )
     print(f"  Taste:           {taste_pp:+.2f} pp (tastiness={food.tastiness})")
-    print(f"  Craving Match:   {craving_pp:+.2f} pp (match={is_craving})")
     print()
-    total_bonus_pp = balance_pp + variety_pp + taste_pp + craving_pp
+    total_bonus_pp = balance_pp + variety_pp + taste_pp
     satisfied_bonus = cravings_satisfied * CRAVING_SATISFIED_FRAC
     print(
         f"  Total Bonus:     {total_bonus_pp:+.2f} pp + {satisfied_bonus:.2f} satisfied"

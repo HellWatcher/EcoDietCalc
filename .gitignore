@@ -19,6 +19,7 @@ coverage.xml
 
 # Type checking / linting
 .mypy_cache/
+.ruff_cache/
 .ropeproject/
 
 # Editor / IDE

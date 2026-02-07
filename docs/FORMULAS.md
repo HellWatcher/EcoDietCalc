@@ -29,15 +29,14 @@ where:
 ### Expanded Formula
 
 ```
-SP = ((D * (1 + B/100 + V/100 + T/100 + C/100 + S) * dinner_party) + 12) * server_mult
+SP = ((D * (1 + B/100 + V/100 + T/100 + S) * dinner_party) + 12) * server_mult
 
 where:
   D = density_sum (calorie-weighted nutrient average)
   B = balance bonus (pp)
   V = variety bonus (pp)
   T = taste bonus (pp)
-  C = craving match bonus (pp)
-  S = satisfied craving bonus (fraction)
+  S = satisfied craving bonus (fraction, 0.10 per satisfied craving)
 ```
 
 ---
@@ -210,46 +209,7 @@ taste_pp = 0.146 * 100 * 1.0 = 14.6 pp
 
 ---
 
-## 5. Craving Match Bonus
-
-**Location**: `calculations.py:calculate_nutrition_multiplier()`
-
-### Definition
-
-Per-food bonus when eating a craving:
-
-```
-craving_match_count = count(foods in stomach that match active cravings)
-craving_pp = min(craving_match_count, CRAVING_MAX_COUNT) * CRAVING_BONUS_PP
-```
-
-### Constants
-
-| Constant | Value | Status |
-|----------|-------|--------|
-| `CRAVING_BONUS_PP` | 30 | **[UNVERIFIED]** PP per matching craving |
-| `CRAVING_MAX_COUNT` | 3 | **[UNVERIFIED]** Maximum counted matches |
-
-### Range
-
-- **Minimum**: 0 pp (no cravings satisfied)
-- **Maximum**: 90 pp (3 cravings satisfied)
-
-**[UNVERIFIED]**: +30 pp per craving, max +90 pp
-
-### Craving Eligibility
-
-A food can become a craving if it meets ALL criteria:
-
-```
-calories >= CRAVING_MIN_CALORIES (500)
-AND tastiness >= CRAVING_MIN_TASTINESS (1 = "good")
-AND sum_nutrients() >= CRAVING_MIN_NUTRIENT_SUM (24)
-```
-
----
-
-## 6. Satisfied Craving Multiplier
+## 5. Satisfied Craving Bonus
 
 **Location**: `calculations.py:get_sp()`
 
@@ -311,15 +271,14 @@ variety_pp = 55 * (1 - 0.5^(1/20)) = 1.90 pp
 taste_pp = 0.20 * 100 * 1.0 = 20.0 pp
 ```
 
-### Step 5: Craving (none active)
+### Step 5: Satisfied Cravings (none)
 ```
-craving_pp = 0 pp
 satisfied_bonus = 0
 ```
 
 ### Step 6: Final SP
 ```
-bonus = (7.14 + 1.90 + 20.0 + 0) / 100 + 0 = 0.2904
+bonus = (7.14 + 1.90 + 20.0) / 100 + 0 = 0.2904
 nutrition_sp = 22.0 * (1 + 0.2904) * 1.0 = 28.39
 SP = (28.39 + 12) * 1.0 = 40.39
 ```
@@ -334,9 +293,7 @@ SP = (28.39 + 12) * 1.0 = 40.39
 | Variety threshold | = 2000 cal | T4: Low-cal food test |
 | Variety cap | = 55 pp | T11: Map variety curve |
 | Taste scale | [-0.30, +0.30] | T5, T6: Favorite/hated foods |
-| Craving bonus | = 30 pp each | T7: Satisfy 1 craving |
-| Craving max | = 3 | T8: Satisfy 3+ cravings |
-| Satisfied frac | = 0.10 | T9, T10: Daily satisfaction |
+| Satisfied frac | = 0.10 per craving | T7, T8: Craving satisfaction |
 | Balance range | [-50, +50] | Integration tests |
 
 ---

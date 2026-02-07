@@ -45,12 +45,7 @@ class GameRulesConfig:
     """Game mechanics constants."""
 
     variety_cal_threshold: int = 2000
-    craving_bonus_pp: float = 30.0
-    craving_max_count: int = 3
     craving_satisfied_frac: float = 0.10
-    craving_min_calories: int = 500
-    craving_min_tastiness: int = 1
-    craving_min_nutrient_sum: int = 24
 
 
 @dataclass
@@ -107,10 +102,6 @@ def _validate_config(config: Config) -> list[str]:
     # Game rules validations
     if config.game_rules.variety_cal_threshold <= 0:
         errors.append("game_rules.variety_cal_threshold must be > 0")
-    if config.game_rules.craving_bonus_pp < 0:
-        errors.append("game_rules.craving_bonus_pp must be >= 0")
-    if config.game_rules.craving_max_count < 0:
-        errors.append("game_rules.craving_max_count must be >= 0")
     if not (0.0 <= config.game_rules.craving_satisfied_frac <= 1.0):
         errors.append("game_rules.craving_satisfied_frac must be in [0, 1]")
 

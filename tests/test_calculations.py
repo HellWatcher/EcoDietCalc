@@ -14,7 +14,6 @@ from calculations import (
     sum_all_weighted_nutrients,
 )
 from constants import (
-    CRAVING_BONUS_PP,
     CRAVING_SATISFIED_FRAC,
     TASTE_WEIGHT,
     TASTINESS_MULTIPLIERS,
@@ -54,15 +53,6 @@ def food(
         f,
         v,
         t,
-    )
-
-
-def _S(stomach) -> float:
-    # sum_all_weighted_nutrients may return (density_dict, total_cal) or just the dict
-    out = sum_all_weighted_nutrients(stomach)
-    density = out[0] if isinstance(out, tuple) else out
-    return float(
-        density["carbs"] + density["protein"] + density["fats"] + density["vitamins"]
     )
 
 
@@ -112,49 +102,6 @@ def test_variety_bonus_is_capped_and_monotonic():
     x2 = get_variety_bonus(5)
     x3 = get_variety_bonus(100)
     assert 0.0 <= x1 <= x2 <= x3 <= VARIETY_BONUS_CAP_PP
-
-
-def test_calculate_nutrition_multiplier_includes_craving_bonus():
-    a = food(
-        "apple",
-        150,
-        c=15,
-    )
-    b = food(
-        "bread",
-        200,
-        c=40,
-    )
-    st = stomach_dict(
-        (
-            a,
-            1,
-        ),
-        (
-            b,
-            1,
-        ),
-    )
-    cravings = [
-        "apple",
-    ]  # one craved item present
-    uniq_24h = {
-        "apple",
-        "bread",
-    }  # any set is fine for this test
-
-    val = calculate_nutrition_multiplier(
-        st,
-        cravings,
-        uniq_24h,
-    )
-    # Should be some baseline (balance + variety + taste) plus exactly CRAVING_BONUS_PP
-    val_no_crave = calculate_nutrition_multiplier(
-        st,
-        [],
-        uniq_24h,
-    )
-    assert abs((val - val_no_crave) - CRAVING_BONUS_PP) < 1e-9
 
 
 def test_get_sp_satisfied_cravings_fraction_scales_total():
@@ -294,18 +241,6 @@ def test_cravings_satisfied_scales_density_sum_only():
     assert math.isclose(sp1 - sp0, expected_delta, rel_tol=1e-9, abs_tol=1e-9)
 
 
-def test_per_item_craving_bonus_counts_unique_foods_not_quantity():
-    # Per-item craving bonus should apply once per present food, not per quantity
-    food = FoodLike("Apple", 500, 1.0, 2.0, 3.0, 4.0, 0)
-    uniq = set()
-    S = _S({food: 1})
-    expected = S * (CRAVING_BONUS_PP / 100.0)
-    d1 = get_sp({food: 1}, ["apple"], 0, uniq) - get_sp({food: 1}, [], 0, uniq)
-    d2 = get_sp({food: 2}, ["apple"], 0, uniq) - get_sp({food: 2}, [], 0, uniq)
-    assert math.isclose(d1, expected, rel_tol=1e-9, abs_tol=1e-9)
-    assert math.isclose(d2, expected, rel_tol=1e-9, abs_tol=1e-9)
-
-
 def test_evaluate_bonus_with_addition_matches_direct_and_grows_on_threshold():
     # If a bite newly meets the per-food variety threshold, variety set must update
     hi = FoodLike("HiFood", VARIETY_CAL_THRESHOLD, 1, 1, 1, 1, 0)
@@ -341,31 +276,3 @@ def test_simulate_stomach_with_added_food_does_not_mutate():
     assert clone.get(food) == 2
 
 
-def test_craving_bonus_capped_at_three():
-    """Craving matches should be capped at CRAVING_MAX_COUNT (3)."""
-    from constants import CRAVING_MAX_COUNT
-    from calculations import calculate_nutrition_multiplier
-
-    # Create 5 foods, all matching cravings
-    foods = [FoodLike(f"Food{i}", 600, 10, 10, 10, 10, 2) for i in range(5)]
-    stomach = {f: 1 for f in foods}
-    cravings = [f"food{i}" for i in range(5)]
-    unique = set()
-
-    # With 5 matches, should only get bonus for 3
-    bonus_5 = calculate_nutrition_multiplier(stomach, cravings, unique)
-
-    # With 3 matches, should get same craving bonus
-    stomach_3 = {f: 1 for f in foods[:3]}
-    cravings_3 = [f"food{i}" for i in range(3)]
-    bonus_3 = calculate_nutrition_multiplier(stomach_3, cravings_3, unique)
-
-    # The craving portion should be capped (other bonuses differ due to different stomach)
-    # Just verify that 5 matches doesn't give 5x the per-match bonus
-    from constants import CRAVING_BONUS_PP
-
-    max_craving_bonus = CRAVING_MAX_COUNT * CRAVING_BONUS_PP
-    # Extract just the craving portion by comparing with no cravings
-    bonus_no_crave = calculate_nutrition_multiplier(stomach, [], unique)
-    craving_portion = bonus_5 - bonus_no_crave
-    assert craving_portion <= max_craving_bonus + 0.01  # Allow small float tolerance

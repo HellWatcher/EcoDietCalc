@@ -33,11 +33,6 @@ from typing import Dict
 
 from constants import (
     BASE_SKILL_POINTS,
-    CRAVING_BONUS_PP,
-    CRAVING_MAX_COUNT,
-    CRAVING_MIN_CALORIES,
-    CRAVING_MIN_NUTRIENT_SUM,
-    CRAVING_MIN_TASTINESS,
     CRAVING_SATISFIED_FRAC,
     TASTE_WEIGHT,
     TASTINESS_MULTIPLIERS,
@@ -210,49 +205,7 @@ def get_taste_bonus(
     return (taste_score / total_cal) * 100.0 * TASTE_WEIGHT
 
 
-def normalized_cravings(
-    cravings: list[str],
-) -> set[str]:
-    """Normalize craving names to a lowercase set.
 
-    Parameters
-    ----------
-    cravings : list of str
-        Craving names as provided by the user.
-
-    Returns
-    -------
-    set of str
-        Lowercased craving names for case-insensitive matching.
-    """
-    return {name.lower() for name in cravings}
-
-
-def can_be_craving(
-    food: Food,
-) -> bool:
-    """Check if a food can be a craving based on game eligibility rules.
-
-    A food qualifies as a craving if it meets all of:
-    - Calories >= CRAVING_MIN_CALORIES (500)
-    - Tastiness >= CRAVING_MIN_TASTINESS (1 = "good" or higher)
-    - Nutrient sum >= CRAVING_MIN_NUTRIENT_SUM (24)
-
-    Parameters
-    ----------
-    food : Food
-        The food item to check.
-
-    Returns
-    -------
-    bool
-        True if the food can be a craving.
-    """
-    return (
-        food.calories >= CRAVING_MIN_CALORIES
-        and food.tastiness >= CRAVING_MIN_TASTINESS
-        and food.sum_nutrients() >= CRAVING_MIN_NUTRIENT_SUM
-    )
 
 
 def calculate_nutrition_multiplier(
@@ -262,14 +215,15 @@ def calculate_nutrition_multiplier(
 ) -> float:
     """Total nutrition multiplier (percentage points).
 
-    Includes balance, variety, taste, and per-item craving bonuses.
+    Includes balance, variety, and taste bonuses.
 
     Parameters
     ----------
     stomach : dict[Food, int]
         Current stomach state.
     cravings : list of str
-        Active craving names (case-insensitive).
+        Active craving names (case-insensitive).  Reserved for
+        future use; not currently consumed by this function.
     unique_foods_24h : set of str
         Foods (names, lowercased) that qualify for variety
         within the 24h window.
@@ -294,17 +248,8 @@ def calculate_nutrition_multiplier(
     variety_pp = get_variety_bonus(len(unique_foods_24h))
     taste_pp = get_taste_bonus(stomach)
 
-    cravings_set = normalized_cravings(cravings)
-    # Count matching cravings (capped at CRAVING_MAX_COUNT = 3)
-    craving_match_count = sum(
-        1
-        for food, quantity in stomach.items()
-        if quantity and food.name.lower() in cravings_set
-    )
-    per_item_craving_pp = min(craving_match_count, CRAVING_MAX_COUNT) * CRAVING_BONUS_PP
-
     # returns percentage points (not a fraction)
-    return balance_pp + variety_pp + taste_pp + per_item_craving_pp
+    return balance_pp + variety_pp + taste_pp
 
 
 def get_sp(

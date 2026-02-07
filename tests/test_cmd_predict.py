@@ -73,16 +73,16 @@ class TestCmdPredict:
         assert "not found" in output
 
     def test_predict_with_cravings(self, capsys, monkeypatch) -> None:
-        """Craving match appears in output."""
+        """Satisfied craving bonus appears in output."""
         monkeypatch.setattr(
             "main.load_food_state",
             lambda **kwargs: _make_manager(),
         )
         from main import cmd_predict
 
-        cmd_predict(_make_args(food="Bannock", cravings="Bannock"))
+        cmd_predict(_make_args(food="Bannock", cravings="Bannock", satisfied=1))
         output = capsys.readouterr().out
-        assert "match=True" in output
+        assert "satisfied" in output.lower()
 
     def test_predict_with_variety(self, capsys, monkeypatch) -> None:
         """Variety count affects SP."""

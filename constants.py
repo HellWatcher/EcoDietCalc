@@ -131,20 +131,5 @@ VARIETY_BONUS_CAP_PP: Final[float] = _cfg.algorithm.variety_bonus_cap_pp
 # Craving system constants (from config)
 # ─────────────────────────────────────────────────────────────────────────────
 
-# Per-bite craving bonus (+30% each match)
-CRAVING_BONUS_PP: Final[float] = _cfg.game_rules.craving_bonus_pp
-
-# Maximum number of cravings that can be active (stacks up to 3 = +90% max)
-CRAVING_MAX_COUNT: Final[int] = _cfg.game_rules.craving_max_count
-
-# Minimum calories for a food to become a craving
-CRAVING_MIN_CALORIES: Final[int] = _cfg.game_rules.craving_min_calories
-
-# Minimum tastiness for a food to become a craving (1 = "good" or higher)
-CRAVING_MIN_TASTINESS: Final[int] = _cfg.game_rules.craving_min_tastiness
-
-# Minimum nutrient sum for a food to become a craving
-CRAVING_MIN_NUTRIENT_SUM: Final[int] = _cfg.game_rules.craving_min_nutrient_sum
-
 # Final SP multiplier: (1 + satisfied_count * CRAVING_SATISFIED_FRAC)
 CRAVING_SATISFIED_FRAC: Final[float] = _cfg.game_rules.craving_satisfied_frac

@@ -105,7 +105,10 @@ class TestLoadConfig:
             config.algorithm.soft_variety_bias_strength
             == default.algorithm.soft_variety_bias_strength
         )
-        assert config.game_rules.craving_bonus_pp == default.game_rules.craving_bonus_pp
+        assert (
+            config.game_rules.craving_satisfied_frac
+            == default.game_rules.craving_satisfied_frac
+        )
 
     def test_set_config_path_overrides_default(self, tmp_path) -> None:
         """set_config_path() affects subsequent load_config() calls."""

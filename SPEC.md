@@ -35,8 +35,7 @@ The algorithm optimizes for total Skill Points gained per meal, considering:
 | **Base SP** | Fixed base (12) + per-nutrient averages across stomach. Formula: `12 + avg(C) + avg(P) + avg(F) + avg(V)` | Verified |
 | **Variety Bonus** | Asymptotic bonus: `55% × (1 - 0.5^(food_count/20))`. Requires ≥2000cal per food, 24hr decay per bite. | Formula needs testing (continuous vs discrete at 20-food intervals) |
 | **Tastiness Modifier** | Per-food rating (-3 to +3), maps to ±10% per point. Randomized per save. | Verified |
-| **Craving Bonus** | +10% per satisfied craving (max 3 cravings, +30% total). One bite satisfies. | Verified |
-| **Satisfied Cravings** | Multiplier: `1 + (satisfied_count * 0.10)`, max 3 = 1.30x | Verified |
+| **Craving Bonus** | +10% per satisfied craving (max 3 cravings, +30% total). One bite satisfies. Bonus persists while food is in stomach. | Verified |
 
 ### Selection Algorithm
 
@@ -177,10 +176,11 @@ class MealPlanItem:
 ### SP Formula
 
 ```
-total_sp = (12 + nutrient_avg) × (1 + variety% + tastiness% + craving%)
+total_sp = ((nutrient_avg × (1 + balance% + variety% + tastiness% + craving%)) + 12) × server_mult
 
 Where:
 - nutrient_avg = avg(carbs) + avg(protein) + avg(fats) + avg(vitamins)
+- balance% = (min/max nutrient ratio × 100 - 50) / 100  (range: -50% to +50%)
 - variety% = 55% × (1 - 0.5^(qualifying_foods / 20)), capped at 55%
 - tastiness% = tastiness × 10%  (range: -30% to +30%)
 - craving% = satisfied_cravings × 10%  (max 3 = 30%)
@@ -293,7 +293,7 @@ Once formulas are validated:
 - **Appearance**: Random, roughly every ~2 hours
 - **Persistence**: Cravings save with character state (persist across logout/login)
 - **Satisfaction**: One bite of craved food satisfies the craving
-- **Bonus**: +10% per satisfied craving, max 3 = +30% total
+- **Bonus**: +10% per satisfied craving, max 3 = +30% total. Persists while food is in stomach
 
 ### Server Multipliers
 

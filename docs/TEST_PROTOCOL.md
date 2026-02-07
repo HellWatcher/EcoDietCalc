@@ -133,65 +133,36 @@ python main.py predict --food "Boiled Grains" --quantity 4 --variety-count 1
 
 ### T7: Satisfy 1 Craving
 
-**Purpose**: Verify per-bite craving bonus
+**Purpose**: Verify +10% craving satisfaction bonus
 
 **Procedure**:
-1. Note your active cravings
-2. Eat the craved food
-3. Record SP gain from that bite
+1. Note your active cravings (0 satisfied so far)
+2. Eat the craved food (one bite satisfies)
+3. Eat more food afterward and record SP gain
 
 **Expected**:
-- +30 pp bonus on the nutrition multiplier
-- Should see ~30% higher SP gain than non-craving
-
----
-
-### T8: Satisfy 3 Cravings
-
-**Purpose**: Verify craving cap at 3
-
-**Procedure**:
-1. Have 3 active cravings
-2. Eat all 3 craved foods
-3. Record total SP
-
-**Expected**:
-- Maximum +90 pp from craving matches
-- 4th craving food should not add more bonus
-
----
-
-### T9: 1 Satisfied Craving (Daily Multiplier)
-
-**Purpose**: Verify satisfied craving multiplier
-
-**Procedure**:
-1. Satisfy 1 craving earlier in the day
-2. Eat more food later
-3. Compare SP gain to baseline
-
-**Expected**:
-- 1.10x multiplier on SP gain
+- +10% bonus on subsequent SP gain while craving food is in stomach
 - `satisfied_bonus = 1 * 0.10 = 0.10`
 
 ---
 
-### T10: 3 Satisfied Cravings (Daily Multiplier)
+### T8: Satisfy 3 Cravings (Cap Test)
 
-**Purpose**: Verify stacking satisfied bonus
+**Purpose**: Verify craving satisfaction stacks up to 3 and caps at +30%
 
 **Procedure**:
-1. Satisfy 3 cravings during the day
-2. Eat additional food
-3. Record SP gain
+1. Have 3 active cravings
+2. Eat all 3 craved foods
+3. Eat additional food and record SP gain
 
 **Expected**:
-- 1.30x multiplier on SP gain
+- +30% bonus on SP gain (3 × 10%)
+- 4th satisfied craving should not add more bonus
 - `satisfied_bonus = 3 * 0.10 = 0.30`
 
 ---
 
-### T11: Variety Curve Mapping
+### T9: Variety Curve Mapping
 
 **Purpose**: Map the variety bonus curve
 
@@ -226,7 +197,7 @@ T1,2026-01-29,v11.0,Bannock,1,100.00,122.50,22.50,22.39,0.49%,Base SP verified
 
 | Field | Description |
 |-------|-------------|
-| Test_ID | Test case identifier (T1-T11) |
+| Test_ID | Test case identifier (T1-T9) |
 | Date | Test date (YYYY-MM-DD) |
 | Game_Version | Eco game version |
 | Food | Food name tested |
