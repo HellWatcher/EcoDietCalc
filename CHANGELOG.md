@@ -6,6 +6,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-02-08
+
 ### Changed
 
 - Standardized all domain naming to match Eco game API:
