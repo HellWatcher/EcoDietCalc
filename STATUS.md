@@ -4,7 +4,7 @@ Last updated: 2026-02-08
 
 ## Current State
 
-Phase 2 (Python Polish) complete. 124 tests, mypy clean. All interface modules now tested.
+Phase 2 (Python Polish) complete. 150 tests, mypy clean. All modules now directly tested.
 Phase 3 (C# Mod) started — scaffold and read-only chat commands confirmed working on Eco 0.12 server.
 Domain naming standardized to match Eco game API (`fat`, `tastiness_*`, `balanced_diet_*`, TastePreference labels).
 
@@ -21,9 +21,20 @@ Domain naming standardized to match Eco game API (`fat`, `tastiness_*`, `balance
 | `interface/prompts.py`     | Good     | 13 tests for all prompt functions        |
 | `interface/render.py`      | Good     | 4 tests for display_meal_plan            |
 | `main.py (cmd_predict)`    | Good     | 5 tests for predict subcommand           |
-| `food_state_manager.py`    | Partial  | Used in integration tests                |
+| `food_state_manager.py`    | Good     | 26 direct unit tests                     |
 
-## Recent Changes (2026-02-08) — Naming Standardization
+## Recent Changes (2026-02-08) — Type Annotations + Unit Tests
+
+### Added
+
+- `tests/test_food_state_manager.py` — 26 direct unit tests covering all FoodStateManager methods (get_food, consume, can_consume, unique_variety_foods, all_available, reset_stomach, reset_availability, reset_tastiness, to_json_ready, get_current_sp)
+
+### Changed
+
+- `tune/tuner.py` — added type annotations to 7 unannotated functions (`override_constants`, `suppress_interactive_prompts`, `_always_no`, `_filtered_print`, `reload_deps`, `sample_theta`/`samp`, `main`); removed stale `# type: ignore` on persistence import
+- 150 tests pass, mypy clean
+
+## Previous Changes (2026-02-08) — Naming Standardization
 
 ### Changed
 
@@ -167,8 +178,8 @@ Config structure:
 - [x] ~~`cmd_predict` untested~~ — 5 tests added
 - [x] ~~Interface modules (`interface/*`) have no tests~~ — all covered
 - [x] ~~No edge case tests for config validation errors~~ — 9 tests added
-- [ ] `tune/tuner.py` has no type annotations (annotation-unchecked warning)
-- [ ] `food_state_manager.py` only tested indirectly via integration tests
+- [x] ~~`tune/tuner.py` has no type annotations~~ — 7 functions annotated
+- [x] ~~`food_state_manager.py` only tested indirectly~~ — 26 direct unit tests
 
 ## Feature Ideas
 
@@ -185,6 +196,7 @@ Config structure:
 
 ## Session Log
 
+- 2026-02-08: Type annotations + unit tests — tuner.py annotated, 26 new food_state_manager tests, 150 total tests
 - 2026-02-08: Naming standardization — aligned all domain naming with Eco game API (fat, tastiness*\*, balanced_diet*\*, TastePreference labels)
 - 2026-02-07: JSON export pipeline — GameStateExporter.cs, /ecodiet export command, Python --import flag, 26 new tests
 - 2026-02-07: Mod runtime fixes — net8.0 target, /ecodiet command rename, confirmed working on Eco 0.12

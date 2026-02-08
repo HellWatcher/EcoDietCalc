@@ -32,6 +32,7 @@ import sys
 from contextlib import contextmanager
 from pathlib import Path
 from types import ModuleType
+from collections.abc import Iterator
 from typing import Any, Dict, Iterable, List, Tuple
 
 # Ensure the project root (parent of `tune/`) is importable BEFORE any project imports.
@@ -68,7 +69,7 @@ def _import_persistence() -> ModuleType:
     except ModuleNotFoundError:
         pass
     try:
-        from interface import persistence as _persistence  # type: ignore
+        from interface import persistence as _persistence
 
         return _persistence
     except ModuleNotFoundError as exc:
@@ -104,8 +105,8 @@ HILL_CLIMB_FACTORS: Tuple[float, ...] = (0.9, 0.95, 1.05, 1.1)
 
 @contextmanager
 def override_constants(
-    **overrides,
-):
+    **overrides: float,
+) -> Iterator[None]:
     """
     Temporarily set attributes on the `constants` module, then restore.
 
@@ -147,8 +148,8 @@ def override_constants(
 
 @contextmanager
 def suppress_interactive_prompts(
-    persistence_module,
-):
+    persistence_module: ModuleType,
+) -> Iterator[None]:
     """Temporarily silence tastiness prompts and their warning line.
 
     During tuner runs we (a) auto-answer “no” to the
@@ -173,15 +174,15 @@ def suppress_interactive_prompts(
     )
 
     def _always_no(
-        *_args,
-        **_kwargs,
-    ):
+        *_args: Any,
+        **_kwargs: Any,
+    ) -> bool:
         return False
 
     def _filtered_print(
-        *args,
-        **kwargs,
-    ):
+        *args: Any,
+        **kwargs: Any,
+    ) -> None:
         # Swallow only the unknown-tastiness warning; pass everything else through.
         try:
             text = " ".join(str(a) for a in args)
@@ -189,7 +190,7 @@ def suppress_interactive_prompts(
             text = None
         if text and "available foods have unknown tastiness" in text:
             return
-        return original_print(
+        original_print(
             *args,
             **kwargs,
         )
@@ -235,7 +236,7 @@ def suppress_interactive_prompts(
                 )
 
 
-def reload_deps():
+def reload_deps() -> tuple[ModuleType, ModuleType, ModuleType]:
     """Reload modules that *consume* constants (not constants itself).
 
     Returns
@@ -313,12 +314,12 @@ def parse_range(
 def sample_theta(
     rng: random.Random,
     ranges: Dict[str, Tuple[float, float]],
-):
+) -> dict[str, float]:
     """Sample a theta dict within given ranges. LOW_CALORIE_THRESHOLD is rounded to int."""
 
     def samp(
-        name,
-    ):
+        name: str,
+    ) -> float:
         lo, hi = ranges[name]
         return rng.uniform(
             lo,
@@ -650,7 +651,7 @@ def hill_climb(
 # -------- main loop --------
 
 
-def main():
+def main() -> None:
     ap = argparse.ArgumentParser(
         description="Random-search tuner for planner knobs (minimal-touch)."
     )
