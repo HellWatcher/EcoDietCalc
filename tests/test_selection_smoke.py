@@ -9,7 +9,7 @@ FoodLike = namedtuple(
         "calories",
         "carbs",
         "protein",
-        "fats",
+        "fat",
         "vitamins",
         "tastiness",
     ],

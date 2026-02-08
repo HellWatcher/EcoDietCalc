@@ -49,6 +49,14 @@ def build_parser() -> argparse.ArgumentParser:
         help="Generate a meal plan",
     )
     plan_parser.add_argument(
+        "--import",
+        dest="import_path",
+        type=str,
+        default=None,
+        metavar="PATH",
+        help="Path to mod-exported game_state.json (skips interactive prompts)",
+    )
+    plan_parser.add_argument(
         "-s",
         "--server-mult",
         type=float,

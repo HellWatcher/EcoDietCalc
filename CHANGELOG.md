@@ -6,6 +6,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Changed
+
+- Standardized all domain naming to match Eco game API:
+  - `fats` → `fat` (attribute, param, JSON key) — matches `Nutrients.Fat`
+  - `taste_*` → `tastiness_*` (functions, config, constants) — matches `TastinessMult`
+  - `balance_*` → `balanced_diet_*` (functions, config, constants) — matches `BalancedDietMult`
+  - Tastiness labels: `"hated"` → `"worst"`, `"neutral"` → `"ok"`, `"great"` → `"delicious"` — matches `TastePreference` enum
+  - UI strings: `"Taste"` → `"Tastiness"`, `"Balance"` → `"Balanced Diet"`, `"Fats"` → `"Fat"`
+- `Food.from_dict()` and `load_game_state_export()` accept both `"Fat"` and `"Fats"` for backward compatibility
+- Updated `food_state.json` (112 entries), docs, and C# mod export key
+
 ### Added
 
 - C# mod scaffold (`mod/EcoDietMod/`) targeting net8.0 with `Eco.ReferenceAssemblies` v0.12.0.6-beta

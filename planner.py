@@ -18,7 +18,7 @@ from calculations import (
     simulate_stomach_with_added_food,
     soft_variety_count,
     sum_all_weighted_nutrients,
-    taste_delta_for_added_unit,
+    tastiness_delta_for_added_unit,
     variety_count,
 )
 from constants import (
@@ -57,7 +57,7 @@ def _nutrient_sum(
         Returns 0.0 if there are no calories.
     """
     density, _ = sum_all_weighted_nutrients(stomach)
-    return density["carbs"] + density["protein"] + density["fats"] + density["vitamins"]
+    return density["carbs"] + density["protein"] + density["fat"] + density["vitamins"]
 
 
 def fmt_signed(
@@ -333,7 +333,7 @@ def _apply_bite(
     """
     before_sp = current_sp
     pre_stomach = dict(manager.stomach)
-    taste_delta = taste_delta_for_added_unit(pre_stomach, food)
+    tastiness_delta = tastiness_delta_for_added_unit(pre_stomach, food)
 
     manager.consume(food)
     remaining_calories -= food.calories
@@ -366,7 +366,7 @@ def _apply_bite(
         new_sp=current_sp,
         craving=satisfied,
         variety_delta=variety_delta,
-        taste_delta=taste_delta,
+        tastiness_delta=tastiness_delta,
     )
 
     return (

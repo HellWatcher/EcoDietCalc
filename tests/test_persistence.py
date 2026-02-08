@@ -24,7 +24,7 @@ class TestReadFoodDict:
                 "Calories": 600,
                 "Carbs": 12,
                 "Protein": 3,
-                "Fats": 8,
+                "Fat": 8,
                 "Vitamins": 0,
                 "Tastiness": 0,
                 "Stomach": 0,
@@ -73,7 +73,7 @@ class TestSaveFoodDict:
     def test_save_roundtrip(self, tmp_path) -> None:
         """save then read = same data."""
         food = make_food(
-            "Elk Wellington", calories=1400, carbs=10, protein=18, fats=12, vitamins=8
+            "Elk Wellington", calories=1400, carbs=10, protein=18, fat=12, vitamins=8
         )
         food_list = [food.to_dict()]
         path = tmp_path / "roundtrip.json"
@@ -162,7 +162,7 @@ class TestLoadFoodState:
                 "Calories": 600,
                 "Carbs": 12,
                 "Protein": 3,
-                "Fats": 8,
+                "Fat": 8,
                 "Vitamins": 0,
                 "Tastiness": 0,
                 "Stomach": 2,
@@ -192,7 +192,7 @@ class TestLoadFoodState:
                 "Calories": 600,
                 "Carbs": 12,
                 "Protein": 3,
-                "Fats": 8,
+                "Fat": 8,
                 "Vitamins": 0,
                 "Tastiness": 0,
                 "Stomach": 5,

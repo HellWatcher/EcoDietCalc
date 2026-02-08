@@ -23,11 +23,11 @@ algorithm:
   # Asymptotic cap for variety bonus (percentage points)
   variety_bonus_cap_pp: 55.0
 
-  # Weight applied to taste bonus
-  taste_weight: 1.0
+  # Weight applied to tastiness bonus
+  tastiness_weight: 1.0
 
-  # Bonus for foods that improve nutrient balance ratio
-  balance_improvement_strength: 1.91
+  # Bonus for foods that improve nutrient balanced diet ratio
+  balanced_diet_improvement_strength: 1.91
 
   # Penalty for excessive repetition of same food
   repetition_penalty_strength: 1.25
@@ -39,8 +39,6 @@ game_rules:
   # Final SP multiplier: (1 + satisfied_count * craving_satisfied_frac)
   craving_satisfied_frac: 0.10
 
-
-
 safety:
   # Maximum food additions allowed in a single planning loop
   max_iterations: 100
@@ -51,4 +49,4 @@ safety:
 display:
   # Hide noise in displays (minimum absolute delta to show, in pp)
   variety_delta_threshold: 0.01
-  taste_delta_threshold: 0.01
+  tastiness_delta_threshold: 0.01

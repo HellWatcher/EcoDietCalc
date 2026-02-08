@@ -22,7 +22,7 @@ class TestDisplayMealPlan:
             new_sp=13.5,
             craving=False,
             variety_delta_pp=0.0,
-            taste_delta_pp=0.0,
+            tastiness_delta_pp=0.0,
         )
         display_meal_plan([item])
         output = capsys.readouterr().out
@@ -39,7 +39,7 @@ class TestDisplayMealPlan:
             new_sp=15.0,
             craving=True,
             variety_delta_pp=0.0,
-            taste_delta_pp=0.0,
+            tastiness_delta_pp=0.0,
         )
         display_meal_plan([item])
         output = capsys.readouterr().out

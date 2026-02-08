@@ -10,19 +10,19 @@ from food_state_manager import FoodStateManager
 def _make_manager() -> FoodStateManager:
     """Create a test manager with a few foods."""
     foods = [
-        make_food("Bannock", calories=600, carbs=12, protein=3, fats=8, vitamins=0),
+        make_food("Bannock", calories=600, carbs=12, protein=3, fat=8, vitamins=0),
         make_food(
             "Elk Wellington",
             calories=1400,
             carbs=10,
             protein=18,
-            fats=12,
+            fat=12,
             vitamins=8,
             tastiness=2,
             available=5,
         ),
         make_food(
-            "Crimson Salad", calories=1100, carbs=12, protein=6, fats=8, vitamins=22
+            "Crimson Salad", calories=1100, carbs=12, protein=6, fat=8, vitamins=22
         ),
     ]
     return FoodStateManager(foods)

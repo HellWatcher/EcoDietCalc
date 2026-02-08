@@ -1,23 +1,23 @@
 """Pure scoring utilities for nutrients, bonuses, and SP.
 
-Contains deterministic helpers for nutrient totals, balance/variety/taste
+Contains deterministic helpers for nutrient totals, balanced diet/variety/tastiness
 bonuses, and SP calculations, plus small simulators used by the planner.
 
 Exports
 -------
 sum_weighted_nutrients
 sum_all_weighted_nutrients
-calculate_balance_bonus
-calculate_balance_ratio
-get_taste_bonus
+calculate_balanced_diet_bonus
+calculate_balanced_diet_ratio
+get_tastiness_bonus
 calculate_nutrition_multiplier
 get_sp
 simulate_stomach_with_added_food
 evaluate_bonus_with_addition
 get_sp_delta
-get_balance_ratio
+get_balanced_diet_ratio
 get_variety_bonus
-taste_delta_for_added_unit
+tastiness_delta_for_added_unit
 variety_fraction_for
 is_variety_qualifying
 soft_variety_count
@@ -34,8 +34,8 @@ from typing import Dict
 from constants import (
     BASE_SKILL_POINTS,
     CRAVING_SATISFIED_FRAC,
-    TASTE_WEIGHT,
     TASTINESS_MULTIPLIERS,
+    TASTINESS_WEIGHT,
     VARIETY_BONUS_CAP_PP,
     VARIETY_CAL_THRESHOLD,
 )
@@ -80,7 +80,7 @@ def sum_weighted_nutrients(
         Current stomach state.
     attr : str
         Nutrient attribute name.
-        Examples: "carbs", "protein", "fats", "vitamins".
+        Examples: "carbs", "protein", "fat", "vitamins".
 
     Returns
     -------
@@ -106,11 +106,11 @@ def sum_all_weighted_nutrients(
     -------
     tuple[dict[str, float], float]
         ``(density_dict, total_calories)`` where the dict has keys
-        ``"carbs"``, ``"protein"``, ``"fats"``, ``"vitamins"``.
+        ``"carbs"``, ``"protein"``, ``"fat"``, ``"vitamins"``.
     """
     # Delegate per-attr computation to keep logic in one place
     total_cal = _total_calories(stomach)
-    totals = {"carbs": 0.0, "protein": 0.0, "fats": 0.0, "vitamins": 0.0}
+    totals = {"carbs": 0.0, "protein": 0.0, "fat": 0.0, "vitamins": 0.0}
     if total_cal == 0:
         return totals, 0.0
 
@@ -118,13 +118,13 @@ def sum_all_weighted_nutrients(
         calorie_weight = (food.calories * quantity) / total_cal
         totals["carbs"] += food.carbs * calorie_weight
         totals["protein"] += food.protein * calorie_weight
-        totals["fats"] += food.fats * calorie_weight
+        totals["fat"] += food.fat * calorie_weight
         totals["vitamins"] += food.vitamins * calorie_weight
 
     return totals, total_cal
 
 
-def calculate_balance_bonus(
+def calculate_balanced_diet_bonus(
     nutrients: list[float],
 ) -> float:
     """Convert balance ratio to bonus percentage.
@@ -142,11 +142,11 @@ def calculate_balance_bonus(
         Bonus percentage in ``[-50, +50]``.
     """
 
-    ratio = calculate_balance_ratio(nutrients)
+    ratio = calculate_balanced_diet_ratio(nutrients)
     return (ratio * 100) - 50
 
 
-def calculate_balance_ratio(
+def calculate_balanced_diet_ratio(
     nutrients: list[float],
 ) -> float:
     """Balance ratio of the nutrient distribution.
@@ -174,13 +174,13 @@ def calculate_balance_ratio(
     return min_nutrient / max_nutrient if max_nutrient > 0 else 0.0
 
 
-def get_taste_bonus(
+def get_tastiness_bonus(
     stomach: dict,
 ) -> float:
-    """Taste bonus percentage points for the current stomach.
+    """Tastiness bonus percentage points for the current stomach.
 
     A calorie-weighted average of tastiness multipliers.
-    Scaled by ``TASTE_WEIGHT``.
+    Scaled by ``TASTINESS_WEIGHT``.
 
     Parameters
     ----------
@@ -202,10 +202,7 @@ def get_taste_bonus(
         TASTINESS_MULTIPLIERS.get(food.tastiness, 0.0) * food.calories * quantity
         for food, quantity in stomach.items()
     )
-    return (taste_score / total_cal) * 100.0 * TASTE_WEIGHT
-
-
-
+    return (taste_score / total_cal) * 100.0 * TASTINESS_WEIGHT
 
 
 def calculate_nutrition_multiplier(
@@ -234,22 +231,22 @@ def calculate_nutrition_multiplier(
         Sum of bonus components in percentage points.
     """
 
-    # ---- balance (ordered list, not dict) ----
+    # ---- balanced diet (ordered list, not dict) ----
     density, _ = sum_all_weighted_nutrients(stomach)
 
-    balance_pp = calculate_balance_bonus(
+    balanced_diet_pp = calculate_balanced_diet_bonus(
         [
             density["carbs"],
             density["protein"],
-            density["fats"],
+            density["fat"],
             density["vitamins"],
         ]
     )
     variety_pp = get_variety_bonus(len(unique_foods_24h))
-    taste_pp = get_taste_bonus(stomach)
+    tastiness_pp = get_tastiness_bonus(stomach)
 
     # returns percentage points (not a fraction)
-    return balance_pp + variety_pp + taste_pp
+    return balanced_diet_pp + variety_pp + tastiness_pp
 
 
 def get_sp(
@@ -290,7 +287,7 @@ def get_sp(
 
     density, _ = sum_all_weighted_nutrients(stomach)  # calorie-weighted avg
     density_sum = (
-        density["carbs"] + density["protein"] + density["fats"] + density["vitamins"]
+        density["carbs"] + density["protein"] + density["fat"] + density["vitamins"]
     )
 
     bonus = (
@@ -430,7 +427,7 @@ def get_sp_delta(
     return delta
 
 
-def get_balance_ratio(
+def get_balanced_diet_ratio(
     stomach,
 ):
     """Balance ratio for the current stomach.
@@ -444,7 +441,7 @@ def get_balance_ratio(
     nutrients = [
         density["carbs"],
         density["protein"],
-        density["fats"],
+        density["fat"],
         density["vitamins"],
     ]
     max_nutrient = max(nutrients)
@@ -477,11 +474,11 @@ def get_variety_bonus(
     return VARIETY_BONUS_CAP_PP * (1 - 0.5 ** (unique_food_count / 20))
 
 
-def taste_delta_for_added_unit(
+def tastiness_delta_for_added_unit(
     stomach: dict[Food, int],
     food: Food,
 ) -> float:
-    """Change in taste bonus from adding one unit of a food.
+    """Change in tastiness bonus from adding one unit of a food.
 
     Parameters
     ----------
@@ -493,11 +490,11 @@ def taste_delta_for_added_unit(
     Returns
     -------
     float
-        ``taste_bonus(after) - taste_bonus(before)`` in percentage points.
+        ``tastiness_bonus(after) - tastiness_bonus(before)`` in percentage points.
     """
 
-    before = get_taste_bonus(stomach)
-    after = get_taste_bonus(
+    before = get_tastiness_bonus(stomach)
+    after = get_tastiness_bonus(
         simulate_stomach_with_added_food(
             stomach,
             food,

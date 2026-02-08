@@ -35,8 +35,8 @@ class AlgorithmConfig:
     low_calorie_threshold: int = 395
     low_calorie_penalty_strength: float = 2.48
     variety_bonus_cap_pp: float = 55.0
-    taste_weight: float = 1.0
-    balance_improvement_strength: float = 1.91
+    tastiness_weight: float = 1.0
+    balanced_diet_improvement_strength: float = 1.91
     repetition_penalty_strength: float = 1.25
 
 
@@ -61,7 +61,7 @@ class DisplayConfig:
     """Display thresholds."""
 
     variety_delta_threshold: float = 0.01
-    taste_delta_threshold: float = 0.01
+    tastiness_delta_threshold: float = 0.01
 
 
 @dataclass
@@ -170,7 +170,7 @@ def load_config(path: str | Path | None = None) -> Config:
     errors = _validate_config(config)
     if errors:
         raise ValueError(
-            f"Config validation failed:\n" + "\n".join(f"  - {e}" for e in errors)
+            "Config validation failed:\n" + "\n".join(f"  - {e}" for e in errors)
         )
 
     return config

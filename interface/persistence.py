@@ -1,7 +1,7 @@
 """Persistence and integrity logging utilities.
 
-Provides JSON load/save for food data and writes a diagnostic
-log of data issues.
+Provides JSON load/save for food data, writes a diagnostic
+log of data issues, and imports mod-exported game state snapshots.
 
 Exports
 -------
@@ -9,6 +9,7 @@ read_food_dict
 save_food_dict
 log_data_issues
 load_food_state
+load_game_state_export
 
 Notes
 -----
@@ -17,6 +18,7 @@ insensitive by Name.
 """
 
 import json
+import re
 from pathlib import (
     Path,
 )
@@ -277,3 +279,105 @@ def load_food_state(
         manager.available,
     )
     return manager
+
+
+def _parse_cravings_satisfied(description: str, multiplier: float) -> int:
+    """Derive cravings-satisfied count from the mod export.
+
+    Tries the description string first (e.g. "2 cravings satisfied"),
+    then falls back to the multiplier (each satisfied = +0.10 over 1.0).
+
+    Parameters
+    ----------
+    description : str
+        ``Cravings.Description`` from the export JSON.
+    multiplier : float
+        ``Cravings.Multiplier`` from the export JSON.
+
+    Returns
+    -------
+    int
+        Number of cravings satisfied.
+    """
+    match = re.search(r"(\d+)\s+craving", description)
+    if match:
+        return int(match.group(1))
+    # Fallback: multiplier is 1.0 + 0.10 per satisfied craving
+    if multiplier > 1.0:
+        return round((multiplier - 1.0) / 0.10)
+    return 0
+
+
+def load_game_state_export(
+    path: str | Path,
+) -> tuple[FoodStateManager, list[str], int, float, float, float]:
+    """Load a mod-exported game-state JSON into planner-ready objects.
+
+    Parameters
+    ----------
+    path : str or Path
+        Path to the ``game_state_*.json`` file written by the C# mod.
+
+    Returns
+    -------
+    tuple
+        ``(manager, cravings, cravings_satisfied,
+        remaining_calories, server_mult, dinner_party_mult)``
+
+    Raises
+    ------
+    FileNotFoundError
+        If *path* does not exist.
+    KeyError
+        If required top-level keys are missing.
+    """
+    with open(path, "r", encoding="utf-8") as fh:
+        data = json.load(fh)
+
+    # Build Food objects from the Foods array.
+    # The mod sets Available = 0 (can't see inventory); default to unlimited.
+    foods: list[Food] = []
+    for entry in data["Foods"]:
+        food = Food(
+            name=entry["Name"],
+            calories=entry["Calories"],
+            carbs=entry["Carbs"],
+            protein=entry["Protein"],
+            fat=entry.get("Fat", entry.get("Fats")),
+            vitamins=entry["Vitamins"],
+            tastiness=entry["Tastiness"],
+            stomach=entry.get("Stomach", 0),
+            available=entry.get("Available", 99),
+        )
+        foods.append(food)
+
+    manager = FoodStateManager(foods)
+
+    # Cravings
+    cravings_data = data["Cravings"]
+    current_craving = cravings_data.get("Current", "None")
+    cravings: list[str] = (
+        [current_craving] if current_craving and current_craving != "None" else []
+    )
+    cravings_satisfied = _parse_cravings_satisfied(
+        cravings_data.get("Description", ""),
+        cravings_data.get("Multiplier", 1.0),
+    )
+
+    # Remaining calories
+    cal_data = data["Calories"]
+    remaining_calories = cal_data["Max"] - cal_data["Current"]
+
+    # Multipliers (server and dinner party are passthrough)
+    mult_data = data["Multipliers"]
+    server_mult = 1.0  # server mult is not in the per-player export
+    dinner_party_mult = mult_data.get("DinnerParty", 1.0)
+
+    return (
+        manager,
+        cravings,
+        cravings_satisfied,
+        remaining_calories,
+        server_mult,
+        dinner_party_mult,
+    )

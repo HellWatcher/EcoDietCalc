@@ -286,7 +286,7 @@ class FoodStateManager:
                     "Calories": food.calories,
                     "Carbs": food.carbs,
                     "Protein": food.protein,
-                    "Fats": food.fats,
+                    "Fat": food.fat,
                     "Vitamins": food.vitamins,
                     "Tastiness": food.tastiness,
                     "Stomach": food.stomach,

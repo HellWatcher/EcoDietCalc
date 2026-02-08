@@ -8,14 +8,14 @@ from calculations import (
     evaluate_bonus_with_addition,
     get_sp,
     get_sp_delta,
-    get_taste_bonus,
+    get_tastiness_bonus,
     get_variety_bonus,
     simulate_stomach_with_added_food,
     sum_all_weighted_nutrients,
 )
 from constants import (
     CRAVING_SATISFIED_FRAC,
-    TASTE_WEIGHT,
+    TASTINESS_WEIGHT,
     TASTINESS_MULTIPLIERS,
     VARIETY_BONUS_CAP_PP,
     VARIETY_CAL_THRESHOLD,
@@ -29,7 +29,7 @@ FoodLike = namedtuple(
         "calories",
         "carbs",
         "protein",
-        "fats",
+        "fat",
         "vitamins",
         "tastiness",
     ],
@@ -63,10 +63,10 @@ def stomach_dict(*items):
 
 def _density_sum(stomach) -> float:
     density, _ = sum_all_weighted_nutrients(stomach)  # dict of floats
-    return density["carbs"] + density["protein"] + density["fats"] + density["vitamins"]
+    return density["carbs"] + density["protein"] + density["fat"] + density["vitamins"]
 
 
-def test_get_taste_bonus_matches_definition():
+def test_get_tastiness_bonus_matches_definition():
     a = food(
         "sweet",
         200,
@@ -92,9 +92,9 @@ def test_get_taste_bonus_matches_definition():
         (TASTINESS_MULTIPLIERS[3] * 200 + TASTINESS_MULTIPLIERS[-3] * 200)
         / (200 + 200)
         * 100.0
-        * TASTE_WEIGHT
+        * TASTINESS_WEIGHT
     )
-    assert abs(get_taste_bonus(st) - expected) < 1e-9
+    assert abs(get_tastiness_bonus(st) - expected) < 1e-9
 
 
 def test_variety_bonus_is_capped_and_monotonic():
@@ -121,7 +121,7 @@ def test_get_sp_satisfied_cravings_fraction_scales_total():
     assert abs((plus1 - base) - expected_delta) < 1e-9
 
 
-def test_taste_delta_for_added_unit_matches_manual_diff():
+def test_tastiness_delta_for_added_unit_matches_manual_diff():
     a = food(
         "nice",
         200,
@@ -146,11 +146,11 @@ def test_taste_delta_for_added_unit_matches_manual_diff():
         st,
         a,
     )
-    manual_delta = get_taste_bonus(after) - get_taste_bonus(st)
+    manual_delta = get_tastiness_bonus(after) - get_tastiness_bonus(st)
     # Import lazily to avoid circulars if any
-    from calculations import taste_delta_for_added_unit
+    from calculations import tastiness_delta_for_added_unit
 
-    assert abs(taste_delta_for_added_unit(st, a) - manual_delta) < 1e-9
+    assert abs(tastiness_delta_for_added_unit(st, a) - manual_delta) < 1e-9
 
 
 def test_sp_delta_matches_difference(simple_manager_factory):
@@ -274,5 +274,3 @@ def test_simulate_stomach_with_added_food_does_not_mutate():
     clone = simulate_stomach_with_added_food(stomach, food)
     assert stomach.get(food) == 1
     assert clone.get(food) == 2
-
-

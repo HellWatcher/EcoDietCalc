@@ -30,8 +30,8 @@ class Food:
         Carbohydrates per unit.
     protein : int
         Protein per unit.
-    fats : int
-        Fats per unit.
+    fat : int
+        Fat per unit.
     vitamins : int
         Vitamins per unit.
     tastiness : int
@@ -49,7 +49,7 @@ class Food:
         calories: int,
         carbs: int,
         protein: int,
-        fats: int,
+        fat: int,
         vitamins: int,
         tastiness: int,
         stomach: int = 0,
@@ -60,7 +60,7 @@ class Food:
         self.calories = int(calories)
         self.carbs = int(carbs)
         self.protein = int(protein)
-        self.fats = int(fats)
+        self.fat = int(fat)
         self.vitamins = int(vitamins)
         # Store the raw tastiness rating (99 = unknown sentinel)
         self.tastiness = int(tastiness)
@@ -80,9 +80,9 @@ class Food:
         Returns
         -------
         int
-            Total nutrient score (e.g., ``carbs + protein + fats + vitamins``).
+            Total nutrient score (e.g., ``carbs + protein + fat + vitamins``).
         """
-        return self.carbs + self.protein + self.fats + self.vitamins
+        return self.carbs + self.protein + self.fat + self.vitamins
 
     def is_valid(
         self,
@@ -99,7 +99,7 @@ class Food:
             self.calories >= 0
             and self.carbs >= 0
             and self.protein >= 0
-            and self.fats >= 0
+            and self.fat >= 0
             and self.vitamins >= 0
             and self.tastiness in TASTINESS_MULTIPLIERS
         )
@@ -197,8 +197,9 @@ class Food:
         data : dict
             Must include keys:
             ``"Name"``, ``"Calories"``, ``"Carbs"``, ``"Protein"``,
-            ``"Fats"``, ``"Vitamins"``, ``"Tastiness"``.
+            ``"Fat"``, ``"Vitamins"``, ``"Tastiness"``.
             Optional keys: ``"Stomach"``, ``"Available"``.
+            Accepts ``"Fats"`` as a backward-compatible alias for ``"Fat"``.
 
         Returns
         -------
@@ -212,7 +213,7 @@ class Food:
             calories=data["Calories"],
             carbs=data["Carbs"],
             protein=data["Protein"],
-            fats=data["Fats"],
+            fat=data.get("Fat", data.get("Fats")),
             vitamins=data["Vitamins"],
             tastiness=data["Tastiness"],
             stomach=data.get("Stomach", 0),
@@ -228,7 +229,7 @@ class Food:
         -------
         dict
             Keys:
-            ``Name``, ``Calories``, ``Carbs``, ``Protein``, ``Fats``,
+            ``Name``, ``Calories``, ``Carbs``, ``Protein``, ``Fat``,
             ``Vitamins``, ``Tastiness``, ``Stomach``, ``Available``.
         """
         # Mirror all fields for stable JSON shape. `getattr` keeps older saves
@@ -238,7 +239,7 @@ class Food:
             "Calories": self.calories,
             "Carbs": self.carbs,
             "Protein": self.protein,
-            "Fats": self.fats,
+            "Fat": self.fat,
             "Vitamins": self.vitamins,
             "Tastiness": self.tastiness,
             "Stomach": getattr(self, "stomach", 0),
@@ -272,6 +273,6 @@ class Food:
         return (
             f"{self.name} | Cal: {self.calories}, "
             f"C:{self.carbs} P:{self.protein} "
-            f"F:{self.fats} V:{self.vitamins} "
+            f"F:{self.fat} V:{self.vitamins} "
             f"T:{self.tastiness}"
         )

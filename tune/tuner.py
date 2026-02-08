@@ -94,7 +94,7 @@ RANGE_PROXIMITY_OVERSHOOT_PENALTY: Tuple[float, float] = (0.0, 0.2)
 RANGE_TIEBREAK_SCORE_WINDOW_SP: Tuple[float, float] = (0.1, 1.0)
 RANGE_LOW_CALORIE_THRESHOLD: Tuple[float, float] = (200.0, 500.0)
 RANGE_LOW_CALORIE_PENALTY_STRENGTH: Tuple[float, float] = (0.0, 4.0)
-RANGE_BALANCE_IMPROVEMENT_STRENGTH: Tuple[float, float] = (0.0, 3.0)
+RANGE_BALANCED_DIET_IMPROVEMENT_STRENGTH: Tuple[float, float] = (0.0, 3.0)
 RANGE_REPETITION_PENALTY_STRENGTH: Tuple[float, float] = (0.0, 2.0)
 
 #: Hill climbing defaults
@@ -286,7 +286,7 @@ def safe_name_knobs(
         "TIEBREAK_SCORE_WINDOW_SP",
         "LOW_CALORIE_THRESHOLD",
         "LOW_CALORIE_PENALTY_STRENGTH",
-        "BALANCE_IMPROVEMENT_STRENGTH",
+        "BALANCED_DIET_IMPROVEMENT_STRENGTH",
         "REPETITION_PENALTY_STRENGTH",
     ]
     return {k: float(theta[k]) for k in keys if k in theta}
@@ -332,7 +332,9 @@ def sample_theta(
         "TIEBREAK_SCORE_WINDOW_SP": samp("TIEBREAK_SCORE_WINDOW_SP"),
         "LOW_CALORIE_THRESHOLD": int(round(samp("LOW_CALORIE_THRESHOLD"))),
         "LOW_CALORIE_PENALTY_STRENGTH": samp("LOW_CALORIE_PENALTY_STRENGTH"),
-        "BALANCE_IMPROVEMENT_STRENGTH": samp("BALANCE_IMPROVEMENT_STRENGTH"),
+        "BALANCED_DIET_IMPROVEMENT_STRENGTH": samp(
+            "BALANCED_DIET_IMPROVEMENT_STRENGTH"
+        ),
         "REPETITION_PENALTY_STRENGTH": samp("REPETITION_PENALTY_STRENGTH"),
     }
 
@@ -436,7 +438,7 @@ def evaluate_theta(
             )
 
             # Calculate balance ratio (min/max nutrient density)
-            balance_ratio: float = calculations.get_balance_ratio(manager.stomach)
+            balance_ratio: float = calculations.get_balanced_diet_ratio(manager.stomach)
 
         per_budget.append(
             {
@@ -713,7 +715,7 @@ def main():
         "--balance-strength",
         type=str,
         default="",
-        help="Range for BALANCE_IMPROVEMENT_STRENGTH, e.g. '0,3' (default 0,3)",
+        help="Range for BALANCED_DIET_IMPROVEMENT_STRENGTH, e.g. '0,3' (default 0,3)",
     )
     ap.add_argument(
         "--rep-strength",
@@ -773,8 +775,8 @@ def main():
         "LOW_CALORIE_PENALTY_STRENGTH": parse_range(
             args.low_cal_penalty, RANGE_LOW_CALORIE_PENALTY_STRENGTH
         ),
-        "BALANCE_IMPROVEMENT_STRENGTH": parse_range(
-            args.balance_strength, RANGE_BALANCE_IMPROVEMENT_STRENGTH
+        "BALANCED_DIET_IMPROVEMENT_STRENGTH": parse_range(
+            args.balance_strength, RANGE_BALANCED_DIET_IMPROVEMENT_STRENGTH
         ),
         "REPETITION_PENALTY_STRENGTH": parse_range(
             args.rep_strength, RANGE_REPETITION_PENALTY_STRENGTH
@@ -866,7 +868,7 @@ def main():
         "TIEBREAK_SCORE_WINDOW_SP",
         "LOW_CALORIE_THRESHOLD",
         "LOW_CALORIE_PENALTY_STRENGTH",
-        "BALANCE_IMPROVEMENT_STRENGTH",
+        "BALANCED_DIET_IMPROVEMENT_STRENGTH",
         "REPETITION_PENALTY_STRENGTH",
         "avg_final_sp",
         "avg_delta_sp_per_100kcal",

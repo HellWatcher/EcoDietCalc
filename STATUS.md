@@ -1,11 +1,12 @@
 # Project Status
 
-Last updated: 2026-02-07
+Last updated: 2026-02-08
 
 ## Current State
 
-Phase 2 (Python Polish) complete. 98 tests, mypy clean. All interface modules now tested.
+Phase 2 (Python Polish) complete. 124 tests, mypy clean. All interface modules now tested.
 Phase 3 (C# Mod) started — scaffold and read-only chat commands confirmed working on Eco 0.12 server.
+Domain naming standardized to match Eco game API (`fat`, `tastiness_*`, `balanced_diet_*`, TastePreference labels).
 
 ## Test Coverage
 
@@ -16,13 +17,38 @@ Phase 3 (C# Mod) started — scaffold and read-only chat commands confirmed work
 | `integration`              | Good     | 16 tests for full planning pipeline      |
 | `config.py`                | Good     | 9 tests for load, validation, merging    |
 | `interface/cli.py`         | Good     | 7 tests for parser subcommands and flags |
-| `interface/persistence.py` | Good     | 11 tests for read/save/log/load          |
+| `interface/persistence.py` | Good     | 11+26 tests (load/save/log + import)     |
 | `interface/prompts.py`     | Good     | 13 tests for all prompt functions        |
 | `interface/render.py`      | Good     | 4 tests for display_meal_plan            |
 | `main.py (cmd_predict)`    | Good     | 5 tests for predict subcommand           |
 | `food_state_manager.py`    | Partial  | Used in integration tests                |
 
-## Recent Changes (2026-02-07) — Mod Runtime Fixes
+## Recent Changes (2026-02-08) — Naming Standardization
+
+### Changed
+
+- Renamed all domain terms to match Eco game API: `fats` → `fat`, `taste_*` → `tastiness_*`, `balance_*` → `balanced_diet_*`
+- Tastiness labels aligned with `TastePreference` enum: `"hated"` → `"worst"`, `"neutral"` → `"ok"`, `"great"` → `"delicious"`
+- Updated all Python files (models, calculations, planner, config, constants, main, interface, tests), C# mod export, food_state.json, and docs
+- Backward-compatible JSON loading: `Food.from_dict()` accepts both `"Fat"` and `"Fats"` keys
+- 124 tests pass, mypy clean
+
+## Previous Changes (2026-02-07) — JSON Export Pipeline
+
+### Added
+
+- `mod/EcoDietMod/GameStateExporter.cs` — exports player diet state (foods, stomach, cravings, multipliers, calories) to JSON using `System.Text.Json`
+- `/ecodiet export [note]` chat subcommand — writes timestamped JSON to `Mods/EcoDietMod/exports/`
+- `load_game_state_export()` in `interface/persistence.py` — reads mod-exported JSON into `FoodStateManager` + cravings/calories/multipliers
+- `--import` flag on `plan` subcommand — bypasses interactive prompts, uses mod-exported game state
+- `tests/test_import.py` — 26 tests covering import pipeline, cravings parsing, tastiness mapping, error cases
+
+### Discovered (Eco API)
+
+- `TastePreference` is a **nested enum** inside `ItemTaste` struct (not a standalone type): `ItemTaste.TastePreference`
+- Actual enum values: `Worst`, `Horrible`, `Bad`, `Ok`, `Good`, `Delicious`, `Favorite` (not Terrible/Great as documented elsewhere)
+
+## Previous Changes (2026-02-07) — Mod Runtime Fixes
 
 ### Fixed
 
@@ -147,7 +173,7 @@ Config structure:
 ## Feature Ideas
 
 - **"Next bite" real-time mode**: Mod reads live stomach state and suggests what to eat next — natural fit for in-game integration since the mod has direct access to stomach contents via `Stomach.Contents` and events like `GlobalFoodEatenEvent`
-- **Export game state to JSON**: Mod writes stomach/nutrient/craving data to JSON for the Python planner to consume — bridge approach before full C# port
+- ~~**Export game state to JSON**~~: ✅ Implemented — `/ecodiet export` writes JSON, `python main.py plan --import <file>` consumes it
 
 ## Architecture Notes
 
@@ -159,6 +185,8 @@ Config structure:
 
 ## Session Log
 
+- 2026-02-08: Naming standardization — aligned all domain naming with Eco game API (fat, tastiness*\*, balanced_diet*\*, TastePreference labels)
+- 2026-02-07: JSON export pipeline — GameStateExporter.cs, /ecodiet export command, Python --import flag, 26 new tests
 - 2026-02-07: Mod runtime fixes — net8.0 target, /ecodiet command rename, confirmed working on Eco 0.12
 - 2026-02-07: C# mod scaffold — created mod/EcoDietMod with read-only chat commands, explored Eco API surface
 - 2026-02-07: Craving cleanup — removed eligibility system (can*be_craving, CRAVING_MIN*\*, per-bite match bonus), kept satisfied frac and planner flow

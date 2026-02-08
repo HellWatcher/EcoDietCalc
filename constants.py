@@ -47,12 +47,12 @@ _TASTINESS_MULTIPLIERS_DICT: Final[dict[int, float]] = {
 
 # Human labels for UI/logs; not used in calculations
 _TASTINESS_NAMES_DICT: Final[dict[int, str]] = {
-    -3: "hated",
+    -3: "worst",
     -2: "horrible",
     -1: "bad",
-    0: "neutral",
+    0: "ok",
     1: "good",
-    2: "great",
+    2: "delicious",
     3: "favorite",
     99: "unknown",
 }
@@ -98,13 +98,15 @@ PROXIMITY_APPROACH_WEIGHT: Final[float] = _cfg.algorithm.proximity_approach_weig
 PROXIMITY_OVERSHOOT_PENALTY: Final[float] = _cfg.algorithm.proximity_overshoot_penalty
 
 # Bonus for foods that improve nutrient balance ratio.
-BALANCE_IMPROVEMENT_STRENGTH: Final[float] = _cfg.algorithm.balance_improvement_strength
+BALANCED_DIET_IMPROVEMENT_STRENGTH: Final[float] = (
+    _cfg.algorithm.balanced_diet_improvement_strength
+)
 
 # Penalty for excessive repetition of same food.
 REPETITION_PENALTY_STRENGTH: Final[float] = _cfg.algorithm.repetition_penalty_strength
 
 # Scalars aren't runtime-frozen; Final + UPPERCASE signals "do not reassign"
-TASTE_WEIGHT: Final[float] = _cfg.algorithm.taste_weight
+TASTINESS_WEIGHT: Final[float] = _cfg.algorithm.tastiness_weight
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Display thresholds (from config)
@@ -112,7 +114,7 @@ TASTE_WEIGHT: Final[float] = _cfg.algorithm.taste_weight
 
 # Hide noise in displays (minimum absolute delta to show, in pp)
 VARIETY_DELTA_THRESHOLD: Final[float] = _cfg.display.variety_delta_threshold
-TASTE_DELTA_THRESHOLD: Final[float] = _cfg.display.taste_delta_threshold
+TASTINESS_DELTA_THRESHOLD: Final[float] = _cfg.display.tastiness_delta_threshold
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Algorithm parameters (from config)

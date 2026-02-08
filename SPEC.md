@@ -147,7 +147,7 @@ class Food:
     calories: int
     carbs: float      # 0-1 nutrient density
     protein: float
-    fats: float
+    fat: float
     vitamins: float
     tastiness: int    # -3 to +3, 99 = unknown
 ```
@@ -182,7 +182,7 @@ class MealPlanItem:
 total_sp = ((nutrient_avg × (1 + balance% + variety% + tastiness% + craving%)) + 12) × server_mult
 
 Where:
-- nutrient_avg = avg(carbs) + avg(protein) + avg(fats) + avg(vitamins)
+- nutrient_avg = avg(carbs) + avg(protein) + avg(fat) + avg(vitamins)
 - balance% = (min/max nutrient ratio × 100 - 50) / 100  (range: -50% to +50%)
 - variety% = 55% × (1 - 0.5^(qualifying_foods / 20)), capped at 55%
 - tastiness% = tastiness × 10%  (range: -30% to +30%)

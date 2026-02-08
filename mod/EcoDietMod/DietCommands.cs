@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Linq;
 using System.Text;
 using Eco.Gameplay.Items;
@@ -15,10 +16,10 @@ namespace EcoDietMod;
 [ChatCommandHandler]
 public static class DietCommands
 {
-    [ChatCommand("EcoDiet commands — view your stomach, nutrients, and cravings", "ecodiet")]
+    [ChatCommand("EcoDiet commands — view your stomach, nutrients, cravings, and export state", "ecodiet")]
     public static void EcoDietRoot(User user)
     {
-        user.MsgLocStr("EcoDiet commands: /ecodiet stomach, /ecodiet nutrients, /ecodiet cravings, /ecodiet taste, /ecodiet multipliers");
+        user.MsgLocStr("EcoDiet commands: /ecodiet stomach, /ecodiet nutrients, /ecodiet cravings, /ecodiet taste, /ecodiet multipliers, /ecodiet export");
     }
 
     [ChatSubCommand("EcoDietRoot", "Show current stomach contents", "stomach")]
@@ -126,5 +127,18 @@ public static class DietCommands
         sb.AppendLine($"  Calorie mult:       {stomach.CalorieMult:F2}x");
 
         user.MsgLocStr(sb.ToString());
+    }
+
+    [ChatSubCommand("EcoDietRoot", "Export game state to JSON for the Python planner", "export")]
+    public static void Export(User user, string note = "")
+    {
+        var timestamp = DateTime.UtcNow.ToString("yyyy-MM-dd_HHmmss");
+        var filename = $"game_state_{timestamp}.json";
+        var dir = Path.Combine(
+            AppDomain.CurrentDomain.BaseDirectory, "Mods", "EcoDietMod", "exports");
+        Directory.CreateDirectory(dir);
+        var path = Path.Combine(dir, filename);
+        GameStateExporter.ExportGameState(user, path, note);
+        user.MsgLocStr($"Game state exported to {path}");
     }
 }

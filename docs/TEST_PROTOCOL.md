@@ -29,6 +29,7 @@ Step-by-step instructions for validating SP calculation formulas against Eco gam
 **Purpose**: Verify base SP (12) and density calculation
 
 **Procedure**:
+
 1. Start with empty stomach
 2. Record starting SP
 3. Eat 1 unit of a known food (e.g., Bannock)
@@ -36,10 +37,12 @@ Step-by-step instructions for validating SP calculation formulas against Eco gam
 5. Compare to prediction
 
 **Expected**:
+
 - SP delta should match: `(nutrients * (1 + bonus)) + 12`
 - With empty stomach, bonus components are minimal
 
 **Command**:
+
 ```bash
 python main.py predict --food "Bannock" --quantity 1
 ```
@@ -51,11 +54,13 @@ python main.py predict --food "Bannock" --quantity 1
 **Purpose**: Verify variety doesn't increase from eating more of same food
 
 **Procedure**:
+
 1. Start with 1 unit of FoodX already eaten
 2. Eat 2 more units of same FoodX
 3. Check that variety bonus doesn't increase after threshold
 
 **Expected**:
+
 - Variety count stays at 1 (not 3)
 - After 2000 cal threshold met, no additional variety bonus
 
@@ -66,16 +71,19 @@ python main.py predict --food "Bannock" --quantity 1
 **Purpose**: Verify variety bonus from multiple foods
 
 **Procedure**:
+
 1. Eat 4 units of Food A (reaching 2000+ cal)
 2. Record SP
 3. Eat 4 units of Food B (reaching 2000+ cal)
 4. Record SP increase
 
 **Expected**:
+
 - Variety should increase from 1 to 2
 - Additional ~1.9 pp bonus per new qualifying food
 
 **Command**:
+
 ```bash
 python main.py predict --food "Bannock" --quantity 4
 python main.py predict --food "Boiled Grains" --quantity 4 --variety-count 1
@@ -88,14 +96,17 @@ python main.py predict --food "Boiled Grains" --quantity 4 --variety-count 1
 **Purpose**: Verify variety threshold enforcement
 
 **Procedure**:
+
 1. Eat a low-cal food (< 395 cal/unit) in small quantity
 2. Verify it doesn't count toward variety until threshold met
 
 **Expected**:
+
 - Food with `calories * quantity < 2000` = no variety credit
 - SP penalty may apply for ranking but not in-game SP
 
 **Notes**:
+
 - The `CAL_FLOOR = 395` penalty is for ranking only, not in-game
 
 ---
@@ -105,14 +116,16 @@ python main.py predict --food "Boiled Grains" --quantity 4 --variety-count 1
 **Purpose**: Verify positive taste multiplier
 
 **Procedure**:
+
 1. Identify a food with tastiness = 3 (favorite)
 2. Eat it with known quantity
 3. Record SP
 4. Compare to neutral food of same nutrients
 
 **Expected**:
-- Taste bonus = +30 pp contribution
-- Formula: `taste_pp = 0.30 * 100 = 30 pp`
+
+- Tastiness bonus = +30 pp contribution
+- Formula: `tastiness_pp = 0.30 * 100 = 30 pp`
 
 ---
 
@@ -121,11 +134,13 @@ python main.py predict --food "Boiled Grains" --quantity 4 --variety-count 1
 **Purpose**: Verify negative taste multiplier
 
 **Procedure**:
+
 1. Identify a food with tastiness = -3 (hated)
 2. Eat it with known quantity
 3. Record SP
 
 **Expected**:
+
 - Taste bonus = -30 pp contribution
 - SP should be noticeably lower than neutral
 
@@ -136,11 +151,13 @@ python main.py predict --food "Boiled Grains" --quantity 4 --variety-count 1
 **Purpose**: Verify +10% craving satisfaction bonus
 
 **Procedure**:
+
 1. Note your active cravings (0 satisfied so far)
 2. Eat the craved food (one bite satisfies)
 3. Eat more food afterward and record SP gain
 
 **Expected**:
+
 - +10% bonus on subsequent SP gain while craving food is in stomach
 - `satisfied_bonus = 1 * 0.10 = 0.10`
 
@@ -151,11 +168,13 @@ python main.py predict --food "Boiled Grains" --quantity 4 --variety-count 1
 **Purpose**: Verify craving satisfaction stacks up to 3 and caps at +30%
 
 **Procedure**:
+
 1. Have 3 active cravings
 2. Eat all 3 craved foods
 3. Eat additional food and record SP gain
 
 **Expected**:
+
 - +30% bonus on SP gain (3 × 10%)
 - 4th satisfied craving should not add more bonus
 - `satisfied_bonus = 3 * 0.10 = 0.30`
@@ -167,6 +186,7 @@ python main.py predict --food "Boiled Grains" --quantity 4 --variety-count 1
 **Purpose**: Map the variety bonus curve
 
 **Procedure**:
+
 1. Record SP with variety count = 1
 2. Progressively add new foods (meeting threshold each time)
 3. Record SP at variety counts: 1, 3, 5, 7, 10, 15, 20
@@ -195,19 +215,19 @@ T1,2026-01-29,v11.0,Bannock,1,100.00,122.50,22.50,22.39,0.49%,Base SP verified
 
 ### Required Fields
 
-| Field | Description |
-|-------|-------------|
-| Test_ID | Test case identifier (T1-T9) |
-| Date | Test date (YYYY-MM-DD) |
-| Game_Version | Eco game version |
-| Food | Food name tested |
-| Quantity | Units eaten |
-| Starting_SP | SP before eating |
-| Ending_SP | SP after eating |
-| Actual_Delta | `Ending_SP - Starting_SP` |
-| Predicted_Delta | From predict command |
-| Error_Pct | `abs(actual - predicted) / actual * 100` |
-| Notes | Observations, edge cases |
+| Field           | Description                              |
+| --------------- | ---------------------------------------- |
+| Test_ID         | Test case identifier (T1-T9)             |
+| Date            | Test date (YYYY-MM-DD)                   |
+| Game_Version    | Eco game version                         |
+| Food            | Food name tested                         |
+| Quantity        | Units eaten                              |
+| Starting_SP     | SP before eating                         |
+| Ending_SP       | SP after eating                          |
+| Actual_Delta    | `Ending_SP - Starting_SP`                |
+| Predicted_Delta | From predict command                     |
+| Error_Pct       | `abs(actual - predicted) / actual * 100` |
+| Notes           | Observations, edge cases                 |
 
 ---
 
@@ -223,12 +243,12 @@ T1,2026-01-29,v11.0,Bannock,1,100.00,122.50,22.50,22.39,0.49%,Base SP verified
 
 ### Common Issues
 
-| Symptom | Likely Cause |
-|---------|--------------|
-| SP too high | Missed a craving or satisfied bonus |
-| SP too low | Stomach wasn't empty, accumulated nutrients |
-| Variety wrong | Food didn't meet 2000 cal threshold |
-| Taste wrong | Tastiness rating incorrect in data |
+| Symptom       | Likely Cause                                |
+| ------------- | ------------------------------------------- |
+| SP too high   | Missed a craving or satisfied bonus         |
+| SP too low    | Stomach wasn't empty, accumulated nutrients |
+| Variety wrong | Food didn't meet 2000 cal threshold         |
+| Taste wrong   | Tastiness rating incorrect in data          |
 
 ---
 

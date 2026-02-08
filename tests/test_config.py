@@ -112,13 +112,13 @@ class TestLoadConfig:
 
     def test_set_config_path_overrides_default(self, tmp_path) -> None:
         """set_config_path() affects subsequent load_config() calls."""
-        custom = {"algorithm": {"taste_weight": 2.5}}
+        custom = {"algorithm": {"tastiness_weight": 2.5}}
         config_file = tmp_path / "custom.yml"
         config_file.write_text(yaml.dump(custom))
 
         set_config_path(config_file)
         try:
             config = load_config()
-            assert config.algorithm.taste_weight == 2.5
+            assert config.algorithm.tastiness_weight == 2.5
         finally:
             set_config_path(None)

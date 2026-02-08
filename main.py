@@ -41,16 +41,15 @@ if _early_config:
 
 # Now safe to import modules that depend on constants
 from calculations import (
-    calculate_balance_bonus,
+    calculate_balanced_diet_bonus,
     get_sp,
-    get_taste_bonus,
+    get_tastiness_bonus,
     get_variety_bonus,
     is_variety_qualifying,
     sum_all_weighted_nutrients,
 )
 from constants import (
     CRAVING_SATISFIED_FRAC,
-    VARIETY_CAL_THRESHOLD,
 )
 from interface.cli import (
     build_parser,
@@ -58,6 +57,7 @@ from interface.cli import (
 from interface.persistence import (
     DATA_PATH,
     load_food_state,
+    load_game_state_export,
     prompt_for_tastiness,
     save_food_dict,
 )
@@ -91,16 +91,31 @@ def cmd_plan(
         Parsed CLI arguments.
     """
 
-    # Prompt for cravings (list), satisfied count, and remaining calories
-    manager = load_food_state()
+    import_path = getattr(args, "import_path", None)
 
-    # collect interactive inputs
-    user_constraints = collect_user_constraints()
-    cravings, cravings_satisfied, remaining_calories = user_constraints
-
-    # Get multipliers from CLI args (with defaults)
-    server_mult = getattr(args, "server_mult", 1.0)
-    dinner_party_mult = getattr(args, "dinner_party", 1.0)
+    if import_path:
+        # Import from mod-exported JSON — no interactive prompts
+        (
+            manager,
+            cravings,
+            cravings_satisfied,
+            remaining_calories,
+            server_mult,
+            dinner_party_mult,
+        ) = load_game_state_export(import_path)
+        # CLI flags override imported multipliers when explicitly set
+        if getattr(args, "server_mult", 1.0) != 1.0:
+            server_mult = args.server_mult
+        if getattr(args, "dinner_party", 1.0) != 1.0:
+            dinner_party_mult = args.dinner_party
+        print(f"[INFO] Imported game state from {import_path}")
+    else:
+        # Interactive flow: prompt for cravings, satisfied count, remaining calories
+        manager = load_food_state()
+        user_constraints = collect_user_constraints()
+        cravings, cravings_satisfied, remaining_calories = user_constraints
+        server_mult = getattr(args, "server_mult", 1.0)
+        dinner_party_mult = getattr(args, "dinner_party", 1.0)
 
     # Block until all cravings are valid (or dropped/replaced by the user)
     while True:
@@ -238,16 +253,16 @@ def cmd_predict(
     # Calculate components
     density, total_cal = sum_all_weighted_nutrients(stomach)
     density_sum = (
-        density["carbs"] + density["protein"] + density["fats"] + density["vitamins"]
+        density["carbs"] + density["protein"] + density["fat"] + density["vitamins"]
     )
 
     nutrients_list = [
         density["carbs"],
         density["protein"],
-        density["fats"],
+        density["fat"],
         density["vitamins"],
     ]
-    balance_pp = calculate_balance_bonus(nutrients_list)
+    balanced_diet_pp = calculate_balanced_diet_bonus(nutrients_list)
 
     # Variety: check if this food qualifies
     food_qualifies = is_variety_qualifying(food, quantity)
@@ -262,7 +277,7 @@ def cmd_predict(
 
     variety_pp = get_variety_bonus(variety_count)
 
-    taste_pp = get_taste_bonus(stomach)
+    tastiness_pp = get_tastiness_bonus(stomach)
 
     # Build unique foods set for SP calculation
     unique_foods_24h = {food.name.lower()} if food_qualifies else set()
@@ -288,22 +303,22 @@ def cmd_predict(
     print(f"  Density Sum:     {density_sum:.2f}")
     print(f"    Carbs:         {density['carbs']:.2f}")
     print(f"    Protein:       {density['protein']:.2f}")
-    print(f"    Fats:          {density['fats']:.2f}")
+    print(f"    Fat:           {density['fat']:.2f}")
     print(f"    Vitamins:      {density['vitamins']:.2f}")
     print()
-    print(f"  Balance:         {balance_pp:+.2f} pp")
+    print(f"  Balanced Diet:   {balanced_diet_pp:+.2f} pp")
     print(
         f"  Variety:         {variety_pp:+.2f} pp (count={variety_count}, qualifies={food_qualifies})"
     )
-    print(f"  Taste:           {taste_pp:+.2f} pp (tastiness={food.tastiness})")
+    print(f"  Tastiness:       {tastiness_pp:+.2f} pp (tastiness={food.tastiness})")
     print()
-    total_bonus_pp = balance_pp + variety_pp + taste_pp
+    total_bonus_pp = balanced_diet_pp + variety_pp + tastiness_pp
     satisfied_bonus = cravings_satisfied * CRAVING_SATISFIED_FRAC
     print(
         f"  Total Bonus:     {total_bonus_pp:+.2f} pp + {satisfied_bonus:.2f} satisfied"
     )
     print()
-    print(f"Multipliers:")
+    print("Multipliers:")
     print(f"  Server:          {server_mult:.2f}x")
     print(f"  Dinner Party:    {dinner_party_mult:.2f}x")
     print()

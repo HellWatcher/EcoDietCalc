@@ -94,7 +94,7 @@ class TestSoftVarietyBias:
             calories=VARIETY_CAL_THRESHOLD,
             carbs=20,
             protein=20,
-            fats=20,
+            fat=20,
             vitamins=20,
         )
         stomach: dict[Food, int] = {}
@@ -118,7 +118,7 @@ class TestSoftVarietyBias:
             calories=VARIETY_CAL_THRESHOLD,
             carbs=1,
             protein=1,
-            fats=1,
+            fat=1,
             vitamins=1,
         )
         high_food = make_food(
@@ -126,7 +126,7 @@ class TestSoftVarietyBias:
             calories=VARIETY_CAL_THRESHOLD,
             carbs=20,
             protein=20,
-            fats=20,
+            fat=20,
             vitamins=20,
         )
         stomach: dict[Food, int] = {}
@@ -144,7 +144,7 @@ class TestSoftVarietyBias:
             calories=VARIETY_CAL_THRESHOLD,
             carbs=10,
             protein=10,
-            fats=10,
+            fat=10,
             vitamins=10,
         )
         stomach: dict[Food, int] = {}
@@ -251,10 +251,10 @@ class TestChooseNextBite:
         """Food with higher SP delta should be preferred."""
         # Same calories, different nutrients
         low_nutrient = make_food(
-            "Low", calories=500, carbs=1, protein=1, fats=1, vitamins=1
+            "Low", calories=500, carbs=1, protein=1, fat=1, vitamins=1
         )
         high_nutrient = make_food(
-            "High", calories=500, carbs=20, protein=20, fats=20, vitamins=20
+            "High", calories=500, carbs=20, protein=20, fat=20, vitamins=20
         )
         foods = [low_nutrient, high_nutrient]
         manager = DummyManager(foods)
@@ -271,9 +271,9 @@ class TestChooseNextBite:
 
     def test_low_calorie_food_penalized(self) -> None:
         """Very low calorie food should be penalized vs higher calorie."""
-        tiny = make_food("Tiny", calories=20, carbs=5, protein=5, fats=5, vitamins=5)
+        tiny = make_food("Tiny", calories=20, carbs=5, protein=5, fat=5, vitamins=5)
         medium = make_food(
-            "Medium", calories=400, carbs=5, protein=5, fats=5, vitamins=5
+            "Medium", calories=400, carbs=5, protein=5, fat=5, vitamins=5
         )
         foods = [tiny, medium]
         manager = DummyManager(foods)
@@ -311,7 +311,7 @@ class TestChooseNextBite:
             calories=500,
             carbs=50,
             protein=50,
-            fats=50,
+            fat=50,
             vitamins=50,
             available=0,
         )
@@ -339,10 +339,10 @@ class TestProximityTiebreak:
         """When scores are within TIEBREAK_SCORE_WINDOW_SP, proximity breaks tie."""
         # Create two foods with very similar SP but different proximity effects
         food_far = make_food(
-            "Far", calories=100, carbs=10, protein=10, fats=10, vitamins=10
+            "Far", calories=100, carbs=10, protein=10, fat=10, vitamins=10
         )
         food_near = make_food(
-            "Near", calories=1900, carbs=10, protein=10, fats=10, vitamins=10
+            "Near", calories=1900, carbs=10, protein=10, fat=10, vitamins=10
         )
         foods = [food_far, food_near]
         manager = DummyManager(foods)
@@ -365,11 +365,11 @@ class TestProximityTiebreak:
             calories=VARIETY_CAL_THRESHOLD,
             carbs=10,
             protein=10,
-            fats=10,
+            fat=10,
             vitamins=10,
         )
         food_b = make_food(
-            "FoodB", calories=100, carbs=10, protein=10, fats=10, vitamins=10
+            "FoodB", calories=100, carbs=10, protein=10, fat=10, vitamins=10
         )  # Below threshold
         foods = [food_a, food_b]
         manager = DummyManager(foods)

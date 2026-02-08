@@ -1,6 +1,6 @@
 from constants import (
     CRAVING_SATISFIED_FRAC,
-    TASTE_DELTA_THRESHOLD,
+    TASTINESS_DELTA_THRESHOLD,
     VARIETY_DELTA_THRESHOLD,
 )
 from planner import fmt_signed
@@ -40,9 +40,9 @@ def display_meal_plan(
         if abs(variety_delta) >= VARIETY_DELTA_THRESHOLD:
             tags.append(f"Variety Δ {fmt_signed(item.variety_delta_pp)} pp")
 
-        taste_delta = getattr(item, "taste_delta_pp", 0.0)
-        if abs(taste_delta) >= TASTE_DELTA_THRESHOLD:
-            tags.append(f"Taste Δ {fmt_signed(item.taste_delta_pp)} pp")
+        tastiness_delta = getattr(item, "tastiness_delta_pp", 0.0)
+        if abs(tastiness_delta) >= TASTINESS_DELTA_THRESHOLD:
+            tags.append(f"Tastiness Δ {fmt_signed(item.tastiness_delta_pp)} pp")
 
         rows.append(
             (
