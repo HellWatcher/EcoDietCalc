@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -6,20 +7,27 @@ using Eco.Gameplay.Items;
 using Eco.Gameplay.Players;
 using Eco.Gameplay.Systems.Messaging.Chat.Commands;
 using Eco.Shared.Localization;
+using EcoDietMod.Algorithm;
+using EcoDietMod.Config;
+using EcoDietMod.Discovery;
+using EcoDietMod.Models;
+using EcoDietMod.Rendering;
 
 namespace EcoDietMod;
 
 /// <summary>
 /// Chat commands that expose food/diet game data for the calling player.
-/// All commands are read-only — they inspect state without modifying it.
+/// Read-only inspection commands plus the in-game meal planner.
 /// </summary>
 [ChatCommandHandler]
 public static class DietCommands
 {
-    [ChatCommand("EcoDiet commands — view your stomach, nutrients, cravings, and export state", "ecodiet")]
+    [ChatCommand("EcoDiet commands — view your stomach, nutrients, cravings, plan meals, and export state", "ecodiet")]
     public static void EcoDietRoot(User user)
     {
-        user.MsgLocStr("EcoDiet commands: /ecodiet stomach, /ecodiet nutrients, /ecodiet cravings, /ecodiet taste, /ecodiet multipliers, /ecodiet export");
+        user.MsgLocStr(
+            "EcoDiet commands: /ecodiet stomach, /ecodiet nutrients, /ecodiet cravings, " +
+            "/ecodiet taste, /ecodiet multipliers, /ecodiet plan, /ecodiet fullplan, /ecodiet export");
     }
 
     [ChatSubCommand("EcoDietRoot", "Show current stomach contents", "stomach")]
@@ -129,6 +137,85 @@ public static class DietCommands
         user.MsgLocStr(sb.ToString());
     }
 
+    [ChatSubCommand("EcoDietRoot", "Plan optimal meal for remaining calorie budget (from backpack)", "plan")]
+    public static void Plan(User user, int calories = 0)
+    {
+        try
+        {
+            var config = new PlannerConfig();
+            var stomachState = StomachSnapshot.CaptureStomach(user);
+            var (available, sources) = FoodDiscovery.DiscoverAll(user);
+
+            if (available.Count == 0)
+            {
+                user.MsgLocStr("No food found in your backpack to plan with.");
+                return;
+            }
+
+            var remainingCal = calories > 0
+                ? calories
+                : StomachSnapshot.GetRemainingCalories(user);
+
+            if (remainingCal <= 0)
+            {
+                user.MsgLocStr("No calorie budget remaining. Stomach is full.");
+                return;
+            }
+
+            var cravings = BuildCravingsList(user);
+            var cravingsSatisfied = StomachSnapshot.GetCravingsSatisfied(user);
+            var dinnerPartyMult = StomachSnapshot.GetDinnerPartyMult(user);
+
+            var result = MealPlanner.PlanMeal(
+                stomachState, available, cravings, cravingsSatisfied,
+                remainingCal, config, dinnerPartyMult: dinnerPartyMult);
+
+            var output = PlanRenderer.RenderPlan(result, sources);
+            user.MsgLocStr(output);
+        }
+        catch (Exception ex)
+        {
+            user.MsgLocStr($"Plan error: {ex.Message}");
+        }
+    }
+
+    [ChatSubCommand("EcoDietRoot", "Plan optimal meal for full stomach capacity (ignoring current fill)", "fullplan")]
+    public static void FullPlan(User user)
+    {
+        try
+        {
+            var config = new PlannerConfig();
+
+            // For full plan: start with empty stomach, plan for max calories
+            var stomachState = new Dictionary<FoodCandidate, int>();
+            var (available, sources) = FoodDiscovery.DiscoverAll(user);
+
+            if (available.Count == 0)
+            {
+                user.MsgLocStr("No food found in your backpack to plan with.");
+                return;
+            }
+
+            var maxCalories = StomachSnapshot.GetMaxCalories(user);
+
+            // No cravings context for full plan (starting fresh)
+            var cravings = BuildCravingsList(user);
+            var cravingsSatisfied = 0;
+            var dinnerPartyMult = StomachSnapshot.GetDinnerPartyMult(user);
+
+            var result = MealPlanner.PlanMeal(
+                stomachState, available, cravings, cravingsSatisfied,
+                maxCalories, config, dinnerPartyMult: dinnerPartyMult);
+
+            var output = PlanRenderer.RenderPlan(result, sources);
+            user.MsgLocStr(output);
+        }
+        catch (Exception ex)
+        {
+            user.MsgLocStr($"Full plan error: {ex.Message}");
+        }
+    }
+
     [ChatSubCommand("EcoDietRoot", "Export game state to JSON for the Python planner", "export")]
     public static void Export(User user, string note = "")
     {
@@ -140,5 +227,17 @@ public static class DietCommands
         var path = Path.Combine(dir, filename);
         GameStateExporter.ExportGameState(user, path, note);
         user.MsgLocStr($"Game state exported to {path}");
+    }
+
+    /// <summary>
+    /// Build a cravings list from the current craving (if any).
+    /// </summary>
+    private static List<string> BuildCravingsList(User user)
+    {
+        var cravings = new List<string>();
+        var currentCraving = StomachSnapshot.GetCurrentCraving(user);
+        if (currentCraving != null)
+            cravings.Add(currentCraving);
+        return cravings;
     }
 }

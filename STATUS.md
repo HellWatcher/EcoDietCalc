@@ -1,11 +1,11 @@
 # Project Status
 
-Last updated: 2026-02-08
+Last updated: 2026-02-09
 
 ## Current State
 
 Phase 2 (Python Polish) complete. 150 tests, mypy clean. All modules now directly tested.
-Phase 3 (C# Mod) started — scaffold and read-only chat commands confirmed working on Eco 0.12 server.
+Phase 3 (C# Mod) — scaffold, read-only chat commands, JSON export, and **in-game meal planner** (Phase 1+2 of plan) implemented.
 Domain naming standardized to match Eco game API (`fat`, `tastiness_*`, `balanced_diet_*`, TastePreference labels).
 
 ## Test Coverage
@@ -23,7 +23,46 @@ Domain naming standardized to match Eco game API (`fat`, `tastiness_*`, `balance
 | `main.py (cmd_predict)`    | Good     | 5 tests for predict subcommand           |
 | `food_state_manager.py`    | Good     | 26 direct unit tests                     |
 
-## Recent Changes (2026-02-08) — Type Annotations + Unit Tests
+## Recent Changes (2026-02-09) — In-Game Meal Planner (C# Port)
+
+### Added
+
+- `mod/EcoDietMod/Models/FoodCandidate.cs` — immutable food record with equality by name
+- `mod/EcoDietMod/Models/MealPlanItem.cs` — single planned bite with scoring details
+- `mod/EcoDietMod/Models/MealPlanResult.cs` — full plan result with summary stats
+- `mod/EcoDietMod/Config/PlannerConfig.cs` — algorithm constants (defaults from config.default.yml)
+- `mod/EcoDietMod/Algorithm/SpCalculator.cs` — port of calculations.py (SP math, bonuses, variety, tastiness)
+- `mod/EcoDietMod/Algorithm/BiteSelector.cs` — port of planner.py ranking pipeline (biases, penalties, bite selection)
+- `mod/EcoDietMod/Algorithm/MealPlanner.cs` — port of plan_meal loop with craving-first strategy
+- `mod/EcoDietMod/Discovery/StomachSnapshot.cs` — reads User.Stomach into FoodCandidate dicts
+- `mod/EcoDietMod/Discovery/FoodDiscovery.cs` — enumerates food from player backpack
+- `mod/EcoDietMod/Rendering/PlanRenderer.cs` — formats plan for chat output
+
+### Changed
+
+- `mod/EcoDietMod/DietCommands.cs` — added `/ecodiet plan [calories]` and `/ecodiet fullplan` subcommands
+
+### Build
+
+- `dotnet build` clean with 0 warnings, 0 errors
+- 150 Python tests still pass
+
+### Architecture Decisions
+
+- No FoodStateManager in C# — planner takes `Dictionary<FoodCandidate, int>` directly from live API
+- PlannerConfig passed explicitly — no static globals
+- FoodCandidate is immutable — counts in separate dictionaries
+- JSON config (System.Text.Json) — no new NuGet dependencies
+
+### Not Yet Implemented (Phase 3+4 from plan)
+
+- Extended food discovery (authorized storage, nearby shops)
+- Per-player JSON config persistence (ConfigStore, PlayerConfig)
+- `/ecodiet config` command
+- Tooltip/notification enhancement (Phase 4, needs API research)
+- Suggested features: whatif, variety, exclude, auto-suggest, cost display
+
+## Previous Changes (2026-02-08) — Type Annotations + Unit Tests
 
 ### Added
 

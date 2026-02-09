@@ -18,9 +18,11 @@ EcoDietMaker is an SP (Skill Point) optimization tool for the video game **Eco**
 2. **C# Eco Mod (In Progress)** - Final deliverable
    - Uses `Eco.ReferenceAssemblies` NuGet package (v0.12.0.6-beta, net8.0+)
    - Chat commands for reading stomach, nutrients, cravings, taste, SP multipliers
-   - Future: algorithm port, real-time suggestions, in-game UI
+   - In-game meal planner — full algorithm port with live game state integration
+   - Food discovery from player backpack (storage + shops planned)
+   - Future: per-player config, auto-suggest on eat, tooltip/notification UI
 
-The Python codebase serves as the canonical algorithm reference. The C# mod currently provides read-only access to game data; algorithm porting follows once the data layer is validated.
+The Python codebase serves as the canonical algorithm reference. The C# mod implements the full planning algorithm with live game state, using food from the player's backpack.
 
 ---
 
@@ -120,11 +122,24 @@ EcoDietMaker/
 
 ```
 mod/EcoDietMod/
-├── EcoDietMod.csproj    # net9.0, Eco.ReferenceAssemblies NuGet
-├── DietCommands.cs      # Chat commands (read-only game data)
-├── Planner.cs           # Ported selection algorithm (planned)
-├── SPCalculator.cs      # Ported SP formulas (planned)
-└── UI/                  # In-game panel (planned)
+├── EcoDietMod.csproj         # net8.0, Eco.ReferenceAssemblies NuGet
+├── DietCommands.cs           # Chat commands (inspection + planning)
+├── GameStateExporter.cs      # JSON export for Python planner
+├── Models/
+│   ├── FoodCandidate.cs      # Immutable food record, equality by name
+│   ├── MealPlanItem.cs       # Single planned bite with scoring
+│   └── MealPlanResult.cs     # Full plan + summary stats
+├── Config/
+│   └── PlannerConfig.cs      # Algorithm constants (defaults from config.default.yml)
+├── Algorithm/
+│   ├── SpCalculator.cs       # SP formulas (ported from calculations.py)
+│   ├── BiteSelector.cs       # Ranking pipeline (ported from planner.py)
+│   └── MealPlanner.cs        # Plan loop (ported from planner.py)
+├── Discovery/
+│   ├── StomachSnapshot.cs    # Read User.Stomach into planner dicts
+│   └── FoodDiscovery.cs      # Enumerate food from backpack (storage/shops planned)
+└── Rendering/
+    └── PlanRenderer.cs       # Format plan for chat output
 ```
 
 **Integration points:**
@@ -339,14 +354,14 @@ V1 is complete when:
 
 From `tuner_best.json` (last tuned 2026-01-27):
 
-| Parameter                  | Value | Description                        |
-| -------------------------- | ----- | ---------------------------------- |
-| `SOFT_BIAS_GAMMA`          | 3.61  | Soft-variety ranking bias strength |
-| `TIE_EPSILON`              | 0.449 | Tie-break window (SP)              |
-| `TIE_ALPHA`                | 0.977 | Proximity weight toward 2000cal    |
-| `TIE_BETA`                 | 0.076 | Overshoot malus                    |
-| `BALANCE_BIAS_GAMMA`       | 1.91  | Nutrient balance bonus             |
-| `REPETITION_PENALTY_GAMMA` | 1.25  | Same-food repetition penalty       |
-| `CAL_FLOOR`                | 395   | Low-calorie penalty threshold      |
-| `CAL_PENALTY_GAMMA`        | 2.48  | Low-calorie penalty strength       |
-| `VARIETY_BONUS_CAP_PP`     | 55.0  | Max variety bonus (pp)             |
+| Parameter                            | Value | Description                        |
+| ------------------------------------ | ----- | ---------------------------------- |
+| `soft_variety_bias_strength`         | 3.61  | Soft-variety ranking bias strength |
+| `tiebreak_score_window_sp`           | 0.449 | Tie-break window (SP)              |
+| `proximity_approach_weight`          | 0.977 | Proximity weight toward 2000cal    |
+| `proximity_overshoot_penalty`        | 0.076 | Overshoot malus                    |
+| `balanced_diet_improvement_strength` | 1.91  | Nutrient balance bonus             |
+| `repetition_penalty_strength`        | 1.25  | Same-food repetition penalty       |
+| `low_calorie_threshold`              | 395   | Low-calorie penalty threshold      |
+| `low_calorie_penalty_strength`       | 2.48  | Low-calorie penalty strength       |
+| `variety_bonus_cap_pp`               | 55.0  | Max variety bonus (pp)             |
