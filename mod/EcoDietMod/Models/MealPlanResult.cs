@@ -11,8 +11,8 @@ public sealed class MealPlanResult
     public float StartingSp { get; init; }
     public float FinalSp { get; init; }
     public float SpGainTotal => FinalSp - StartingSp;
-    public int TotalCalories { get; init; }
-    public int RemainingCalories { get; init; }
+    public float TotalCalories { get; init; }
+    public float RemainingCalories { get; init; }
     public int VarietyCount { get; init; }
     public int CravingsSatisfied { get; init; }
 }

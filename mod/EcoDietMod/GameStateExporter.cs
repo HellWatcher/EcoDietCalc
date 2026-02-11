@@ -63,11 +63,11 @@ public static class GameStateExporter
                 var entry = new Dictionary<string, object>
                 {
                     ["Name"] = foodName,
-                    ["Calories"] = (int)calories,
-                    ["Carbs"] = (int)(nutrition?.Carbs ?? 0),
-                    ["Protein"] = (int)(nutrition?.Protein ?? 0),
-                    ["Fat"] = (int)(nutrition?.Fat ?? 0),
-                    ["Vitamins"] = (int)(nutrition?.Vitamins ?? 0),
+                    ["Calories"] = Math.Round(calories, 1),
+                    ["Carbs"] = Math.Round(nutrition?.Carbs ?? 0, 2),
+                    ["Protein"] = Math.Round(nutrition?.Protein ?? 0, 2),
+                    ["Fat"] = Math.Round(nutrition?.Fat ?? 0, 2),
+                    ["Vitamins"] = Math.Round(nutrition?.Vitamins ?? 0, 2),
                     ["Tastiness"] = MapTastePreference(taste),
                     ["Stomach"] = stomachCount
                 };
@@ -85,26 +85,26 @@ public static class GameStateExporter
 
             var stomachCount = kvp.Value;
             float calories = 0f;
-            int carbs = 0, protein = 0, fat = 0, vitamins = 0;
+            float carbs = 0f, protein = 0f, fat = 0f, vitamins = 0f;
 
             if (stomachFoodItems.TryGetValue(kvp.Key, out var foodItem))
             {
                 calories = foodItem.Calories;
                 var nutrition = foodItem.Nutrition;
-                carbs = (int)nutrition.Carbs;
-                protein = (int)nutrition.Protein;
-                fat = (int)nutrition.Fat;
-                vitamins = (int)nutrition.Vitamins;
+                carbs = nutrition.Carbs;
+                protein = nutrition.Protein;
+                fat = nutrition.Fat;
+                vitamins = nutrition.Vitamins;
             }
 
             var entry = new Dictionary<string, object>
             {
                 ["Name"] = kvp.Key,
-                ["Calories"] = (int)calories,
-                ["Carbs"] = carbs,
-                ["Protein"] = protein,
-                ["Fat"] = fat,
-                ["Vitamins"] = vitamins,
+                ["Calories"] = Math.Round(calories, 1),
+                ["Carbs"] = Math.Round(carbs, 2),
+                ["Protein"] = Math.Round(protein, 2),
+                ["Fat"] = Math.Round(fat, 2),
+                ["Vitamins"] = Math.Round(vitamins, 2),
                 ["Tastiness"] = 99, // unknown — not in TasteBuds
                 ["Stomach"] = stomachCount
             };

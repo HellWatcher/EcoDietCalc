@@ -164,14 +164,11 @@ def calculate_balanced_diet_ratio(
         Ratio in ``[0, 1]``; higher means more balanced.
     """
 
-    # If all totals are zero, ratio is 0; otherwise use the min among positives
-    if not any(nutrients):
-        return 0.0
+    # If all totals are zero, ratio is 0; otherwise min/max including zeros
     max_nutrient = max(nutrients)
-    min_nutrient = min(
-        nutrient_value for nutrient_value in nutrients if nutrient_value > 0
-    )
-    return min_nutrient / max_nutrient if max_nutrient > 0 else 0.0
+    if max_nutrient <= 0:
+        return 0.0
+    return min(nutrients) / max_nutrient
 
 
 def get_tastiness_bonus(
@@ -445,12 +442,9 @@ def get_balanced_diet_ratio(
         density["vitamins"],
     ]
     max_nutrient = max(nutrients)
-    min_nutrient = (
-        min(nutrient_value for nutrient_value in nutrients if nutrient_value > 0)
-        if any(nutrients)
-        else 0
-    )
-    return min_nutrient / max_nutrient if max_nutrient > 0 else 0
+    if max_nutrient <= 0:
+        return 0
+    return min(nutrients) / max_nutrient
 
 
 def get_variety_bonus(

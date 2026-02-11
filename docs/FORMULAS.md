@@ -88,9 +88,12 @@ density_sum = 6.27 + 5.27 + 5.38 + 4.81 = 21.73
 ### Definition
 
 ```
-ratio = min_nonzero(nutrients) / max(nutrients)
+ratio = min(nutrients) / max(nutrients)    # includes zeros!
 balanced_diet_pp = (ratio * 100) - 50
 ```
+
+> **Verified**: A zero nutrient (e.g. fat=0) gives ratio=0, pp=-50.
+> The game's `BalancedDietMult` = 0.5 + ratio\*0.5, which equals `(100 + pp) / 100`.
 
 ### Range
 

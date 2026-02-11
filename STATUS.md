@@ -1,10 +1,10 @@
 # Project Status
 
-Last updated: 2026-02-09
+Last updated: 2026-02-11
 
 ## Current State
 
-Phase 2 (Python Polish) complete. 150 tests, mypy clean. All modules now directly tested.
+Phase 2 (Python Polish) complete. 155 tests, mypy clean. All modules now directly tested.
 Phase 3 (C# Mod) — scaffold, read-only chat commands, JSON export, and **in-game meal planner** (Phase 1+2 of plan) implemented.
 Domain naming standardized to match Eco game API (`fat`, `tastiness_*`, `balanced_diet_*`, TastePreference labels).
 
@@ -23,7 +23,29 @@ Domain naming standardized to match Eco game API (`fat`, `tastiness_*`, `balance
 | `main.py (cmd_predict)`    | Good     | 5 tests for predict subcommand           |
 | `food_state_manager.py`    | Good     | 26 direct unit tests                     |
 
-## Recent Changes (2026-02-09) — In-Game Meal Planner (C# Port)
+## Recent Changes (2026-02-11) — SP Calculation Fix
+
+### Fixed
+
+- **Balanced diet ratio included zeros**: `calculate_balanced_diet_ratio` now uses `min(nutrients)` instead of `min_nonzero(nutrients)`. A zero nutrient (e.g. fat=0 in Pumpkin) was being excluded, making the diet look more balanced than the game calculates. Fixed in both Python (`calculations.py`) and C# (`SpCalculator.cs`).
+- **Float truncation in C# mod**: `FoodCandidate` nutrients and calories changed from `int` to `float` to match Eco API precision. Removed `(int)` casts in `StomachSnapshot.FoodItemToCandidate()` and `GameStateExporter`.
+
+### Verified
+
+- Pumpkin scenario (6 pumpkins, fat=0): mod now calculates SP=16.0, matching game's `NutrientSkillRate=16`
+- Game's `BalancedDietMult=0.5` corresponds to ratio=0, pp=-50, multiplier=0.5
+
+### Added
+
+- 5 new tests: `test_balanced_diet_ratio_includes_zero_nutrients`, `test_balanced_diet_bonus_with_zero_nutrient`, `test_balanced_diet_ratio_all_equal`, `test_balanced_diet_ratio_all_zero`, `test_sp_matches_game_pumpkin_scenario`
+- 155 tests pass, mypy clean, C# build 0 warnings
+
+### Open Questions
+
+- **Variety multiplier**: Game shows Variety=1.0 (no bonus) with 1 food type at 2040 cal, but our formula gives a small bonus (1.9 pp) for 1 qualifying food. Needs investigation — game may require 2+ foods or use remaining stomach calories for threshold.
+- **Balance range**: Our formula gives [-50, +50] pp. Game max might be [0.5, 1.0] multiplier (i.e., no positive bonus for perfect balance). Needs testing with balanced diet.
+
+## Previous Changes (2026-02-09) — In-Game Meal Planner (C# Port)
 
 ### Added
 

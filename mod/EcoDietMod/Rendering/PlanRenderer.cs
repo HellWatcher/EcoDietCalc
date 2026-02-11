@@ -35,7 +35,7 @@ public static class PlanRenderer
 
         var groups = GroupItems(plan.Items);
 
-        sb.AppendLine($"--- Meal Plan ({plan.Items.Count} bites, {plan.TotalCalories} cal) ---");
+        sb.AppendLine($"--- Meal Plan ({plan.Items.Count} bites, {plan.TotalCalories:F0} cal) ---");
         sb.AppendLine();
 
         for (var i = 0; i < groups.Count; i++)
@@ -43,7 +43,7 @@ public static class PlanRenderer
             var group = groups[i];
             var countLabel = group.Count > 1 ? $" x{group.Count}" : "";
             var sign = group.TotalSpGain >= 0 ? "+" : "";
-            var line = $"  {i + 1}. {group.Name}{countLabel} ({group.TotalCalories} cal) " +
+            var line = $"  {i + 1}. {group.Name}{countLabel} ({group.TotalCalories:F0} cal) " +
                        $"{sign}{group.TotalSpGain:F2} SP -> {group.FinalSp:F2}";
 
             if (showTags || showSources)
@@ -63,7 +63,7 @@ public static class PlanRenderer
             sb.AppendLine($"  Starting SP:  {plan.StartingSp:F2}");
             sb.AppendLine($"  Final SP:     {plan.FinalSp:F2}");
             sb.AppendLine($"  SP gained:    {FormatSigned(plan.SpGainTotal)}");
-            sb.AppendLine($"  Calories:     {plan.TotalCalories} used, {plan.RemainingCalories} remaining");
+            sb.AppendLine($"  Calories:     {plan.TotalCalories:F0} used, {plan.RemainingCalories:F0} remaining");
             sb.AppendLine($"  Variety:      {plan.VarietyCount} qualifying foods");
             if (plan.CravingsSatisfied > 0)
                 sb.AppendLine($"  Cravings:     {plan.CravingsSatisfied} satisfied");
@@ -83,7 +83,7 @@ public static class PlanRenderer
         {
             var item = topItems[i];
             var sign = item.SpGain >= 0 ? "+" : "";
-            sb.AppendLine($"  {i + 1}. {item.Name} ({item.Calories} cal) {sign}{item.SpGain:F2} SP");
+            sb.AppendLine($"  {i + 1}. {item.Name} ({item.Calories:F0} cal) {sign}{item.SpGain:F2} SP");
         }
         return sb.ToString();
     }
@@ -164,7 +164,7 @@ public static class PlanRenderer
     {
         public string Name { get; }
         public int Count { get; private set; }
-        public int TotalCalories { get; private set; }
+        public float TotalCalories { get; private set; }
         public float TotalSpGain { get; private set; }
         public float FinalSp { get; private set; }
         public bool HasCraving { get; private set; }

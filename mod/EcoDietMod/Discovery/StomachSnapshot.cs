@@ -99,12 +99,12 @@ public static class StomachSnapshot
     public static FoodCandidate? FoodItemToCandidate(FoodItem foodItem, TasteBuds tasteBuds)
     {
         var name = foodItem.GetType().Name.Replace("Item", "");
-        var calories = (int)foodItem.Calories;
+        var calories = foodItem.Calories;
         var nutrition = foodItem.Nutrition;
-        var carbs = (int)nutrition.Carbs;
-        var protein = (int)nutrition.Protein;
-        var fat = (int)nutrition.Fat;
-        var vitamins = (int)nutrition.Vitamins;
+        var carbs = nutrition.Carbs;
+        var protein = nutrition.Protein;
+        var fat = nutrition.Fat;
+        var vitamins = nutrition.Vitamins;
 
         // Map tastiness via TasteBuds
         var tastiness = 99; // unknown default

@@ -79,7 +79,7 @@ public static class BiteSelector
     public static (FoodCandidate? Food, float RawDelta) ChooseNextBite(
         Dictionary<FoodCandidate, int> stomach,
         IEnumerable<FoodCandidate> availableFoods,
-        int remainingCalories,
+        float remainingCalories,
         int cravingsSatisfied,
         PlannerConfig config,
         float serverMult = 1f,
@@ -93,6 +93,9 @@ public static class BiteSelector
         // Pass 1: raw SP delta + low-calorie penalty
         foreach (var food in availableFoods)
         {
+            // Skip zero-calorie items (seeds, spores) — no nutritional value
+            if (food.Calories <= 0f)
+                continue;
             if (food.Calories > remainingCalories)
                 continue;
 
@@ -152,7 +155,7 @@ public static class BiteSelector
         Dictionary<FoodCandidate, int> stomach,
         Dictionary<FoodCandidate, int> available,
         List<string> cravings,
-        int remainingCalories,
+        float remainingCalories,
         int cravingsSatisfied,
         PlannerConfig config,
         float serverMult = 1f,
@@ -167,7 +170,7 @@ public static class BiteSelector
 
         foreach (var (food, qty) in available)
         {
-            if (qty <= 0 || food.Calories > remainingCalories)
+            if (qty <= 0 || food.Calories <= 0f || food.Calories > remainingCalories)
                 continue;
             if (!cravingsSet.Contains(food.Name))
                 continue;

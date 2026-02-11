@@ -6,7 +6,7 @@ namespace EcoDietMod.Models;
 public sealed class MealPlanItem
 {
     public string Name { get; init; } = "";
-    public int Calories { get; init; }
+    public float Calories { get; init; }
     public float SpGain { get; init; }
     public float NewSp { get; init; }
     public bool Craving { get; init; }

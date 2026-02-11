@@ -53,7 +53,7 @@ public static class DietCommands
             }
 
             Dictionary<FoodCandidate, int> stomachState;
-            int calorieBudget;
+            float calorieBudget;
             int cravingsSatisfied;
 
             if (isFullPlan)
@@ -78,7 +78,7 @@ public static class DietCommands
                 cravingsSatisfied = StomachSnapshot.GetCravingsSatisfied(user);
             }
 
-            if (calorieBudget <= 0)
+            if (calorieBudget <= 0f)
             {
                 user.MsgLocStr("No calorie budget remaining. Stomach is full.");
                 return;

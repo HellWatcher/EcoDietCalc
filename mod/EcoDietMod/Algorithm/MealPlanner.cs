@@ -28,7 +28,7 @@ public static class MealPlanner
         Dictionary<FoodCandidate, int> available,
         List<string> cravings,
         int cravingsSatisfied,
-        int remainingCalories,
+        float remainingCalories,
         PlannerConfig config,
         float serverMult = 1f,
         float dinnerPartyMult = 1f)
@@ -90,7 +90,7 @@ public static class MealPlanner
     /// Consume one unit of food, recompute SP/bonuses, append to plan items.
     /// Returns updated (currentSp, remainingCalories, cravingsSatisfied, varietyCount).
     /// </summary>
-    private static (float CurrentSp, int RemainingCalories, int CravingsSatisfied, int VarietyCount)
+    private static (float CurrentSp, float RemainingCalories, int CravingsSatisfied, int VarietyCount)
         ApplyBite(
             Dictionary<FoodCandidate, int> stomach,
             Dictionary<FoodCandidate, int> available,
@@ -98,7 +98,7 @@ public static class MealPlanner
             List<string> cravings,
             List<MealPlanItem> items,
             float currentSp,
-            int remainingCalories,
+            float remainingCalories,
             int cravingsSatisfied,
             int varietyCountNow,
             PlannerConfig config,

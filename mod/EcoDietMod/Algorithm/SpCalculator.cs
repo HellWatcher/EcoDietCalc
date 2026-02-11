@@ -56,12 +56,7 @@ public static class SpCalculator
     {
         var max = nutrients.Max();
         if (max <= 0f) return 0f;
-        var minPositive = float.MaxValue;
-        foreach (var n in nutrients)
-        {
-            if (n > 0f && n < minPositive) minPositive = n;
-        }
-        return minPositive == float.MaxValue ? 0f : minPositive / max;
+        return nutrients.Min() / max;
     }
 
     /// <summary>

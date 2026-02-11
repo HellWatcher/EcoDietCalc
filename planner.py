@@ -246,6 +246,9 @@ def _choose_next_bite(
 
     # 1) Compute raw ΔSP + low-calorie penalty (first pass, no soft/proximity)
     for food in manager.all_available():
+        # Skip zero-calorie items (seeds, spores) — no nutritional value
+        if food.calories <= 0:
+            continue
         # Skip foods that exceed the remaining calorie budget for this plan
         if food.calories > remaining_calories:
             continue
@@ -389,7 +392,11 @@ def _pick_feasible_craving(
     cravings_set = {normalize_name(name) for name in cravings}
     candidates = []
     for food, quantity_available in manager.available.items():
-        if not quantity_available or food.calories > remaining_calories:
+        if (
+            not quantity_available
+            or food.calories <= 0
+            or food.calories > remaining_calories
+        ):
             continue
         if normalize_name(food.name) in cravings_set:
             sp_delta = get_sp_delta(

@@ -5,20 +5,21 @@ namespace EcoDietMod.Models;
 /// <summary>
 /// Immutable food record used by the planner. Equality is by name (case-insensitive).
 /// Stomach/available counts are kept in separate dictionaries, not on this object.
+/// Uses float for nutrients and calories to match Eco API precision.
 /// </summary>
 public sealed class FoodCandidate : IEquatable<FoodCandidate>
 {
     public string Name { get; }
-    public int Calories { get; }
-    public int Carbs { get; }
-    public int Protein { get; }
-    public int Fat { get; }
-    public int Vitamins { get; }
+    public float Calories { get; }
+    public float Carbs { get; }
+    public float Protein { get; }
+    public float Fat { get; }
+    public float Vitamins { get; }
     public int Tastiness { get; }
 
     public FoodCandidate(
-        string name, int calories, int carbs, int protein,
-        int fat, int vitamins, int tastiness)
+        string name, float calories, float carbs, float protein,
+        float fat, float vitamins, int tastiness)
     {
         Name = name;
         Calories = calories;
@@ -29,7 +30,7 @@ public sealed class FoodCandidate : IEquatable<FoodCandidate>
         Tastiness = tastiness;
     }
 
-    public int NutrientSum => Carbs + Protein + Fat + Vitamins;
+    public float NutrientSum => Carbs + Protein + Fat + Vitamins;
 
     public float Density => NutrientSum / MathF.Max(Calories, 1f);
 
@@ -43,5 +44,5 @@ public sealed class FoodCandidate : IEquatable<FoodCandidate>
 
     public override int GetHashCode() => StringComparer.OrdinalIgnoreCase.GetHashCode(Name);
 
-    public override string ToString() => $"{Name} ({Calories} cal, {NutrientSum} nutr)";
+    public override string ToString() => $"{Name} ({Calories:F0} cal, {NutrientSum:F1} nutr)";
 }
