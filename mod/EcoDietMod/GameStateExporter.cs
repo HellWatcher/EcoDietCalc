@@ -26,18 +26,25 @@ public static class GameStateExporter
 
         // Count stomach bites per food type name
         var stomachCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var stomachFoodItems = new Dictionary<string, FoodItem>(StringComparer.OrdinalIgnoreCase);
         if (stomach.Contents != null)
         {
             foreach (var entry in stomach.Contents)
             {
-                var name = entry.Food?.GetType().Name.Replace("Item", "") ?? "Unknown";
+                var food = entry.Food;
+                if (food == null) continue;
+                var name = food.GetType().Name.Replace("Item", "");
                 stomachCounts.TryGetValue(name, out var count);
                 stomachCounts[name] = count + 1;
+                // Keep a reference for nutritional data (any instance will do)
+                stomachFoodItems.TryAdd(name, food);
             }
         }
 
         // Build foods array from TasteBuds.FoodToTaste (all known foods)
         var foods = new List<Dictionary<string, object>>();
+        var exportedNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
         if (tasteBuds.FoodToTaste != null)
         {
             foreach (var kvp in tasteBuds.FoodToTaste)
@@ -65,7 +72,43 @@ public static class GameStateExporter
                     ["Stomach"] = stomachCount
                 };
                 foods.Add(entry);
+                exportedNames.Add(foodName);
             }
+        }
+
+        // Add any stomach foods not already covered by FoodToTaste
+        // (fixes gap where eaten foods aren't in TasteBuds yet)
+        foreach (var kvp in stomachCounts)
+        {
+            if (exportedNames.Contains(kvp.Key))
+                continue;
+
+            var stomachCount = kvp.Value;
+            float calories = 0f;
+            int carbs = 0, protein = 0, fat = 0, vitamins = 0;
+
+            if (stomachFoodItems.TryGetValue(kvp.Key, out var foodItem))
+            {
+                calories = foodItem.Calories;
+                var nutrition = foodItem.Nutrition;
+                carbs = (int)nutrition.Carbs;
+                protein = (int)nutrition.Protein;
+                fat = (int)nutrition.Fat;
+                vitamins = (int)nutrition.Vitamins;
+            }
+
+            var entry = new Dictionary<string, object>
+            {
+                ["Name"] = kvp.Key,
+                ["Calories"] = (int)calories,
+                ["Carbs"] = carbs,
+                ["Protein"] = protein,
+                ["Fat"] = fat,
+                ["Vitamins"] = vitamins,
+                ["Tastiness"] = 99, // unknown — not in TasteBuds
+                ["Stomach"] = stomachCount
+            };
+            foods.Add(entry);
         }
 
         // Assemble the full export object

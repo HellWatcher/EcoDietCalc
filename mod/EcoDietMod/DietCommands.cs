@@ -16,134 +16,34 @@ using EcoDietMod.Rendering;
 namespace EcoDietMod;
 
 /// <summary>
-/// Chat commands that expose food/diet game data for the calling player.
-/// Read-only inspection commands plus the in-game meal planner.
+/// Chat commands for the EcoDiet in-game meal planner.
 /// </summary>
 [ChatCommandHandler]
 public static class DietCommands
 {
-    [ChatCommand("EcoDiet commands — view your stomach, nutrients, cravings, plan meals, and export state", "ecodiet")]
-    public static void EcoDietRoot(User user)
+    [ChatCommand("EcoDiet — plan optimal meals", "ed")]
+    public static void EcoDiet(User user)
     {
         user.MsgLocStr(
-            "EcoDiet commands: /ecodiet stomach, /ecodiet nutrients, /ecodiet cravings, " +
-            "/ecodiet taste, /ecodiet multipliers, /ecodiet plan, /ecodiet fullplan, /ecodiet export");
+            "EcoDiet commands: /ed plan [full|calories], /ed config [key value], /ed export [note]");
     }
 
-    [ChatSubCommand("EcoDietRoot", "Show current stomach contents", "stomach")]
-    public static void Stomach(User user)
-    {
-        var stomach = user.Stomach;
-        var sb = new StringBuilder();
-
-        sb.AppendLine($"--- Stomach ({stomach.Calories:F0}/{stomach.MaxCalories:F0} cal) ---");
-
-        if (stomach.Contents == null || stomach.Contents.Count == 0)
-        {
-            sb.AppendLine("Empty.");
-        }
-        else
-        {
-            foreach (var entry in stomach.Contents)
-            {
-                var food = entry.Food;
-                var name = food?.GetType().Name.Replace("Item", "") ?? "Unknown";
-                var cal = food?.Calories ?? 0;
-                sb.AppendLine($"  {name}: {cal:F0} cal (eaten at {entry.TimeEaten:F1})");
-            }
-        }
-
-        user.MsgLocStr(sb.ToString());
-    }
-
-    [ChatSubCommand("EcoDietRoot", "Show current nutrient levels (carbs/protein/fat/vitamins)", "nutrients")]
-    public static void Nutrients(User user)
-    {
-        var stomach = user.Stomach;
-        var nutrients = stomach.Nutrients;
-        var sb = new StringBuilder();
-
-        sb.AppendLine("--- Nutrients ---");
-        sb.AppendLine($"  Carbs:    {nutrients.Carbs:F1}");
-        sb.AppendLine($"  Protein:  {nutrients.Protein:F1}");
-        sb.AppendLine($"  Fat:      {nutrients.Fat:F1}");
-        sb.AppendLine($"  Vitamins: {nutrients.Vitamins:F1}");
-        sb.AppendLine($"  Total:    {nutrients.NutrientTotal():F1}");
-        sb.AppendLine($"  Average:  {nutrients.NutrientAverage():F1}");
-
-        user.MsgLocStr(sb.ToString());
-    }
-
-    [ChatSubCommand("EcoDietRoot", "Show current craving and craving multiplier", "cravings")]
-    public static void Cravings(User user)
-    {
-        var stomach = user.Stomach;
-        var sb = new StringBuilder();
-
-        sb.AppendLine("--- Cravings ---");
-        sb.AppendLine($"  Current craving: {stomach.Craving?.Name ?? "None"}");
-        sb.AppendLine($"  Craving mult:    {stomach.CravingMult:F2}x");
-        sb.AppendLine($"  Description:     {stomach.CravingMultDesc}");
-
-        user.MsgLocStr(sb.ToString());
-    }
-
-    [ChatSubCommand("EcoDietRoot", "Show taste preferences for foods in your stomach", "taste")]
-    public static void Taste(User user)
-    {
-        var stomach = user.Stomach;
-        var tasteBuds = stomach.TasteBuds;
-        var sb = new StringBuilder();
-
-        sb.AppendLine("--- Taste Preferences ---");
-
-        if (tasteBuds.Favorite != null)
-            sb.AppendLine($"  Favorite: {tasteBuds.Favorite.GetType().Name.Replace("Item", "")}");
-
-        if (tasteBuds.Worst != null)
-            sb.AppendLine($"  Worst:    {tasteBuds.Worst.GetType().Name.Replace("Item", "")}");
-
-        if (tasteBuds.FoodToTaste != null)
-        {
-            sb.AppendLine("  Known tastes:");
-            foreach (var kvp in tasteBuds.FoodToTaste)
-            {
-                if (kvp.Value.Discovered)
-                {
-                    var foodName = kvp.Key.Name.Replace("Item", "");
-                    sb.AppendLine($"    {foodName}: {kvp.Value.Preference} ({kvp.Value.TastinessMult:F2}x)");
-                }
-            }
-        }
-
-        user.MsgLocStr(sb.ToString());
-    }
-
-    [ChatSubCommand("EcoDietRoot", "Show all SP multipliers (variety, balanced diet, taste, craving, dinner party)", "multipliers")]
-    public static void Multipliers(User user)
-    {
-        var stomach = user.Stomach;
-        var sb = new StringBuilder();
-
-        sb.AppendLine("--- SP Multipliers ---");
-        sb.AppendLine($"  Nutrient SP rate:   {stomach.NutrientSkillRate():F2}");
-        sb.AppendLine($"  Balanced diet:      {stomach.BalancedDietMult:F2}x");
-        sb.AppendLine($"  Variety:            {stomach.VarietyMult:F2}x");
-        sb.AppendLine($"  Tastiness:          {stomach.TastinessMult:F2}x");
-        sb.AppendLine($"  Craving:            {stomach.CravingMult:F2}x");
-        sb.AppendLine($"  Dinner party:       {stomach.DinnerPartyMult:F2}x");
-        sb.AppendLine($"  Calorie mult:       {stomach.CalorieMult:F2}x");
-
-        user.MsgLocStr(sb.ToString());
-    }
-
-    [ChatSubCommand("EcoDietRoot", "Plan optimal meal for remaining calorie budget (from backpack)", "plan")]
-    public static void Plan(User user, int calories = 0)
+    /// <summary>
+    /// Plan an optimal meal.
+    ///   /ed plan       — remaining calorie budget
+    ///   /ed plan full  — full stomach capacity (empty stomach sim)
+    ///   /ed plan 1500  — custom calorie budget
+    /// </summary>
+    [ChatSubCommand("EcoDiet", "Plan optimal meal (plan / plan full / plan <calories>)", "plan")]
+    public static void Plan(User user, string arg = "")
     {
         try
         {
+            var trimmed = arg.Trim();
+            var isFullPlan = string.Equals(trimmed, "full", StringComparison.OrdinalIgnoreCase)
+                          || string.Equals(trimmed, "max", StringComparison.OrdinalIgnoreCase);
+
             var config = new PlannerConfig();
-            var stomachState = StomachSnapshot.CaptureStomach(user);
             var (available, sources) = FoodDiscovery.DiscoverAll(user);
 
             if (available.Count == 0)
@@ -152,25 +52,52 @@ public static class DietCommands
                 return;
             }
 
-            var remainingCal = calories > 0
-                ? calories
-                : StomachSnapshot.GetRemainingCalories(user);
+            Dictionary<FoodCandidate, int> stomachState;
+            int calorieBudget;
+            int cravingsSatisfied;
 
-            if (remainingCal <= 0)
+            if (isFullPlan)
+            {
+                // Full plan: empty stomach, plan for max calories
+                stomachState = new Dictionary<FoodCandidate, int>();
+                calorieBudget = StomachSnapshot.GetMaxCalories(user);
+                cravingsSatisfied = 0;
+            }
+            else if (int.TryParse(trimmed, out var customCal) && customCal > 0)
+            {
+                // Custom calorie budget with current stomach
+                stomachState = StomachSnapshot.CaptureStomach(user);
+                calorieBudget = customCal;
+                cravingsSatisfied = StomachSnapshot.GetCravingsSatisfied(user);
+            }
+            else
+            {
+                // Default: remaining calories
+                stomachState = StomachSnapshot.CaptureStomach(user);
+                calorieBudget = StomachSnapshot.GetRemainingCalories(user);
+                cravingsSatisfied = StomachSnapshot.GetCravingsSatisfied(user);
+            }
+
+            if (calorieBudget <= 0)
             {
                 user.MsgLocStr("No calorie budget remaining. Stomach is full.");
                 return;
             }
 
             var cravings = BuildCravingsList(user);
-            var cravingsSatisfied = StomachSnapshot.GetCravingsSatisfied(user);
             var dinnerPartyMult = StomachSnapshot.GetDinnerPartyMult(user);
+
+            var displayConfig = DisplayConfig.Load(user.Name);
 
             var result = MealPlanner.PlanMeal(
                 stomachState, available, cravings, cravingsSatisfied,
-                remainingCal, config, dinnerPartyMult: dinnerPartyMult);
+                calorieBudget, config, dinnerPartyMult: dinnerPartyMult);
 
-            var output = PlanRenderer.RenderPlan(result, sources);
+            var output = PlanRenderer.RenderPlan(
+                result, sources,
+                showSources: displayConfig.Sources,
+                showTags: displayConfig.Tags,
+                compact: displayConfig.Compact);
             user.MsgLocStr(output);
         }
         catch (Exception ex)
@@ -179,44 +106,64 @@ public static class DietCommands
         }
     }
 
-    [ChatSubCommand("EcoDietRoot", "Plan optimal meal for full stomach capacity (ignoring current fill)", "fullplan")]
-    public static void FullPlan(User user)
+    [ChatSubCommand("EcoDiet", "Show or change display settings", "config")]
+    public static void Config(User user, string args = "")
     {
         try
         {
-            var config = new PlannerConfig();
+            var parts = args.Trim().Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
 
-            // For full plan: start with empty stomach, plan for max calories
-            var stomachState = new Dictionary<FoodCandidate, int>();
-            var (available, sources) = FoodDiscovery.DiscoverAll(user);
-
-            if (available.Count == 0)
+            if (parts.Length == 0)
             {
-                user.MsgLocStr("No food found in your backpack to plan with.");
+                // Show current config
+                var cfg = DisplayConfig.Load(user.Name);
+                var sb = new StringBuilder();
+                sb.AppendLine("--- EcoDiet Display Settings ---");
+                sb.AppendLine($"  compact  = {cfg.Compact}    (compact vs full plan format)");
+                sb.AppendLine($"  sources  = {cfg.Sources}    (show food source tags)");
+                sb.AppendLine($"  tags     = {cfg.Tags}    (show variety/taste/craving tags)");
+                sb.AppendLine($"  autoplan = {cfg.AutoPlan}    (reserved for future auto-plan)");
+                sb.AppendLine();
+                sb.AppendLine("Usage: /ed config <key> <true|false>");
+                user.MsgLocStr(sb.ToString());
                 return;
             }
 
-            var maxCalories = StomachSnapshot.GetMaxCalories(user);
+            if (parts.Length < 2)
+            {
+                user.MsgLocStr("Usage: /ed config <key> <true|false>");
+                return;
+            }
 
-            // No cravings context for full plan (starting fresh)
-            var cravings = BuildCravingsList(user);
-            var cravingsSatisfied = 0;
-            var dinnerPartyMult = StomachSnapshot.GetDinnerPartyMult(user);
+            var key = parts[0].ToLowerInvariant();
+            if (!bool.TryParse(parts[1], out var value))
+            {
+                user.MsgLocStr($"Invalid value '{parts[1]}'. Use true or false.");
+                return;
+            }
 
-            var result = MealPlanner.PlanMeal(
-                stomachState, available, cravings, cravingsSatisfied,
-                maxCalories, config, dinnerPartyMult: dinnerPartyMult);
+            var config = DisplayConfig.Load(user.Name);
+            switch (key)
+            {
+                case "compact":  config.Compact = value;  break;
+                case "sources":  config.Sources = value;  break;
+                case "tags":     config.Tags = value;     break;
+                case "autoplan": config.AutoPlan = value;  break;
+                default:
+                    user.MsgLocStr($"Unknown setting '{key}'. Valid: compact, sources, tags, autoplan");
+                    return;
+            }
 
-            var output = PlanRenderer.RenderPlan(result, sources);
-            user.MsgLocStr(output);
+            config.Save(user.Name);
+            user.MsgLocStr($"Set {key} = {value}");
         }
         catch (Exception ex)
         {
-            user.MsgLocStr($"Full plan error: {ex.Message}");
+            user.MsgLocStr($"Config error: {ex.Message}");
         }
     }
 
-    [ChatSubCommand("EcoDietRoot", "Export game state to JSON for the Python planner", "export")]
+    [ChatSubCommand("EcoDiet", "Export game state to JSON for the Python planner", "export")]
     public static void Export(User user, string note = "")
     {
         var timestamp = DateTime.UtcNow.ToString("yyyy-MM-dd_HHmmss");
