@@ -77,7 +77,9 @@ If a craving is satisfiable within the calorie budget, it takes priority over th
 ### C# Mod (In Progress)
 
 - [x] Read player stomach contents, nutrients, cravings, taste preferences, SP multipliers
-- [ ] Generate optimized meal plan for remaining daily calories
+- [x] Generate optimized meal plan for remaining daily calories
+- [x] Chat command `/ed plan` with full/custom calorie budget
+- [x] Stomach tooltip with live plan countdown (auto-replans on eat/calorie drain)
 - [ ] Display SP breakdown (variety %, tastiness %, craving status)
 - [ ] In-game UI panel (minimal, non-intrusive)
 - [ ] Auto-update food database from game's internal data
@@ -86,13 +88,13 @@ If a craving is satisfiable within the calorie budget, it takes priority over th
 
 ## Out of Scope (V1)
 
-| Feature                     | Reason                                                                               |
-| --------------------------- | ------------------------------------------------------------------------------------ |
-| Recipe crafting suggestions | Focus on eating optimization only                                                    |
-| Multi-day planning          | Single meal/day scope for v1                                                         |
-| Multiplayer plan sharing    | Solo optimization first                                                              |
-| Food price/economy factors  | Complexity; defer to v2                                                              |
-| "Next bite" real-time mode  | Deferred to v2 — well-suited for mod (live stomach access); full meal planning first |
+| Feature                     | Reason                                                                       |
+| --------------------------- | ---------------------------------------------------------------------------- |
+| Recipe crafting suggestions | Focus on eating optimization only                                            |
+| Multi-day planning          | Single meal/day scope for v1                                                 |
+| Multiplayer plan sharing    | Solo optimization first                                                      |
+| Food price/economy factors  | Complexity; defer to v2                                                      |
+| "Next bite" real-time mode  | ✅ Partially implemented — tooltip shows remaining plan, auto-replans on eat |
 
 ---
 
@@ -138,16 +140,46 @@ mod/EcoDietMod/
 ├── Discovery/
 │   ├── StomachSnapshot.cs    # Read User.Stomach into planner dicts
 │   └── FoodDiscovery.cs      # Enumerate food from backpack (storage/shops planned)
-└── Rendering/
-    └── PlanRenderer.cs       # Format plan for chat output
+├── Rendering/
+│   ├── EcoDietTooltipLibrary.cs  # Stomach tooltip extension (live plan readout)
+│   └── PlanRenderer.cs       # Format plan for chat + tooltip output
+└── Tracking/
+    ├── PlanTracker.cs         # In-memory plan cache with progress detection
+    └── EcoDietEventHandler.cs # GlobalFoodEatenEvent subscription
 ```
 
 **Integration points:**
 
 - `[ChatCommandHandler]` + `[ChatCommand]`/`[ChatSubCommand]` for chat commands
+- `[TooltipLibrary]` + `[NewTooltip]` extension methods for Stomach tooltip sections
 - `User.Stomach` → `Contents`, `Nutrients`, `TasteBuds`, `Cravings`, SP multipliers
-- `Stomach` events (`GlobalFoodEatenEvent`, `CravingSatisfiedEvent`) for real-time mode
+- `Stomach.GlobalFoodEatenEvent` — invalidates cached plan when player eats
+- `IModInit` — registers event handlers at server startup
 - `User.MsgLocStr()` for player messaging
+
+### Tooltip System
+
+The mod adds a foldable "EcoDiet" section to the Stomach tooltip showing remaining planned bites:
+
+```
+--- EcoDiet: 4 bites → +5.63 SP ---
+  → Huckleberry Extract x2 (+2.88 SP)
+  · Beet (+1.12 SP)
+  · Corn (+0.75 SP)
+```
+
+**How it works:**
+
+1. `EcoDietTooltipLibrary` registers as a `[TooltipLibrary]` with `CacheAs.Disabled` — tooltip recalculates on every hover
+2. `PlanTracker` caches the active plan per player and detects state changes:
+   - **On-plan progress**: Player eats food that was next in the plan → filters eaten items from remaining list
+   - **Off-plan eating**: Player eats food not in the plan → triggers full replan from current state
+   - **Calorie drain**: Player burns calories (crafting, activity) → replans with updated budget
+3. `EcoDietEventHandler` subscribes to `Stomach.GlobalFoodEatenEvent` via `IModInit` to mark plans as stale when food is eaten
+4. `PlanRenderer.RenderRemainingPlan()` formats the countdown with edge states:
+   - No food in inventory → `"EcoDiet: No food available"`
+   - Stomach full → `"EcoDiet: Stomach full"`
+   - All items eaten → `"EcoDiet: Plan complete — 28.4 SP"`
 
 ---
 

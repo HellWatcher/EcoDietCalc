@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using EcoDietMod.Models;
+using EcoDietMod.Tracking;
 
 namespace EcoDietMod.Rendering;
 
@@ -89,9 +90,49 @@ public static class PlanRenderer
     }
 
     /// <summary>
-    /// Group consecutive same-name items, preserving first-appearance order.
+    /// Render remaining plan items for the stomach tooltip.
+    /// Shows a compact countdown of what to eat next.
     /// </summary>
-    private static List<ItemGroup> GroupItems(List<MealPlanItem> items)
+    public static string RenderRemainingPlan(
+        List<MealPlanItem> remaining,
+        PlanStatus status,
+        float? finalSp = null)
+    {
+        return status switch
+        {
+            PlanStatus.NoFood => "EcoDiet: No food available",
+            PlanStatus.StomachFull => "EcoDiet: Stomach full",
+            PlanStatus.NothingToSuggest => "EcoDiet: Nothing to suggest",
+            PlanStatus.Complete => $"EcoDiet: Plan complete — {finalSp:F1} SP",
+            _ => RenderRemainingItems(remaining)
+        };
+    }
+
+    private static string RenderRemainingItems(List<MealPlanItem> remaining)
+    {
+        var groups = GroupItems(remaining);
+        var totalBites = remaining.Count;
+        var totalSpGain = remaining.Sum(item => item.SpGain);
+
+        var sb = new StringBuilder();
+        sb.AppendLine($"--- EcoDiet: {totalBites} bites → {FormatSigned(totalSpGain)} SP ---");
+
+        for (var i = 0; i < groups.Count; i++)
+        {
+            var group = groups[i];
+            var marker = i == 0 ? "→" : "·";
+            var countLabel = group.Count > 1 ? $" x{group.Count}" : "";
+            var sign = group.TotalSpGain >= 0 ? "+" : "";
+            sb.AppendLine($"  {marker} {group.Name}{countLabel} ({sign}{group.TotalSpGain:F2} SP)");
+        }
+
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// Group same-name items, preserving first-appearance order.
+    /// </summary>
+    internal static List<ItemGroup> GroupItems(List<MealPlanItem> items)
     {
         var groups = new List<ItemGroup>();
         var indexByName = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
@@ -160,7 +201,7 @@ public static class PlanRenderer
     /// <summary>
     /// Internal grouping of same-name meal plan items.
     /// </summary>
-    private sealed class ItemGroup
+    internal sealed class ItemGroup
     {
         public string Name { get; }
         public int Count { get; private set; }

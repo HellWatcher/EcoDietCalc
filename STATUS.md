@@ -5,9 +5,10 @@ Last updated: 2026-02-12
 ## Current State
 
 Phase 2 (Python Polish) complete. 165 tests, mypy clean. All modules now directly tested.
-Phase 3 (C# Mod) — scaffold, read-only chat commands, JSON export, and **in-game meal planner** (Phase 1+2 of plan) implemented.
+Phase 3 (C# Mod) — scaffold, read-only chat commands, JSON export, **in-game meal planner**, and **live stomach tooltip** implemented.
 Domain naming standardized to match Eco game API (`fat`, `tastiness_*`, `balanced_diet_*`, TastePreference labels).
 Balance-improvement bias added to planner — fixes zero-nutrient food selection bug.
+Stomach tooltip now shows live meal plan countdown with auto-replan on eat/calorie drain.
 
 ## Test Coverage
 
@@ -24,7 +25,27 @@ Balance-improvement bias added to planner — fixes zero-nutrient food selection
 | `main.py (cmd_predict)`    | Good     | 5 tests for predict subcommand           |
 | `food_state_manager.py`    | Good     | 26 direct unit tests                     |
 
-## Recent Changes (2026-02-12) — Balance Improvement Bias
+## Recent Changes (2026-02-12) — Live Stomach Tooltip
+
+### Added
+
+- `mod/EcoDietMod/Tracking/PlanTracker.cs` — in-memory plan cache per player with progress detection (on-plan filtering, off-plan replan, calorie drain replan)
+- `mod/EcoDietMod/Tracking/EcoDietEventHandler.cs` — `IModInit` subscribing to `Stomach.GlobalFoodEatenEvent` to invalidate plans on eat
+- `PlanRenderer.RenderRemainingPlan()` — tooltip countdown format with `→`/`·` markers and edge states (no food, stomach full, plan complete)
+
+### Changed
+
+- `EcoDietTooltipLibrary.cs` — fixed tooltip registration: extension method pattern (`this Stomach`), `CacheAs.Disabled`, wired to PlanTracker → PlanRenderer pipeline
+- `PlanRenderer.GroupItems` + `ItemGroup` visibility changed from `private` to `internal` for reuse
+- `SPEC.md` — updated C# architecture section with Tracking/ directory and tooltip system docs
+- `CLAUDE.md` — added C# mod structure section
+
+### Build
+
+- `dotnet build` clean with 0 warnings, 0 errors
+- 165 Python tests still pass
+
+## Previous Changes (2026-02-12) — Balance Improvement Bias
 
 ### Added
 
@@ -98,9 +119,8 @@ Balance-improvement bias added to planner — fixes zero-nutrient food selection
 
 - Extended food discovery (authorized storage, nearby shops)
 - Per-player JSON config persistence (ConfigStore, PlayerConfig)
-- `/ecodiet config` command
-- Tooltip/notification enhancement (Phase 4, needs API research)
-- Suggested features: whatif, variety, exclude, auto-suggest, cost display
+- ~~Tooltip/notification enhancement~~ ✅ Live stomach tooltip with plan countdown
+- Suggested features: whatif, variety, exclude, cost display
 
 ## Previous Changes (2026-02-08) — Type Annotations + Unit Tests
 
@@ -262,7 +282,7 @@ Config structure:
 
 ## Feature Ideas
 
-- **"Next bite" real-time mode**: Mod reads live stomach state and suggests what to eat next — natural fit for in-game integration since the mod has direct access to stomach contents via `Stomach.Contents` and events like `GlobalFoodEatenEvent`
+- ~~**"Next bite" real-time mode**~~: ✅ Implemented — stomach tooltip shows remaining plan, auto-replans on eat and calorie drain
 - ~~**Export game state to JSON**~~: ✅ Implemented — `/ecodiet export` writes JSON, `python main.py plan --import <file>` consumes it
 
 ## Architecture Notes
@@ -275,6 +295,7 @@ Config structure:
 
 ## Session Log
 
+- 2026-02-12: Live stomach tooltip — PlanTracker (plan cache + progress detection), EcoDietEventHandler (food eaten events), RenderRemainingPlan, fixed tooltip registration to extension method pattern
 - 2026-02-12: Balance improvement bias — added `_balance_improvement_bias` to planner, C# mirror, 10 new tests, deleted repro script, released v0.5.0
 - 2026-02-08: Type annotations + unit tests — tuner.py annotated, 26 new food_state_manager tests, 150 total tests
 - 2026-02-08: Naming standardization — aligned all domain naming with Eco game API (fat, tastiness*\*, balanced_diet*\*, TastePreference labels)

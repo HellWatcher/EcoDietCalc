@@ -32,6 +32,8 @@ mypy .
 
 ## Structure
 
+### Python (algorithm prototype)
+
 ```
 main.py                  — entry point, dispatches subcommands
 planner.py               — bite selection algorithm
@@ -46,6 +48,35 @@ tune/                    — algorithm parameter tuner
 logs/                    — logging utilities
 tests/                   — pytest suite mirroring source structure
 ```
+
+### C# Mod (in-game integration)
+
+```
+mod/EcoDietMod/
+├── DietCommands.cs              — /ed plan, /ed config, /ed export chat commands
+├── GameStateExporter.cs         — JSON export for Python planner
+├── Algorithm/                   — SP math + bite selection (ported from Python)
+│   ├── SpCalculator.cs          — SP formulas, variety, tastiness, bonuses
+│   ├── BiteSelector.cs          — ranking pipeline (biases, penalties)
+│   └── MealPlanner.cs           — plan loop with craving-first strategy
+├── Config/
+│   └── PlannerConfig.cs         — algorithm constants
+├── Discovery/
+│   ├── StomachSnapshot.cs       — read User.Stomach into planner dicts
+│   └── FoodDiscovery.cs         — enumerate food from player backpack
+├── Models/
+│   ├── FoodCandidate.cs         — immutable food record (equality by name)
+│   ├── MealPlanItem.cs          — single planned bite with scoring
+│   └── MealPlanResult.cs        — full plan + summary stats
+├── Rendering/
+│   ├── EcoDietTooltipLibrary.cs — stomach tooltip (live plan countdown)
+│   └── PlanRenderer.cs          — format plan for chat + tooltip
+└── Tracking/
+    ├── PlanTracker.cs           — in-memory plan cache, progress detection
+    └── EcoDietEventHandler.cs   — GlobalFoodEatenEvent → plan invalidation
+```
+
+Build: `dotnet build mod/EcoDietMod/EcoDietMod.csproj`
 
 ## Key Docs
 
