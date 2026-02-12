@@ -1,8 +1,8 @@
 """Meal planning and bite selection logic.
 
 Provides the ranking pipeline used to select the next bite. The
-algorithm considers SP deltas, soft-variety effects, proximity tie-breaks,
-and optional low-calorie penalties.
+algorithm considers SP deltas, soft-variety effects, balance improvement,
+proximity tie-breaks, and optional low-calorie penalties.
 
 Exports
 -------
@@ -13,6 +13,7 @@ import difflib
 import logging
 
 from calculations import (
+    calculate_balanced_diet_ratio,
     get_sp_delta,
     get_variety_bonus,
     simulate_stomach_with_added_food,
@@ -22,6 +23,7 @@ from calculations import (
     variety_count,
 )
 from constants import (
+    BALANCED_DIET_IMPROVEMENT_STRENGTH,
     LOW_CALORIE_THRESHOLD,
     LOW_CALORIE_PENALTY_STRENGTH,
     MAX_ITERATIONS,
@@ -154,6 +156,49 @@ def _proximity_bias(
     return PROXIMITY_APPROACH_WEIGHT * proximity_score
 
 
+def _balance_improvement_bias(
+    stomach: dict[Food, int],
+    food: Food,
+) -> float:
+    """Bias for foods that improve the balanced-diet ratio.
+
+    Only applies a positive nudge when the candidate food *increases*
+    the balance ratio (e.g., filling a zeroed-out nutrient).  No penalty
+    for worsening — that is already captured by the raw SP delta.
+
+    Parameters
+    ----------
+    stomach : dict[Food, int]
+        Current stomach counts.
+    food : Food
+        Candidate food being considered.
+
+    Returns
+    -------
+    float
+        Non-negative bias term (0.0 when balance does not improve).
+    """
+    density_before, _ = sum_all_weighted_nutrients(stomach)
+    nutrients_before = [
+        density_before[k] for k in ("carbs", "protein", "fat", "vitamins")
+    ]
+    ratio_before = calculate_balanced_diet_ratio(nutrients_before)
+
+    after = simulate_stomach_with_added_food(stomach, food)
+    density_after, _ = sum_all_weighted_nutrients(after)
+    nutrients_after = [
+        density_after[k] for k in ("carbs", "protein", "fat", "vitamins")
+    ]
+    ratio_after = calculate_balanced_diet_ratio(nutrients_after)
+
+    ratio_delta = ratio_after - ratio_before
+    if ratio_delta <= 0:
+        return 0.0
+
+    nutrient_sum_after = sum(nutrients_after)
+    return BALANCED_DIET_IMPROVEMENT_STRENGTH * nutrient_sum_after * ratio_delta
+
+
 def _low_calorie_penalty(
     food: Food,
 ) -> float:
@@ -261,7 +306,11 @@ def _choose_next_bite(
             cravings,
             cravings_satisfied,
         )
-        rank_score = raw_delta + _low_calorie_penalty(food)
+        rank_score = (
+            raw_delta
+            + _low_calorie_penalty(food)
+            + _balance_improvement_bias(manager.stomach, food)
+        )
         candidates.append(
             (
                 food,
@@ -298,7 +347,13 @@ def _choose_next_bite(
             manager.stomach,
             food,
         )
-        primary_rank = raw_delta + _low_calorie_penalty(food) + soft_variety_bias
+        balance_bias = _balance_improvement_bias(manager.stomach, food)
+        primary_rank = (
+            raw_delta
+            + _low_calorie_penalty(food)
+            + soft_variety_bias
+            + balance_bias
+        )
         scored_candidates.append(
             (
                 food,

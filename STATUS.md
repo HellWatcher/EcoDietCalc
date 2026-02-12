@@ -1,20 +1,21 @@
 # Project Status
 
-Last updated: 2026-02-11
+Last updated: 2026-02-12
 
 ## Current State
 
-Phase 2 (Python Polish) complete. 155 tests, mypy clean. All modules now directly tested.
+Phase 2 (Python Polish) complete. 165 tests, mypy clean. All modules now directly tested.
 Phase 3 (C# Mod) — scaffold, read-only chat commands, JSON export, and **in-game meal planner** (Phase 1+2 of plan) implemented.
 Domain naming standardized to match Eco game API (`fat`, `tastiness_*`, `balanced_diet_*`, TastePreference labels).
+Balance-improvement bias added to planner — fixes zero-nutrient food selection bug.
 
 ## Test Coverage
 
 | Module                     | Coverage | Notes                                    |
 | -------------------------- | -------- | ---------------------------------------- |
 | `calculations.py`          | Good     | 11 tests covering SP, bonuses, variety   |
-| `planner.py`               | Good     | 21 tests for ranking functions           |
-| `integration`              | Good     | 16 tests for full planning pipeline      |
+| `planner.py`               | Good     | 26 tests for ranking functions           |
+| `integration`              | Good     | 21 tests for full planning pipeline      |
 | `config.py`                | Good     | 9 tests for load, validation, merging    |
 | `interface/cli.py`         | Good     | 7 tests for parser subcommands and flags |
 | `interface/persistence.py` | Good     | 11+26 tests (load/save/log + import)     |
@@ -23,7 +24,24 @@ Domain naming standardized to match Eco game API (`fat`, `tastiness_*`, `balance
 | `main.py (cmd_predict)`    | Good     | 5 tests for predict subcommand           |
 | `food_state_manager.py`    | Good     | 26 direct unit tests                     |
 
-## Recent Changes (2026-02-11) — SP Calculation Fix
+## Recent Changes (2026-02-12) — Balance Improvement Bias
+
+### Added
+
+- `_balance_improvement_bias()` in `planner.py` — positive nudge for foods that improve the balanced-diet ratio, wired into Pass 1 and Pass 3 of `_choose_next_bite()`
+- `BalanceImprovementBias()` in C# `BiteSelector.cs` + `BalancedDietImprovementStrength` in `PlannerConfig.cs`
+- 5 unit tests (`TestBalanceImprovementBias`) + 5 integration tests (`TestBalanceImprovementIntegration`) parametrized over all four nutrients
+- 165 tests pass, mypy clean, C# build 0 warnings
+
+### Fixed
+
+- Zero-nutrient food selection bug: when stomach had a zeroed-out nutrient (e.g., fat=0 from eating only Pumpkins), planner picked more zero-nutrient foods instead of balance-fixing ones. Root cause: `_low_calorie_penalty` overwhelmed the genuine SP benefit of balance-fixing foods.
+
+### Removed
+
+- `repro_zero_nutrient.py` — replaced by proper test coverage
+
+## Previous Changes (2026-02-11) — SP Calculation Fix
 
 ### Fixed
 
@@ -257,6 +275,7 @@ Config structure:
 
 ## Session Log
 
+- 2026-02-12: Balance improvement bias — added `_balance_improvement_bias` to planner, C# mirror, 10 new tests, deleted repro script, released v0.5.0
 - 2026-02-08: Type annotations + unit tests — tuner.py annotated, 26 new food_state_manager tests, 150 total tests
 - 2026-02-08: Naming standardization — aligned all domain naming with Eco game API (fat, tastiness*\*, balanced_diet*\*, TastePreference labels)
 - 2026-02-07: JSON export pipeline — GameStateExporter.cs, /ecodiet export command, Python --import flag, 26 new tests

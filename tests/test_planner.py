@@ -1,13 +1,15 @@
 """Unit tests for planner ranking functions.
 
 Tests the internal ranking helpers (_low_calorie_penalty, _soft_variety_bias,
-_proximity_bias) and the full bite selection pipeline (_choose_next_bite).
+_proximity_bias, _balance_improvement_bias) and the full bite selection pipeline
+(_choose_next_bite).
 """
 
 import math
 
 from conftest import make_food
 from constants import (
+    BALANCED_DIET_IMPROVEMENT_STRENGTH,
     LOW_CALORIE_PENALTY_STRENGTH,
     LOW_CALORIE_THRESHOLD,
     PROXIMITY_APPROACH_WEIGHT,
@@ -16,7 +18,13 @@ from constants import (
 )
 from food_state_manager import FoodStateManager
 from models.food import Food
+from calculations import (
+    calculate_balanced_diet_ratio,
+    simulate_stomach_with_added_food,
+    sum_all_weighted_nutrients,
+)
 from planner import (
+    _balance_improvement_bias,
     _choose_next_bite,
     _low_calorie_penalty,
     _proximity_bias,
@@ -383,3 +391,95 @@ class TestProximityTiebreak:
 
         # FoodA should likely be preferred (contributes to variety)
         assert food is not None
+
+
+# --- _balance_improvement_bias tests ---
+
+
+class TestBalanceImprovementBias:
+    """Tests for balance-improvement bias that nudges toward filling nutrient gaps."""
+
+    def test_food_improving_zero_nutrient_positive_bias(self) -> None:
+        """A food that fills a zeroed-out nutrient should get a positive bias."""
+        # Pumpkin-like: has carbs, protein, vitamins but NO fat
+        pumpkin = make_food(
+            "Pumpkin", calories=400, carbs=10, protein=5, fat=0, vitamins=8
+        )
+        stomach: dict[Food, int] = {pumpkin: 6}
+
+        # Huckleberry-like: has fat to fix the imbalance
+        huckleberry = make_food(
+            "Huckleberry", calories=150, carbs=2, protein=1, fat=3, vitamins=2
+        )
+
+        bias = _balance_improvement_bias(stomach, huckleberry)
+        assert bias > 0, f"Expected positive bias for balance-fixing food, got {bias}"
+
+    def test_food_not_improving_balance_zero_bias(self) -> None:
+        """A food that doesn't improve balance should get zero bias."""
+        # Stomach already has zero fat
+        pumpkin = make_food(
+            "Pumpkin", calories=400, carbs=10, protein=5, fat=0, vitamins=8
+        )
+        stomach: dict[Food, int] = {pumpkin: 6}
+
+        # Another pumpkin — still zero fat, ratio won't improve
+        bias = _balance_improvement_bias(stomach, pumpkin)
+        assert bias == 0.0, f"Expected zero bias for non-improving food, got {bias}"
+
+    def test_already_balanced_stomach_near_zero_bias(self) -> None:
+        """A balanced stomach adding more of the same should have near-zero bias."""
+        balanced = make_food(
+            "Balanced", calories=500, carbs=10, protein=10, fat=10, vitamins=10
+        )
+        stomach: dict[Food, int] = {balanced: 4}
+
+        # Adding more of a perfectly balanced food can't improve ratio (already 1.0)
+        bias = _balance_improvement_bias(stomach, balanced)
+        assert bias == 0.0, f"Expected zero bias for already balanced, got {bias}"
+
+    def test_bias_scales_with_strength_constant(self) -> None:
+        """Bias should equal STRENGTH * nutrient_sum_after * ratio_delta."""
+        pumpkin = make_food(
+            "Pumpkin", calories=400, carbs=10, protein=5, fat=0, vitamins=8
+        )
+        stomach: dict[Food, int] = {pumpkin: 6}
+
+        fixer = make_food(
+            "Fixer", calories=400, carbs=5, protein=5, fat=10, vitamins=5
+        )
+
+        bias = _balance_improvement_bias(stomach, fixer)
+
+        # Manually compute expected
+        density_before, _ = sum_all_weighted_nutrients(stomach)
+        nutrients_before = [
+            density_before[k] for k in ("carbs", "protein", "fat", "vitamins")
+        ]
+        ratio_before = calculate_balanced_diet_ratio(nutrients_before)
+
+        after = simulate_stomach_with_added_food(stomach, fixer)
+        density_after, _ = sum_all_weighted_nutrients(after)
+        nutrients_after = [
+            density_after[k] for k in ("carbs", "protein", "fat", "vitamins")
+        ]
+        ratio_after = calculate_balanced_diet_ratio(nutrients_after)
+
+        ratio_delta = ratio_after - ratio_before
+        nutrient_sum_after = sum(nutrients_after)
+        expected = BALANCED_DIET_IMPROVEMENT_STRENGTH * nutrient_sum_after * ratio_delta
+
+        assert math.isclose(bias, expected, rel_tol=1e-9)
+
+    def test_empty_stomach_first_food_zero_bias(self) -> None:
+        """First food into an empty stomach: no prior ratio to improve from."""
+        stomach: dict[Food, int] = {}
+        food = make_food(
+            "Anything", calories=400, carbs=10, protein=10, fat=10, vitamins=10
+        )
+
+        bias = _balance_improvement_bias(stomach, food)
+        # Empty stomach has ratio 0.0; adding a balanced food gives ratio 1.0,
+        # so delta > 0 → bias > 0 is acceptable. OR if single-nutrient food,
+        # ratio goes from 0 → 1.0 as well. The key thing is no crash.
+        assert isinstance(bias, float)

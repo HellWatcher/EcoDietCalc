@@ -6,6 +6,25 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-02-12
+
+### Added
+
+- Balance-improvement bias in bite selection — planner now actively prefers foods that fix nutrient imbalances (e.g., choosing a fat-containing food when stomach has fat=0)
+- `_balance_improvement_bias()` in `planner.py`, wired into Pass 1 and Pass 3 of `_choose_next_bite()`
+- `BalanceImprovementBias()` in C# `BiteSelector.cs` with matching logic
+- `BalancedDietImprovementStrength` config property in C# `PlannerConfig.cs` (default 1.91)
+- 5 unit tests (`TestBalanceImprovementBias`) and 5 integration tests (`TestBalanceImprovementIntegration`) covering all four nutrient zero-out scenarios
+- 165 tests pass, mypy clean, C# build 0 warnings
+
+### Fixed
+
+- Planner no longer picks more zero-nutrient foods when stomach has a zeroed-out nutrient — the low-calorie penalty was overwhelming the genuine SP benefit of balance-fixing foods, and the tiebreak window filtered them out entirely
+
+### Removed
+
+- `repro_zero_nutrient.py` — replaced by proper test coverage
+
 ## [0.4.0] - 2026-02-08
 
 ### Changed

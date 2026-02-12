@@ -71,6 +71,36 @@ public static class BiteSelector
     }
 
     /// <summary>
+    /// Bias for foods that improve the balanced-diet ratio.
+    /// Only applies a positive nudge when the candidate food increases
+    /// the balance ratio (e.g., filling a zeroed-out nutrient).
+    /// </summary>
+    public static float BalanceImprovementBias(
+        Dictionary<FoodCandidate, int> stomach,
+        FoodCandidate food,
+        PlannerConfig config)
+    {
+        var (densityBefore, _) = SpCalculator.SumAllWeightedNutrients(stomach);
+        var nutrientsBefore = new[]
+            { densityBefore.Carbs, densityBefore.Protein, densityBefore.Fat, densityBefore.Vitamins };
+        var ratioBefore = SpCalculator.CalculateBalancedDietRatio(nutrientsBefore);
+
+        var after = SpCalculator.SimulateStomachWithAddedFood(stomach, food);
+        var (densityAfter, _) = SpCalculator.SumAllWeightedNutrients(after);
+        var nutrientsAfter = new[]
+            { densityAfter.Carbs, densityAfter.Protein, densityAfter.Fat, densityAfter.Vitamins };
+        var ratioAfter = SpCalculator.CalculateBalancedDietRatio(nutrientsAfter);
+
+        var ratioDelta = ratioAfter - ratioBefore;
+        if (ratioDelta <= 0f)
+            return 0f;
+
+        var nutrientSumAfter = densityAfter.Carbs + densityAfter.Protein
+                             + densityAfter.Fat + densityAfter.Vitamins;
+        return config.BalancedDietImprovementStrength * nutrientSumAfter * ratioDelta;
+    }
+
+    /// <summary>
     /// Select the next best bite by ranking.
     /// Filters by feasibility, scores by SP delta + penalties/biases,
     /// then applies soft-variety primary rank and proximity tie-break.
@@ -101,7 +131,8 @@ public static class BiteSelector
 
             var rawDelta = SpCalculator.GetSpDelta(food, stomach, cravingsSatisfied,
                 config, serverMult, dinnerPartyMult);
-            var rankScore = rawDelta + LowCaloriePenalty(food, config);
+            var rankScore = rawDelta + LowCaloriePenalty(food, config)
+                         + BalanceImprovementBias(stomach, food, config);
             candidates.Add((food, rawDelta, rankScore));
 
             if (rankScore > bestRankScore)
@@ -129,7 +160,8 @@ public static class BiteSelector
         {
             var softBias = SoftVarietyBias(stomach, food, config);
             var proxBias = ProximityBias(stomach, food, config);
-            var primaryRank = rawDelta + LowCaloriePenalty(food, config) + softBias;
+            var balanceBias = BalanceImprovementBias(stomach, food, config);
+            var primaryRank = rawDelta + LowCaloriePenalty(food, config) + softBias + balanceBias;
             scored.Add((food, rawDelta, primaryRank, proxBias));
         }
 

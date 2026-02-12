@@ -28,6 +28,9 @@ public sealed class PlannerConfig
     /// <summary>Strength of the low-calorie penalty (>= 1; higher = harsher).</summary>
     public float LowCaloriePenaltyStrength { get; init; } = 2.48f;
 
+    /// <summary>Strength of the balance-improvement bias for filling nutrient gaps.</summary>
+    public float BalancedDietImprovementStrength { get; init; } = 1.91f;
+
     /// <summary>Asymptotic cap for variety bonus (percentage points).</summary>
     public float VarietyBonusCapPp { get; init; } = 55.0f;
 

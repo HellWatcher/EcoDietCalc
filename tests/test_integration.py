@@ -7,8 +7,12 @@ Tests the complete meal planning pipeline including:
 - Variety accumulation
 """
 
+import pytest  # pyright: ignore[reportMissingImports]
+
+from calculations import calculate_balanced_diet_ratio, sum_all_weighted_nutrients
 from conftest import make_food
 from food_state_manager import FoodStateManager
+from models.food import Food
 from planner import plan_meal
 
 
@@ -347,3 +351,124 @@ class TestEdgeCases:
         # Should consume the only available food
         assert len(meal_plan) > 0
         assert all(item.name == "OnlyFood" for item in meal_plan)
+
+
+# --- Balance improvement integration tests ---
+
+
+class TestBalanceImprovementIntegration:
+    """Integration tests for the balance-improvement bias in full planning."""
+
+    @pytest.mark.parametrize(
+        "zero_nutrient,stomach_kwargs,fixer_kwargs",
+        [
+            (
+                "carbs",
+                {"carbs": 0, "protein": 8, "fat": 8, "vitamins": 8},
+                {"carbs": 10, "protein": 2, "fat": 2, "vitamins": 2},
+            ),
+            (
+                "protein",
+                {"carbs": 8, "protein": 0, "fat": 8, "vitamins": 8},
+                {"carbs": 2, "protein": 10, "fat": 2, "vitamins": 2},
+            ),
+            (
+                "fat",
+                {"carbs": 10, "protein": 5, "fat": 0, "vitamins": 8},
+                {"carbs": 2, "protein": 1, "fat": 10, "vitamins": 2},
+            ),
+            (
+                "vitamins",
+                {"carbs": 8, "protein": 8, "fat": 8, "vitamins": 0},
+                {"carbs": 2, "protein": 2, "fat": 2, "vitamins": 10},
+            ),
+        ],
+        ids=["zero_carbs", "zero_protein", "zero_fat", "zero_vitamins"],
+    )
+    def test_zero_nutrient_stomach_prefers_fixing_food(
+        self,
+        zero_nutrient: str,
+        stomach_kwargs: dict,
+        fixer_kwargs: dict,
+    ) -> None:
+        """Planner should prefer a food that fills a zeroed-out nutrient."""
+        # Build a stomach food that has one nutrient zeroed out
+        stomach_food = make_food(
+            "Imbalanced", calories=400, **stomach_kwargs
+        )
+        # Pre-fill the stomach with 6 units
+        stomach_food_in_stomach = Food(
+            name=stomach_food.name,
+            calories=stomach_food.calories,
+            carbs=stomach_food.carbs,
+            protein=stomach_food.protein,
+            fat=stomach_food.fat,
+            vitamins=stomach_food.vitamins,
+            tastiness=0,
+            stomach=6,
+            available=10,
+        )
+
+        # A food that fills the gap
+        fixer = make_food("Fixer", calories=400, **fixer_kwargs)
+
+        manager = FoodStateManager([stomach_food_in_stomach, fixer])
+
+        meal_plan = plan_meal(
+            manager=manager,
+            cravings=[],
+            cravings_satisfied=0,
+            remaining_calories=500,  # Enough for exactly one bite
+        )
+
+        assert len(meal_plan) > 0, "Expected at least one item in the plan"
+        first_bite = meal_plan[0]
+        assert first_bite.name == "Fixer", (
+            f"For {zero_nutrient}=0: expected Fixer first, got {first_bite.name}"
+        )
+
+    def test_plan_improves_balance_ratio(self) -> None:
+        """Full plan should improve the balance ratio when starting imbalanced."""
+        # Pumpkin-like: no fat
+        pumpkin = Food(
+            name="Pumpkin",
+            calories=400,
+            carbs=10,
+            protein=5,
+            fat=0,
+            vitamins=8,
+            tastiness=0,
+            stomach=6,
+            available=10,
+        )
+        # Huckleberry-like: has fat
+        huckleberry = make_food(
+            "Huckleberry", calories=400, carbs=2, protein=1, fat=10, vitamins=2
+        )
+
+        manager = FoodStateManager([pumpkin, huckleberry])
+
+        # Ratio before planning
+        density_before, _ = sum_all_weighted_nutrients(manager.stomach)
+        nutrients_before = [
+            density_before[k] for k in ("carbs", "protein", "fat", "vitamins")
+        ]
+        ratio_before = calculate_balanced_diet_ratio(nutrients_before)
+
+        plan_meal(
+            manager=manager,
+            cravings=[],
+            cravings_satisfied=0,
+            remaining_calories=2000,
+        )
+
+        # Ratio after planning
+        density_after, _ = sum_all_weighted_nutrients(manager.stomach)
+        nutrients_after = [
+            density_after[k] for k in ("carbs", "protein", "fat", "vitamins")
+        ]
+        ratio_after = calculate_balanced_diet_ratio(nutrients_after)
+
+        assert ratio_after > ratio_before, (
+            f"Expected balance ratio to improve: {ratio_before:.4f} → {ratio_after:.4f}"
+        )
