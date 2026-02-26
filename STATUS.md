@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-02-25
+Last updated: 2026-02-26
 
 ## Current State
 
@@ -8,7 +8,7 @@ Phase 2 (Python Polish) complete. 165 tests, mypy clean. All modules now directl
 Phase 3 (C# Mod) — scaffold, read-only chat commands, JSON export, **in-game meal planner**, **live stomach tooltip**, and **multi-source food discovery** implemented.
 Domain naming standardized to match Eco game API (`fat`, `tastiness_*`, `balanced_diet_*`, TastePreference labels).
 Balance-improvement bias added to planner — fixes zero-nutrient food selection bug.
-Stomach tooltip now shows live meal plan countdown with auto-replan on eat/calorie drain.
+Stomach tooltip now shows source-grouped plan with calories, running SP, and tags — matching `/ed plan` format.
 Multi-source discovery: backpack + authorized storage containers + nearby shops with currency/cost filtering.
 
 ## Test Coverage
@@ -26,7 +26,39 @@ Multi-source discovery: backpack + authorized storage containers + nearby shops 
 | `main.py (cmd_predict)`    | Good     | 5 tests for predict subcommand           |
 | `food_state_manager.py`    | Good     | 26 direct unit tests                     |
 
-## Recent Changes (2026-02-25) — Multi-Source Food Discovery
+## Recent Changes (2026-02-26) — Source-Grouped Tooltip Rendering
+
+### Changed
+
+- `PlanTracker.cs` — store `DiscoveryResult` in `ActivePlan`; extracted `GetRemainingItemsInternal`; added `GetRemainingPlanContext` for tooltip callers needing source data
+- `PlanRenderer.cs` — extracted `AssignToSourceGroups` shared helper from `RenderSourceGrouped`; added `RenderSourceGroupedCompact` for tooltip; `RenderRemainingPlan` now accepts optional `discovery`/`showSources`/`showTags` and dispatches to source-grouped or enhanced flat rendering
+- `EcoDietTooltipLibrary.cs` — loads `DisplayConfig` for player preferences; calls `GetRemainingPlanContext` and passes source/tag preferences to renderer
+
+### Tooltip format (multi-source)
+
+```
+--- EcoDiet: 5 bites → +8.50 SP ---
+--- From [backpack] ---
+  → Corn x2 (300 cal) +3.20 SP → 18.40  [variety +2pp]
+  · Tomato (150 cal) +1.80 SP → 20.20
+--- From [Refrigerator @ 15m] ---
+  · Beet x2 (240 cal) +3.50 SP → 23.70  [craving]
+```
+
+### Tooltip format (single-source, enhanced)
+
+```
+--- EcoDiet: 3 bites → +5.00 SP ---
+  → Corn x2 (300 cal) +3.20 SP → 18.40  [variety +2pp]
+  · Tomato (150 cal) +1.80 SP → 20.20
+```
+
+### Build
+
+- `dotnet build` clean with 0 warnings, 0 errors
+- In-game verified: tooltip renders source groups, updates on eat, updates on player movement (20m+ threshold)
+
+## Previous Changes (2026-02-25) — Multi-Source Food Discovery
 
 ### Added
 
@@ -57,8 +89,8 @@ Multi-source discovery: backpack + authorized storage containers + nearby shops 
 
 ### Known Gaps
 
-- **Tooltip needs source groupings and distances**: `RenderRemainingPlan` (tooltip path) doesn't receive `DiscoveryResult` or `DisplayConfig` — it only shows the compact `→`/`·` countdown without source groupings or distances. The tooltip is the primary UX; `/ed plan` is for debug/custom budgets. Fix: store `DiscoveryResult` in `ActivePlan`, pass through to `RenderRemainingPlan`.
-- **Tooltip tag display (polish)**: variety/taste/craving tags not shown in tooltip — lower priority, keep tooltip compact but optionally add if space permits.
+- ~~**Tooltip needs source groupings and distances**~~ ✅ Fixed — tooltip now shows source-grouped items with calories, running SP, and tags
+- ~~**Tooltip tag display (polish)**~~ ✅ Fixed — variety/taste/craving tags shown in tooltip, controlled by `DisplayConfig.Tags`
 
 ## Previous Changes (2026-02-12) — Live Stomach Tooltip
 
@@ -330,6 +362,7 @@ Config structure:
 
 ## Session Log
 
+- 2026-02-26: Source-grouped tooltip — stored DiscoveryResult in ActivePlan, extracted AssignToSourceGroups, added RenderSourceGroupedCompact, tooltip now matches /ed plan format with source headers, calories, running SP, tags
 - 2026-02-12: Live stomach tooltip — PlanTracker (plan cache + progress detection), EcoDietEventHandler (food eaten events), RenderRemainingPlan, fixed tooltip registration to extension method pattern
 - 2026-02-12: Balance improvement bias — added `_balance_improvement_bias` to planner, C# mirror, 10 new tests, deleted repro script, released v0.5.0
 - 2026-02-08: Type annotations + unit tests — tuner.py annotated, 26 new food_state_manager tests, 150 total tests
