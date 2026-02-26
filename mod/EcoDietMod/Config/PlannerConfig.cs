@@ -45,6 +45,20 @@ public sealed class PlannerConfig
     /// <summary>SP multiplier fraction per satisfied craving.</summary>
     public float CravingSatisfiedFrac { get; init; } = 0.10f;
 
+    // --- Discovery ---
+
+    /// <summary>Maximum distance (meters) for storage/shop discovery.</summary>
+    public float DiscoveryRadiusMeters { get; init; } = 100f;
+
+    /// <summary>Enable discovery from authorized storage containers.</summary>
+    public bool EnableStorageDiscovery { get; init; } = true;
+
+    /// <summary>Enable discovery from nearby shops.</summary>
+    public bool EnableShopDiscovery { get; init; } = true;
+
+    /// <summary>Distance moved (meters) before triggering a replan for updated source distances.</summary>
+    public float PositionReplanThresholdMeters { get; init; } = 20f;
+
     // --- Safety ---
 
     /// <summary>Maximum food additions in a single planning loop.</summary>

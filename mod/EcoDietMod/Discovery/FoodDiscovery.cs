@@ -2,32 +2,31 @@ using System;
 using System.Collections.Generic;
 using Eco.Gameplay.Items;
 using Eco.Gameplay.Players;
+using EcoDietMod.Config;
 using EcoDietMod.Models;
 
 namespace EcoDietMod.Discovery;
 
 /// <summary>
 /// Enumerates available food from various sources (backpack, storage, shops).
-/// Phase 2 implements backpack only; Phase 3 adds storage and shops.
+/// Orchestrates per-source discovery and merges results.
 /// </summary>
 public static class FoodDiscovery
 {
     /// <summary>
-    /// Discover all available food and their quantities from the player's backpack.
-    /// Each food is tagged with its source for display purposes.
+    /// Discover food from the player's backpack.
     /// </summary>
-    public static (Dictionary<FoodCandidate, int> Available, Dictionary<FoodCandidate, string> Sources)
-        DiscoverFromBackpack(User user)
+    public static DiscoveryResult DiscoverFromBackpack(User user)
     {
         var available = new Dictionary<FoodCandidate, int>();
-        var sources = new Dictionary<FoodCandidate, string>();
+        var sources = new Dictionary<FoodCandidate, List<SourceEntry>>();
         var tasteBuds = user.Stomach.TasteBuds;
+        var backpackSource = new SourceInfo(SourceKind.Backpack, "backpack", 0f);
 
         var inventory = user.Inventory;
         if (inventory == null)
-            return (available, sources);
+            return new DiscoveryResult { Available = available, Sources = sources };
 
-        // Iterate all items in the player's carried inventory
         foreach (var stack in inventory.Stacks)
         {
             if (stack.Item is not FoodItem foodItem)
@@ -42,22 +41,54 @@ public static class FoodDiscovery
             available.TryGetValue(candidate, out var existing);
             available[candidate] = existing + quantity;
 
-            if (!sources.ContainsKey(candidate))
-                sources[candidate] = "[backpack]";
+            if (!sources.TryGetValue(candidate, out var entries))
+            {
+                entries = new List<SourceEntry>();
+                sources[candidate] = entries;
+            }
+            entries.Add(new SourceEntry { Source = backpackSource, Quantity = quantity });
         }
 
-        return (available, sources);
+        return new DiscoveryResult { Available = available, Sources = sources };
     }
 
     /// <summary>
-    /// Discover food from all configured sources.
-    /// Currently only backpack (Phase 2). Phase 3 will add storage and shops.
+    /// Discover food from all configured sources (backpack + storage + shops).
     /// </summary>
-    public static (Dictionary<FoodCandidate, int> Available, Dictionary<FoodCandidate, string> Sources)
-        DiscoverAll(User user)
+    public static DiscoveryResult DiscoverAll(User user, DisplayConfig? displayConfig = null)
     {
-        // Phase 2: backpack only
-        return DiscoverFromBackpack(user);
+        var config = new PlannerConfig();
+        var tasteBuds = user.Stomach.TasteBuds;
+        var results = new List<DiscoveryResult>();
+
+        // Player-configurable radius, capped by server-wide limit
+        var radius = Math.Min(
+            displayConfig?.MaxDiscoveryRadius ?? config.DiscoveryRadiusMeters,
+            config.DiscoveryRadiusMeters);
+
+        // Always include backpack
+        results.Add(DiscoverFromBackpack(user));
+
+        // Storage discovery
+        if (config.EnableStorageDiscovery)
+        {
+            results.Add(StorageDiscovery.Discover(user, radius, tasteBuds));
+        }
+
+        // Shop discovery
+        if (config.EnableShopDiscovery)
+        {
+            var shopFilter = new ShopFilter
+            {
+                CurrencyFilter = displayConfig?.ShopCurrencyFilter ?? new List<string>(),
+                MaxCostPer1000Cal = displayConfig?.MaxCostPer1000Cal ?? 0f
+            };
+            results.Add(ShopDiscovery.Discover(user, radius, tasteBuds, shopFilter));
+        }
+
+        return results.Count == 1
+            ? results[0]
+            : DiscoveryMerger.Merge(results);
     }
 
     /// <summary>
@@ -82,7 +113,6 @@ public static class FoodDiscovery
             var candidate = StomachSnapshot.FoodItemToCandidate(foodItem, tasteBuds);
             if (candidate == null) continue;
 
-            // Catalog entry with 0 availability (actual availability comes from discovery)
             catalog[candidate] = 0;
         }
 

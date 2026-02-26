@@ -44,11 +44,12 @@ public static class DietCommands
                           || string.Equals(trimmed, "max", StringComparison.OrdinalIgnoreCase);
 
             var config = new PlannerConfig();
-            var (available, sources) = FoodDiscovery.DiscoverAll(user);
+            var displayConfig = DisplayConfig.Load(user.Name);
+            var discovery = FoodDiscovery.DiscoverAll(user, displayConfig);
 
-            if (available.Count == 0)
+            if (discovery.Available.Count == 0)
             {
-                user.MsgLocStr("No food found in your backpack to plan with.");
+                user.MsgLocStr("No food found in backpack, nearby storage, or shops.");
                 return;
             }
 
@@ -87,14 +88,12 @@ public static class DietCommands
             var cravings = BuildCravingsList(user);
             var dinnerPartyMult = StomachSnapshot.GetDinnerPartyMult(user);
 
-            var displayConfig = DisplayConfig.Load(user.Name);
-
             var result = MealPlanner.PlanMeal(
-                stomachState, available, cravings, cravingsSatisfied,
+                stomachState, discovery.Available, cravings, cravingsSatisfied,
                 calorieBudget, config, dinnerPartyMult: dinnerPartyMult);
 
             var output = PlanRenderer.RenderPlan(
-                result, sources,
+                result, discovery,
                 showSources: displayConfig.Sources,
                 showTags: displayConfig.Tags,
                 compact: displayConfig.Compact);
@@ -115,52 +114,134 @@ public static class DietCommands
 
             if (parts.Length == 0)
             {
-                // Show current config
-                var cfg = DisplayConfig.Load(user.Name);
-                var sb = new StringBuilder();
-                sb.AppendLine("--- EcoDiet Display Settings ---");
-                sb.AppendLine($"  compact  = {cfg.Compact}    (compact vs full plan format)");
-                sb.AppendLine($"  sources  = {cfg.Sources}    (show food source tags)");
-                sb.AppendLine($"  tags     = {cfg.Tags}    (show variety/taste/craving tags)");
-                sb.AppendLine($"  autoplan = {cfg.AutoPlan}    (reserved for future auto-plan)");
-                sb.AppendLine();
-                sb.AppendLine("Usage: /ed config <key> <true|false>");
-                user.MsgLocStr(sb.ToString());
+                ShowConfig(user);
                 return;
             }
 
             if (parts.Length < 2)
             {
-                user.MsgLocStr("Usage: /ed config <key> <true|false>");
+                user.MsgLocStr(
+                    "Usage: /ed config <key> <value>\n" +
+                    "  Boolean keys: compact, sources, tags, autoplan (true|false)\n" +
+                    "  currencies <name,name,...> or 'clear'\n" +
+                    "  maxcost <number> (0 = no limit)\n" +
+                    "  maxdistance <meters> (discovery radius)");
                 return;
             }
 
             var key = parts[0].ToLowerInvariant();
-            if (!bool.TryParse(parts[1], out var value))
-            {
-                user.MsgLocStr($"Invalid value '{parts[1]}'. Use true or false.");
-                return;
-            }
-
+            var rawValue = parts[1].Trim();
             var config = DisplayConfig.Load(user.Name);
+
             switch (key)
             {
-                case "compact":  config.Compact = value;  break;
-                case "sources":  config.Sources = value;  break;
-                case "tags":     config.Tags = value;     break;
-                case "autoplan": config.AutoPlan = value;  break;
+                // Boolean settings
+                case "compact":
+                case "sources":
+                case "tags":
+                case "autoplan":
+                    if (!bool.TryParse(rawValue, out var boolValue))
+                    {
+                        user.MsgLocStr($"Invalid value '{rawValue}'. Use true or false.");
+                        return;
+                    }
+                    switch (key)
+                    {
+                        case "compact":  config.Compact = boolValue;  break;
+                        case "sources":  config.Sources = boolValue;  break;
+                        case "tags":     config.Tags = boolValue;     break;
+                        case "autoplan": config.AutoPlan = boolValue;  break;
+                    }
+                    config.Save(user.Name);
+                    user.MsgLocStr($"Set {key} = {boolValue}");
+                    break;
+
+                // Currency whitelist
+                case "currencies":
+                    if (string.Equals(rawValue, "clear", StringComparison.OrdinalIgnoreCase))
+                    {
+                        config.ShopCurrencyFilter.Clear();
+                        config.Save(user.Name);
+                        user.MsgLocStr("Cleared shop currency filter (all currencies accepted).");
+                    }
+                    else
+                    {
+                        var currencies = rawValue
+                            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                            .ToList();
+                        config.ShopCurrencyFilter = currencies;
+                        config.Save(user.Name);
+                        user.MsgLocStr($"Set currencies = {string.Join(", ", currencies)}");
+                    }
+                    break;
+
+                // Max cost per 1000 cal
+                case "maxcost":
+                    if (!float.TryParse(rawValue, out var costValue) || costValue < 0)
+                    {
+                        user.MsgLocStr($"Invalid value '{rawValue}'. Use a number >= 0 (0 = no limit).");
+                        return;
+                    }
+                    config.MaxCostPer1000Cal = costValue;
+                    config.Save(user.Name);
+                    var costLabel = costValue > 0 ? $"{costValue:F1}" : "no limit";
+                    user.MsgLocStr($"Set maxcost = {costLabel}");
+                    break;
+
+                // Discovery radius
+                case "maxdistance":
+                    if (!float.TryParse(rawValue, out var distValue) || distValue <= 0)
+                    {
+                        user.MsgLocStr($"Invalid value '{rawValue}'. Use a number > 0.");
+                        return;
+                    }
+                    var serverCap = new PlannerConfig().DiscoveryRadiusMeters;
+                    if (distValue > serverCap)
+                    {
+                        distValue = serverCap;
+                        user.MsgLocStr($"Capped to server max of {serverCap:F0}m.");
+                    }
+                    config.MaxDiscoveryRadius = distValue;
+                    config.Save(user.Name);
+                    user.MsgLocStr($"Set maxdistance = {distValue:F0}m");
+                    break;
+
                 default:
-                    user.MsgLocStr($"Unknown setting '{key}'. Valid: compact, sources, tags, autoplan");
+                    user.MsgLocStr(
+                        $"Unknown setting '{key}'.\n" +
+                        "Valid: compact, sources, tags, autoplan, currencies, maxcost, maxdistance");
                     return;
             }
-
-            config.Save(user.Name);
-            user.MsgLocStr($"Set {key} = {value}");
         }
         catch (Exception ex)
         {
             user.MsgLocStr($"Config error: {ex.Message}");
         }
+    }
+
+    private static void ShowConfig(User user)
+    {
+        var cfg = DisplayConfig.Load(user.Name);
+        var sb = new StringBuilder();
+        sb.AppendLine("--- EcoDiet Display Settings ---");
+        sb.AppendLine($"  compact    = {cfg.Compact}    (compact vs full plan format)");
+        sb.AppendLine($"  sources    = {cfg.Sources}    (show food source tags)");
+        sb.AppendLine($"  tags       = {cfg.Tags}    (show variety/taste/craving tags)");
+        sb.AppendLine($"  autoplan   = {cfg.AutoPlan}    (reserved for future auto-plan)");
+        sb.AppendLine();
+        sb.AppendLine("--- Discovery ---");
+        sb.AppendLine($"  maxdistance = {cfg.MaxDiscoveryRadius:F0}m    (storage/shop discovery radius)");
+        sb.AppendLine();
+        sb.AppendLine("--- Shop Filter ---");
+        var currencyDisplay = cfg.ShopCurrencyFilter.Count > 0
+            ? string.Join(", ", cfg.ShopCurrencyFilter)
+            : "(all)";
+        sb.AppendLine($"  currencies = {currencyDisplay}");
+        var costDisplay = cfg.MaxCostPer1000Cal > 0 ? $"{cfg.MaxCostPer1000Cal:F1}" : "no limit";
+        sb.AppendLine($"  maxcost    = {costDisplay}    (max cost per 1000 cal)");
+        sb.AppendLine();
+        sb.AppendLine("Usage: /ed config <key> <value>");
+        user.MsgLocStr(sb.ToString());
     }
 
     [ChatSubCommand("EcoDiet", "Export game state to JSON for the Python planner", "export")]

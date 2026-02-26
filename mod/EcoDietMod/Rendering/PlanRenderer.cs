@@ -17,11 +17,13 @@ public static class PlanRenderer
 
     /// <summary>
     /// Render a full meal plan for chat display.
-    /// Consecutive same-name foods are grouped (e.g. "Salad x2 (900 cal) +4.44 SP").
+    /// When discovery contains multiple sources, items are grouped by source location
+    /// sorted by distance (backpack first). Single-source plans skip the group header
+    /// for backward compatibility.
     /// </summary>
     public static string RenderPlan(
         MealPlanResult plan,
-        Dictionary<FoodCandidate, string>? sources = null,
+        DiscoveryResult? discovery = null,
         bool showSources = true,
         bool showTags = true,
         bool compact = false)
@@ -34,28 +36,15 @@ public static class PlanRenderer
             return sb.ToString();
         }
 
-        var groups = GroupItems(plan.Items);
-
         sb.AppendLine($"--- Meal Plan ({plan.Items.Count} bites, {plan.TotalCalories:F0} cal) ---");
         sb.AppendLine();
 
-        for (var i = 0; i < groups.Count; i++)
-        {
-            var group = groups[i];
-            var countLabel = group.Count > 1 ? $" x{group.Count}" : "";
-            var sign = group.TotalSpGain >= 0 ? "+" : "";
-            var line = $"  {i + 1}. {group.Name}{countLabel} ({group.TotalCalories:F0} cal) " +
-                       $"{sign}{group.TotalSpGain:F2} SP -> {group.FinalSp:F2}";
+        var hasMultipleSources = discovery?.HasMultipleSources ?? false;
 
-            if (showTags || showSources)
-            {
-                var tags = BuildTags(group, sources, showSources, showTags);
-                if (tags.Count > 0)
-                    line += $"  [{string.Join(", ", tags)}]";
-            }
-
-            sb.AppendLine(line);
-        }
+        if (hasMultipleSources && showSources)
+            RenderSourceGrouped(sb, plan, discovery!, showTags);
+        else
+            RenderFlat(sb, plan, discovery, showSources, showTags);
 
         if (!compact)
         {
@@ -71,6 +60,101 @@ public static class PlanRenderer
         }
 
         return sb.ToString();
+    }
+
+    /// <summary>
+    /// Render items grouped by source, sorted by distance (backpack first).
+    /// Each group gets a header line: "--- From [source tag] ---"
+    /// </summary>
+    private static void RenderSourceGrouped(
+        StringBuilder sb,
+        MealPlanResult plan,
+        DiscoveryResult discovery,
+        bool showTags)
+    {
+        // Assign each plan item to its closest source
+        var itemsBySource = new Dictionary<string, (SourceInfo Source, List<(MealPlanItem Item, int GlobalIndex)> Items)>();
+        var globalIndex = 0;
+
+        foreach (var item in plan.Items)
+        {
+            globalIndex++;
+            var candidate = FindCandidateByName(discovery.Available, item.Name);
+            var source = candidate != null ? discovery.GetClosestSource(candidate) : null;
+            var sourceKey = source?.Tag ?? "[backpack]";
+
+            if (!itemsBySource.TryGetValue(sourceKey, out var group))
+            {
+                group = (source ?? new SourceInfo(SourceKind.Backpack, "backpack", 0f),
+                         new List<(MealPlanItem, int)>());
+                itemsBySource[sourceKey] = group;
+            }
+            group.Items.Add((item, globalIndex));
+        }
+
+        // Sort groups by distance (backpack = 0 always first)
+        var sortedGroups = itemsBySource.Values
+            .OrderBy(group => group.Source.DistanceMeters)
+            .ToList();
+
+        foreach (var (source, items) in sortedGroups)
+        {
+            sb.AppendLine($"--- From {source.Tag} ---");
+
+            var planItems = items.Select(pair => pair.Item).ToList();
+            var groups = GroupItems(planItems);
+
+            var itemIndex = 0;
+            foreach (var group in groups)
+            {
+                itemIndex++;
+                var countLabel = group.Count > 1 ? $" x{group.Count}" : "";
+                var sign = group.TotalSpGain >= 0 ? "+" : "";
+                var line = $"  {itemIndex}. {group.Name}{countLabel} ({group.TotalCalories:F0} cal) " +
+                           $"{sign}{group.TotalSpGain:F2} SP -> {group.FinalSp:F2}";
+
+                if (showTags)
+                {
+                    var tags = BuildItemTags(group);
+                    if (tags.Count > 0)
+                        line += $"  [{string.Join(", ", tags)}]";
+                }
+
+                sb.AppendLine(line);
+            }
+            sb.AppendLine();
+        }
+    }
+
+    /// <summary>
+    /// Render items in flat order (backward-compatible, single source or sources disabled).
+    /// </summary>
+    private static void RenderFlat(
+        StringBuilder sb,
+        MealPlanResult plan,
+        DiscoveryResult? discovery,
+        bool showSources,
+        bool showTags)
+    {
+        var groups = GroupItems(plan.Items);
+
+        for (var i = 0; i < groups.Count; i++)
+        {
+            var group = groups[i];
+            var countLabel = group.Count > 1 ? $" x{group.Count}" : "";
+            var sign = group.TotalSpGain >= 0 ? "+" : "";
+            var line = $"  {i + 1}. {group.Name}{countLabel} ({group.TotalCalories:F0} cal) " +
+                       $"{sign}{group.TotalSpGain:F2} SP -> {group.FinalSp:F2}";
+
+            if (showTags || showSources)
+            {
+                var tags = BuildTags(group, discovery, showSources, showTags);
+                if (tags.Count > 0)
+                    line += $"  [{string.Join(", ", tags)}]";
+            }
+
+            sb.AppendLine(line);
+        }
     }
 
     /// <summary>
@@ -92,6 +176,7 @@ public static class PlanRenderer
     /// <summary>
     /// Render remaining plan items for the stomach tooltip.
     /// Shows a compact countdown of what to eat next.
+    /// No source grouping — keep tooltip compact.
     /// </summary>
     public static string RenderRemainingPlan(
         List<MealPlanItem> remaining,
@@ -155,29 +240,45 @@ public static class PlanRenderer
         return groups;
     }
 
+    /// <summary>
+    /// Build tags for flat rendering (includes source tag from discovery).
+    /// </summary>
     private static List<string> BuildTags(
         ItemGroup group,
-        Dictionary<FoodCandidate, string>? sources,
+        DiscoveryResult? discovery,
         bool showSources,
         bool showTags)
     {
+        var tags = BuildItemTags(group, showTags);
+
+        if (showSources && discovery != null)
+        {
+            var candidate = FindCandidateByName(discovery.Available, group.Name);
+            if (candidate != null)
+            {
+                var source = discovery.GetClosestSource(candidate);
+                if (source != null)
+                    tags.Add(source.Tag);
+            }
+        }
+
+        return tags;
+    }
+
+    /// <summary>
+    /// Build variety/taste/craving tags only (no source).
+    /// </summary>
+    private static List<string> BuildItemTags(ItemGroup group, bool showTags = true)
+    {
         var tags = new List<string>();
 
-        if (showTags)
-        {
-            if (group.HasCraving) tags.Add("craving");
-            if (MathF.Abs(group.TotalVarietyDeltaPp) > VarietyDeltaThreshold)
-                tags.Add($"variety {FormatSigned(group.TotalVarietyDeltaPp)}pp");
-            if (MathF.Abs(group.TotalTastinessDeltaPp) > TastinessDeltaThreshold)
-                tags.Add($"taste {FormatSigned(group.TotalTastinessDeltaPp)}pp");
-        }
+        if (!showTags) return tags;
 
-        if (showSources && sources != null)
-        {
-            var candidate = FindCandidate(sources, group.Name);
-            if (candidate != null && sources.TryGetValue(candidate, out var source))
-                tags.Add(source);
-        }
+        if (group.HasCraving) tags.Add("craving");
+        if (MathF.Abs(group.TotalVarietyDeltaPp) > VarietyDeltaThreshold)
+            tags.Add($"variety {FormatSigned(group.TotalVarietyDeltaPp)}pp");
+        if (MathF.Abs(group.TotalTastinessDeltaPp) > TastinessDeltaThreshold)
+            tags.Add($"taste {FormatSigned(group.TotalTastinessDeltaPp)}pp");
 
         return tags;
     }
@@ -187,10 +288,13 @@ public static class PlanRenderer
         return value >= 0 ? $"+{value:F2}" : $"{value:F2}";
     }
 
-    private static FoodCandidate? FindCandidate(
-        Dictionary<FoodCandidate, string> sources, string name)
+    /// <summary>
+    /// Find a FoodCandidate by name in a dictionary keyed by FoodCandidate.
+    /// </summary>
+    private static FoodCandidate? FindCandidateByName<T>(
+        Dictionary<FoodCandidate, T> dict, string name)
     {
-        foreach (var kvp in sources)
+        foreach (var kvp in dict)
         {
             if (string.Equals(kvp.Key.Name, name, StringComparison.OrdinalIgnoreCase))
                 return kvp.Key;

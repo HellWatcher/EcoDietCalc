@@ -1,14 +1,15 @@
 # Project Status
 
-Last updated: 2026-02-12
+Last updated: 2026-02-25
 
 ## Current State
 
 Phase 2 (Python Polish) complete. 165 tests, mypy clean. All modules now directly tested.
-Phase 3 (C# Mod) — scaffold, read-only chat commands, JSON export, **in-game meal planner**, and **live stomach tooltip** implemented.
+Phase 3 (C# Mod) — scaffold, read-only chat commands, JSON export, **in-game meal planner**, **live stomach tooltip**, and **multi-source food discovery** implemented.
 Domain naming standardized to match Eco game API (`fat`, `tastiness_*`, `balanced_diet_*`, TastePreference labels).
 Balance-improvement bias added to planner — fixes zero-nutrient food selection bug.
 Stomach tooltip now shows live meal plan countdown with auto-replan on eat/calorie drain.
+Multi-source discovery: backpack + authorized storage containers + nearby shops with currency/cost filtering.
 
 ## Test Coverage
 
@@ -25,7 +26,41 @@ Stomach tooltip now shows live meal plan countdown with auto-replan on eat/calor
 | `main.py (cmd_predict)`    | Good     | 5 tests for predict subcommand           |
 | `food_state_manager.py`    | Good     | 26 direct unit tests                     |
 
-## Recent Changes (2026-02-12) — Live Stomach Tooltip
+## Recent Changes (2026-02-25) — Multi-Source Food Discovery
+
+### Added
+
+- `mod/EcoDietMod/Discovery/ShopDiscovery.cs` — discovers food for sale at nearby shops, filtered by distance, currency, and cost-per-calorie
+- `mod/EcoDietMod/Discovery/StorageDiscovery.cs` — discovers food from authorized storage containers within range
+- `mod/EcoDietMod/Discovery/DiscoveryMerger.cs` — merges multiple DiscoveryResult sources
+- `mod/EcoDietMod/Models/DiscoveryResult.cs` — food availability + source tracking container
+- `mod/EcoDietMod/Models/SourceInfo.cs` — source metadata (kind, name, distance, price, currency)
+- `DisplayConfig.MaxDiscoveryRadius` — player-configurable discovery radius (capped by server PlannerConfig)
+- `/ed config maxdistance <meters>` command
+- PlannerConfig: `EnableStorageDiscovery`, `EnableShopDiscovery`, `DiscoveryRadiusMeters`, `PositionReplanThresholdMeters`
+- PlanTracker: player movement detection triggers replan when food sources may have changed
+
+### Fixed (build errors from previous session)
+
+- `StoreComponent` namespace: `Eco.Gameplay.Components.Store` (not `.Components` alone)
+- `StorageComponent` namespace: `Eco.Gameplay.Components.Storage`
+- `Vector3` source: `System.Numerics` (not `Eco.Shared.Math`)
+- `WorldObjectManager.GetWorldObjectsWithComponent<T>()` doesn't exist → rewrote to `WorldObjectManager.ForEach()` with `GetComponent<T>()` filtering
+- `AuthManager.IsAuthorized()` static call → `worldObject.Auth?.IsAuthorizedConsumerAccess(user.Player)` via AuthComponent
+- `TradeOffer.Currency` doesn't exist → use `StoreComponent.CurrencyName` (currency is per-store)
+- `WorldObject.DisplayName` returns `LocString` not `string` → added `.ToString()` conversion
+
+### Build
+
+- `dotnet build` clean with 0 warnings, 0 errors (both Debug and Release)
+- 165 Python tests still pass
+
+### Known Gaps
+
+- **Tooltip needs source groupings and distances**: `RenderRemainingPlan` (tooltip path) doesn't receive `DiscoveryResult` or `DisplayConfig` — it only shows the compact `→`/`·` countdown without source groupings or distances. The tooltip is the primary UX; `/ed plan` is for debug/custom budgets. Fix: store `DiscoveryResult` in `ActivePlan`, pass through to `RenderRemainingPlan`.
+- **Tooltip tag display (polish)**: variety/taste/craving tags not shown in tooltip — lower priority, keep tooltip compact but optionally add if space permits.
+
+## Previous Changes (2026-02-12) — Live Stomach Tooltip
 
 ### Added
 

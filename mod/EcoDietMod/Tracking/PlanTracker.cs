@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Numerics;
 using Eco.Gameplay.Players;
 using EcoDietMod.Algorithm;
 using EcoDietMod.Config;
@@ -10,7 +11,7 @@ namespace EcoDietMod.Tracking;
 
 /// <summary>
 /// In-memory cache of active meal plans per player.
-/// Detects progress (eaten items, calorie drain) and replans when state changes.
+/// Detects progress (eaten items, calorie drain, player movement) and replans when state changes.
 /// Thread-safe — tooltip calls may come from multiple threads.
 /// </summary>
 public static class PlanTracker
@@ -34,7 +35,7 @@ public static class PlanTracker
             if (Plans.TryGetValue(userName, out var active))
             {
                 // Check if replan is needed
-                var replanReason = DetectReplanReason(active, currentStomach, remainingCal);
+                var replanReason = DetectReplanReason(active, user, currentStomach, remainingCal);
 
                 if (replanReason == ReplanReason.None)
                 {
@@ -51,6 +52,7 @@ public static class PlanTracker
                     active.StomachSnapshotByName = currentStomach;
                     active.RemainingCaloriesAtPlanTime = remainingCal;
                     active.Remaining = updated;
+                    active.IsStale = false;
                     finalSp = active.Result.FinalSp;
 
                     if (updated.Count > 0)
@@ -64,7 +66,7 @@ public static class PlanTracker
                     return updated;
                 }
 
-                // Off-plan eating or calorie change — full replan
+                // Off-plan eating, calorie change, or player moved — full replan
             }
 
             // Compute fresh plan
@@ -94,8 +96,9 @@ public static class PlanTracker
     {
         finalSp = 0f;
 
-        var (available, _) = FoodDiscovery.DiscoverAll(user);
-        if (available.Count == 0)
+        var displayConfig = DisplayConfig.Load(userName);
+        var discovery = FoodDiscovery.DiscoverAll(user, displayConfig);
+        if (discovery.Available.Count == 0)
         {
             Plans.Remove(userName);
             status = PlanStatus.NoFood;
@@ -116,7 +119,7 @@ public static class PlanTracker
         var config = new PlannerConfig();
 
         var result = MealPlanner.PlanMeal(
-            stomachState, available, cravings, cravingsSatisfied,
+            stomachState, discovery.Available, cravings, cravingsSatisfied,
             remainingCal, config, dinnerPartyMult: dinnerPartyMult);
 
         finalSp = result.FinalSp;
@@ -133,6 +136,7 @@ public static class PlanTracker
             Result = result,
             StomachSnapshotByName = currentStomach,
             RemainingCaloriesAtPlanTime = remainingCal,
+            PlayerPositionAtPlanTime = user.Position,
             ComputedAt = DateTime.UtcNow,
             Remaining = new List<MealPlanItem>(result.Items),
             IsStale = false
@@ -145,6 +149,7 @@ public static class PlanTracker
 
     private static ReplanReason DetectReplanReason(
         ActivePlan active,
+        User user,
         Dictionary<string, int> currentStomach,
         int currentRemainingCal)
     {
@@ -170,6 +175,12 @@ public static class PlanTracker
         // Calorie budget changed (crafting, activity, passive drain)
         if (Math.Abs(currentRemainingCal - active.RemainingCaloriesAtPlanTime) > 10)
             return ReplanReason.CalorieDrain;
+
+        // Player moved significantly — food sources may have changed
+        var config = new PlannerConfig();
+        var distanceMoved = Vector3.Distance(user.Position, active.PlayerPositionAtPlanTime);
+        if (distanceMoved > config.PositionReplanThresholdMeters)
+            return ReplanReason.PlayerMoved;
 
         // Stomach contents changed without invalidation (shouldn't happen, but be safe)
         if (!StomachsMatch(active.StomachSnapshotByName, currentStomach))
@@ -298,6 +309,7 @@ public static class PlanTracker
         public MealPlanResult Result { get; init; } = null!;
         public Dictionary<string, int> StomachSnapshotByName { get; set; } = new();
         public float RemainingCaloriesAtPlanTime { get; set; }
+        public Vector3 PlayerPositionAtPlanTime { get; set; }
         public DateTime ComputedAt { get; set; }
         public List<MealPlanItem> Remaining { get; set; } = new();
         public bool IsStale { get; set; }
@@ -308,7 +320,8 @@ public static class PlanTracker
         None,
         ProgressDetected,
         OffPlanEating,
-        CalorieDrain
+        CalorieDrain,
+        PlayerMoved
     }
 }
 
