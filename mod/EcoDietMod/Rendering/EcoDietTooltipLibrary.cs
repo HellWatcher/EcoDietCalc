@@ -3,6 +3,7 @@ using Eco.Gameplay.Systems.NewTooltip;
 using Eco.Gameplay.Systems.NewTooltip.TooltipLibraryFiles;
 using Eco.Shared.Items;
 using Eco.Shared.Localization;
+using EcoDietMod.Config;
 using EcoDietMod.Tracking;
 
 namespace EcoDietMod.Rendering;
@@ -29,8 +30,13 @@ public static class EcoDietTooltipLibrary
             if (user == null)
                 return LocString.Empty;
 
-            var remaining = PlanTracker.GetRemainingItems(user, out var status, out var finalSp);
-            var text = PlanRenderer.RenderRemainingPlan(remaining, status, finalSp);
+            var displayConfig = DisplayConfig.Load(user.Name);
+            var remaining = PlanTracker.GetRemainingPlanContext(
+                user, out var status, out var finalSp, out var discovery);
+            var text = PlanRenderer.RenderRemainingPlan(
+                remaining, status, finalSp, discovery,
+                showSources: displayConfig.Sources,
+                showTags: displayConfig.Tags);
 
             return new TooltipSection(
                 Localizer.DoStr("EcoDiet"),

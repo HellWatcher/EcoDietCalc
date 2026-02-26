@@ -63,6 +63,36 @@ public static class PlanRenderer
     }
 
     /// <summary>
+    /// Assign plan items to source groups sorted by distance (backpack first).
+    /// Shared by both chat and tooltip rendering paths.
+    /// </summary>
+    private static List<(SourceInfo Source, List<MealPlanItem> Items)> AssignToSourceGroups(
+        List<MealPlanItem> items,
+        DiscoveryResult discovery)
+    {
+        var itemsBySource = new Dictionary<string, (SourceInfo Source, List<MealPlanItem> Items)>();
+
+        foreach (var item in items)
+        {
+            var candidate = FindCandidateByName(discovery.Available, item.Name);
+            var source = candidate != null ? discovery.GetClosestSource(candidate) : null;
+            var sourceKey = source?.Tag ?? "[backpack]";
+
+            if (!itemsBySource.TryGetValue(sourceKey, out var group))
+            {
+                group = (source ?? new SourceInfo(SourceKind.Backpack, "backpack", 0f),
+                         new List<MealPlanItem>());
+                itemsBySource[sourceKey] = group;
+            }
+            group.Items.Add(item);
+        }
+
+        return itemsBySource.Values
+            .OrderBy(group => group.Source.DistanceMeters)
+            .ToList();
+    }
+
+    /// <summary>
     /// Render items grouped by source, sorted by distance (backpack first).
     /// Each group gets a header line: "--- From [source tag] ---"
     /// </summary>
@@ -72,37 +102,13 @@ public static class PlanRenderer
         DiscoveryResult discovery,
         bool showTags)
     {
-        // Assign each plan item to its closest source
-        var itemsBySource = new Dictionary<string, (SourceInfo Source, List<(MealPlanItem Item, int GlobalIndex)> Items)>();
-        var globalIndex = 0;
-
-        foreach (var item in plan.Items)
-        {
-            globalIndex++;
-            var candidate = FindCandidateByName(discovery.Available, item.Name);
-            var source = candidate != null ? discovery.GetClosestSource(candidate) : null;
-            var sourceKey = source?.Tag ?? "[backpack]";
-
-            if (!itemsBySource.TryGetValue(sourceKey, out var group))
-            {
-                group = (source ?? new SourceInfo(SourceKind.Backpack, "backpack", 0f),
-                         new List<(MealPlanItem, int)>());
-                itemsBySource[sourceKey] = group;
-            }
-            group.Items.Add((item, globalIndex));
-        }
-
-        // Sort groups by distance (backpack = 0 always first)
-        var sortedGroups = itemsBySource.Values
-            .OrderBy(group => group.Source.DistanceMeters)
-            .ToList();
+        var sortedGroups = AssignToSourceGroups(plan.Items, discovery);
 
         foreach (var (source, items) in sortedGroups)
         {
             sb.AppendLine($"--- From {source.Tag} ---");
 
-            var planItems = items.Select(pair => pair.Item).ToList();
-            var groups = GroupItems(planItems);
+            var groups = GroupItems(items);
 
             var itemIndex = 0;
             foreach (var group in groups)
@@ -123,6 +129,47 @@ public static class PlanRenderer
                 sb.AppendLine(line);
             }
             sb.AppendLine();
+        }
+    }
+
+    /// <summary>
+    /// Render items grouped by source for the tooltip — compact format with
+    /// source headers, calories, running SP total, and optional tags.
+    /// </summary>
+    private static void RenderSourceGroupedCompact(
+        StringBuilder sb,
+        List<MealPlanItem> remaining,
+        DiscoveryResult discovery,
+        bool showTags)
+    {
+        var sortedGroups = AssignToSourceGroups(remaining, discovery);
+        var isFirstItem = true;
+
+        foreach (var (source, items) in sortedGroups)
+        {
+            sb.AppendLine($"--- From {source.Tag} ---");
+
+            var groups = GroupItems(items);
+
+            foreach (var group in groups)
+            {
+                var marker = isFirstItem ? "→" : "·";
+                isFirstItem = false;
+
+                var countLabel = group.Count > 1 ? $" x{group.Count}" : "";
+                var sign = group.TotalSpGain >= 0 ? "+" : "";
+                var line = $"  {marker} {group.Name}{countLabel} ({group.TotalCalories:F0} cal) " +
+                           $"{sign}{group.TotalSpGain:F2} SP → {group.FinalSp:F2}";
+
+                if (showTags)
+                {
+                    var tags = BuildItemTags(group);
+                    if (tags.Count > 0)
+                        line += $"  [{string.Join(", ", tags)}]";
+                }
+
+                sb.AppendLine(line);
+            }
         }
     }
 
@@ -175,13 +222,16 @@ public static class PlanRenderer
 
     /// <summary>
     /// Render remaining plan items for the stomach tooltip.
-    /// Shows a compact countdown of what to eat next.
-    /// No source grouping — keep tooltip compact.
+    /// When discovery data is available and has multiple sources, items are grouped
+    /// by source location. Otherwise falls back to a flat list with enhanced detail.
     /// </summary>
     public static string RenderRemainingPlan(
         List<MealPlanItem> remaining,
         PlanStatus status,
-        float? finalSp = null)
+        float? finalSp = null,
+        DiscoveryResult? discovery = null,
+        bool showSources = true,
+        bool showTags = true)
     {
         return status switch
         {
@@ -189,26 +239,51 @@ public static class PlanRenderer
             PlanStatus.StomachFull => "EcoDiet: Stomach full",
             PlanStatus.NothingToSuggest => "EcoDiet: Nothing to suggest",
             PlanStatus.Complete => $"EcoDiet: Plan complete — {finalSp:F1} SP",
-            _ => RenderRemainingItems(remaining)
+            _ => RenderRemainingItems(remaining, discovery, showSources, showTags)
         };
     }
 
-    private static string RenderRemainingItems(List<MealPlanItem> remaining)
+    private static string RenderRemainingItems(
+        List<MealPlanItem> remaining,
+        DiscoveryResult? discovery,
+        bool showSources,
+        bool showTags)
     {
-        var groups = GroupItems(remaining);
         var totalBites = remaining.Count;
         var totalSpGain = remaining.Sum(item => item.SpGain);
 
         var sb = new StringBuilder();
         sb.AppendLine($"--- EcoDiet: {totalBites} bites → {FormatSigned(totalSpGain)} SP ---");
 
-        for (var i = 0; i < groups.Count; i++)
+        var hasMultipleSources = discovery?.HasMultipleSources ?? false;
+
+        if (hasMultipleSources && showSources)
         {
-            var group = groups[i];
-            var marker = i == 0 ? "→" : "·";
-            var countLabel = group.Count > 1 ? $" x{group.Count}" : "";
-            var sign = group.TotalSpGain >= 0 ? "+" : "";
-            sb.AppendLine($"  {marker} {group.Name}{countLabel} ({sign}{group.TotalSpGain:F2} SP)");
+            RenderSourceGroupedCompact(sb, remaining, discovery!, showTags);
+        }
+        else
+        {
+            // Flat list with calories, running SP total, and optional tags
+            var groups = GroupItems(remaining);
+
+            for (var i = 0; i < groups.Count; i++)
+            {
+                var group = groups[i];
+                var marker = i == 0 ? "→" : "·";
+                var countLabel = group.Count > 1 ? $" x{group.Count}" : "";
+                var sign = group.TotalSpGain >= 0 ? "+" : "";
+                var line = $"  {marker} {group.Name}{countLabel} ({group.TotalCalories:F0} cal) " +
+                           $"{sign}{group.TotalSpGain:F2} SP → {group.FinalSp:F2}";
+
+                if (showTags)
+                {
+                    var tags = BuildItemTags(group);
+                    if (tags.Count > 0)
+                        line += $"  [{string.Join(", ", tags)}]";
+                }
+
+                sb.AppendLine(line);
+            }
         }
 
         return sb.ToString();
