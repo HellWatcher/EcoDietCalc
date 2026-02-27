@@ -108,6 +108,19 @@ public static class PlanTracker
         }
     }
 
+    /// <summary>
+    /// Remove the user's cached plan entirely.
+    /// Next tooltip render will compute a fresh plan from scratch.
+    /// Use for config changes or other non-stomach triggers.
+    /// </summary>
+    public static void ClearPlan(User user)
+    {
+        lock (Lock)
+        {
+            Plans.Remove(user.Name);
+        }
+    }
+
     private static List<MealPlanItem> ComputeFreshPlan(
         User user, string userName,
         Dictionary<string, int> currentStomach,
