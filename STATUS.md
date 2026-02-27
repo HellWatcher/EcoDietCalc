@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-02-26
+Last updated: 2026-02-27
 
 ## Current State
 
@@ -26,7 +26,123 @@ Multi-source discovery: backpack + authorized storage containers + nearby shops 
 | `main.py (cmd_predict)`    | Good     | 5 tests for predict subcommand           |
 | `food_state_manager.py`    | Good     | 26 direct unit tests                     |
 
-## Recent Changes (2026-02-26) — Source-Grouped Tooltip Rendering
+## Recent Changes (2026-02-27) — Config Booleans Cleanup & Meaningful Compact Mode
+
+### Removed
+
+- **AutoPlan dead stub** — deleted `AutoPlan` property from `DisplayConfig.cs`, `DisplayConfigViewModel.cs`, `ConfigEditor.cs`, and `DietCommands.cs` CLI switch. Zero references remain.
+
+### Changed
+
+- **Tags default → false** — `DisplayConfig.Tags` no longer defaults to `true`; new players start without scoring tags
+- **Meaningful compact mode** — `compact=true` now strips SP gain, running SP total, and all tags from every render path (chat flat, chat source-grouped, tooltip flat, tooltip source-grouped). Lines show only `{Name} x{Count} ({Cal} cal)`. Summary footer still hidden too.
+- `PlanRenderer.cs` — added `compact` parameter to `RenderFlat`, `RenderSourceGrouped`, `RenderSourceGroupedCompact`, `RenderRemainingPlan`, `RenderRemainingItems`; when true, emits short `name (cal)` lines
+- `EcoDietTooltipLibrary.cs` — passes `displayConfig.Compact` to `RenderRemainingPlan`
+- `DietCommands.cs` — removed `autoplan` from CLI help text and valid keys list
+
+### Build
+
+- `dotnet build` clean with 0 warnings, 0 errors
+
+### Verification (in-game)
+
+1. `/ed plan` → should NOT show tags by default (Tags=false)
+2. `/ed config compact true` → `/ed plan` → per-bite lines show only food + calories
+3. `/ed config compact false` → `/ed plan` → full output with SP + summary
+4. `/ed config autoplan true` → should be unrecognized (removed)
+5. Hover stomach with compact=true → tooltip shows short lines
+
+## Previous Changes (2026-02-27) — Fix Tooltip Freeze After Config Save
+
+### Fixed
+
+- **Tooltip freeze after config save** — `InvalidatePlan` sets `IsStale=true`, but `DetectReplanReason` requires a stomach diff to proceed; config changes produce no diff, so the plan stayed frozen forever. Added `PlanTracker.ClearPlan(User)` which removes the cached plan entirely, forcing a fresh compute on next tooltip render.
+- **Misleading "closed without saving" message** — `onClose` callback fires on ALL window-close paths including after save; `saved` flag race wasn't reliable. Removed `onClose` and `saved` flag entirely. `onBack` still handles explicit cancel.
+- **No save confirmation** — added `"Settings saved."` message after successful config persist.
+
+### Changed
+
+- `PlanTracker.cs` — added `ClearPlan(User)` method (removes cached plan via `Plans.Remove`)
+- `ConfigEditor.cs` — replaced `InvalidatePlan` → `ClearPlan`; removed `onClose`/`saved` flag; added success message
+
+### Build
+
+- `dotnet build` clean with 0 warnings, 0 errors
+
+### Verification (in-game)
+
+1. `/ed config` → toggle Compact → Save → "Settings saved." in chat, NO misleading close message
+2. Hover stomach → tooltip reflects new setting immediately (fresh plan)
+3. `/ed config` → close via X → no message (correct — X is neither save nor cancel)
+4. Eat a food → plan updates normally (`InvalidatePlan` still works for food events)
+
+## Previous Changes (2026-02-26) — Config Editor Fix: Save, Cancel, Currencies, Tooltips, Radius
+
+### Changed
+
+- `DisplayConfigViewModel.cs` — replaced auto-properties with backing fields + manual `PropertyChanged?.Invoke()` (Fody doesn't run on mod assemblies). Replaced `Currencies` string with `GamePickerList` currency picker. Updated all `LocDescription` tooltips with explanatory text.
+- `ConfigEditor.cs` — added `onClose` and `onBack` callbacks for cancel feedback. Updated `CreateViewModel` to populate `GamePickerList` from saved currency names via `CurrencyManager.GetClosestCurrency`. Updated `ApplyAndSave` to extract currencies via `GetObjects<Currency>()` and removed discovery radius server cap (only clamp minimum to 1).
+- `FoodDiscovery.cs` — removed `Math.Min` server cap on discovery radius; player-configurable radius is now used directly.
+- `DietCommands.cs` — removed server cap from `/ed config maxdistance` CLI path; validates > 0 only.
+- `PlannerConfig.cs` — `DiscoveryRadiusMeters` default changed from 100f to 99999f (effectively unlimited).
+- `DisplayConfig.cs` — `MaxDiscoveryRadius` default changed from 100f to 99999f.
+
+### Build
+
+- `dotnet build` clean with 0 warnings, 0 errors
+
+### Verification (in-game)
+
+1. `/ed config` → opens single window, tooltips are descriptive
+2. Toggle Compact → Save → `/ed config compact` confirms value persisted
+3. Currency picker → shows game currencies → select → Save → next `/ed plan` filters
+4. Close via X → "Config editor closed without saving." message
+5. `/ed config maxdistance 500` → accepted without cap message
+6. `/ed config compact true` → CLI mode still works
+
+## Previous Changes (2026-02-26) — Single-Window Config Editor (ViewEditor)
+
+### Added
+
+- `mod/EcoDietMod/Config/DisplayConfigViewModel.cs` (~41 lines) — transient IController ViewModel with [SyncToView] attributed properties
+  - `Compact`, `Sources`, `Tags`, `AutoPlan` (bool), `Currencies` (string, comma-separated), `MaxCostPer1000Cal`, `MaxDiscoveryRadius` (float)
+  - `List<string> ShopCurrencyFilter` flattened to comma-separated string — ViewEditor has no native List\<string\> control
+
+### Changed
+
+- `mod/EcoDietMod/Config/ConfigEditor.cs` (~85 lines, down from ~190) — rewrote to use ViewEditor single-window API
+  - `EditInteractive(User)` — creates ViewModel, calls `ViewEditor.Edit` (fire-and-forget)
+  - `CreateViewModel(DisplayConfig)` — populate ViewModel from config
+  - `ApplyAndSave(ViewModel, Config, User)` — onSubmit: validate, copy back, persist
+  - Validation: booleans pass-through, currencies split/trim, cost clamped to 0+, radius clamped to [1, serverCap]
+- `DietCommands.cs` — `Config()` changed from `async Task` back to `void` (ViewEditor.Edit is fire-and-forget)
+  - Removed `using System.Threading.Tasks`
+  - `/ed config <key> <value>` CLI mode preserved unchanged
+
+### Build
+
+- `dotnet build` clean with 0 warnings, 0 errors
+- 165 Python tests still pass
+
+### Eco APIs Used
+
+- `ViewEditor.Edit(User, IController, onSubmit, buttonText, overrideTitle, windowType)` — single-window property editor
+- `IController` : `IViewController`, `IHasUniversalID` — interface for editable objects
+- `[SyncToView]`, `[Autogen]` (`Eco.Core.Controller`) — marks property as visible in editor
+- `[AutogenClass]` (`Eco.Core.Controller`) — auto-generates UI for class
+- `[LocDisplayName]`, `[LocDescription]` (`Eco.Shared.Localization`) — field label and tooltip
+
+### Superseded: Multi-window OptionBox loop
+
+Previous approach (OptionBox menu → per-setting popup → back) rejected after in-game testing — too many windows. ViewEditor.Edit renders all settings in one panel.
+
+### Risks (to verify in-game)
+
+- ViewEditor may not render mod IController types — may need additional attributes or registration
+- If `WindowType.Small` is too cramped for 7 fields, switch to `WindowType.Simple`
+- If Fody doesn't inject PropertyChanged for mod types, add manual raising in setters
+
+## Previous Changes (2026-02-26) — Source-Grouped Tooltip Rendering
 
 ### Changed
 
@@ -362,6 +478,10 @@ Config structure:
 
 ## Session Log
 
+- 2026-02-27: Config booleans cleanup — Tags default false, removed AutoPlan dead stub, meaningful compact mode (strips SP/tags from all render paths)
+- 2026-02-27: Fix tooltip freeze after config save — added ClearPlan (removes cached plan), removed onClose/saved flag, added save confirmation message
+- 2026-02-26: Single-window config editor — ViewEditor.Edit replaces multi-popup OptionBox loop, DisplayConfigViewModel with [SyncToView] properties, DietCommands.Config() back to void
+- 2026-02-26: (superseded) Interactive config popup — ConfigEditor.cs with OptionBox/InputString dialogs, rejected after in-game testing
 - 2026-02-26: Source-grouped tooltip — stored DiscoveryResult in ActivePlan, extracted AssignToSourceGroups, added RenderSourceGroupedCompact, tooltip now matches /ed plan format with source headers, calories, running SP, tags
 - 2026-02-12: Live stomach tooltip — PlanTracker (plan cache + progress detection), EcoDietEventHandler (food eaten events), RenderRemainingPlan, fixed tooltip registration to extension method pattern
 - 2026-02-12: Balance improvement bias — added `_balance_improvement_bias` to planner, C# mirror, 10 new tests, deleted repro script, released v0.5.0

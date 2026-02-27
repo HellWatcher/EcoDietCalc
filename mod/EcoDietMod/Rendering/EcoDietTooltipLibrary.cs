@@ -36,7 +36,8 @@ public static class EcoDietTooltipLibrary
             var text = PlanRenderer.RenderRemainingPlan(
                 remaining, status, finalSp, discovery,
                 showSources: displayConfig.Sources,
-                showTags: displayConfig.Tags);
+                showTags: displayConfig.Tags,
+                compact: displayConfig.Compact);
 
             return new TooltipSection(
                 Localizer.DoStr("EcoDiet"),

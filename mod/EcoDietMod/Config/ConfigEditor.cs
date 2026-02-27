@@ -44,7 +44,6 @@ public static class ConfigEditor
             Compact = config.Compact,
             Sources = config.Sources,
             Tags = config.Tags,
-            AutoPlan = config.AutoPlan,
             MaxCostPer1000Cal = config.MaxCostPer1000Cal,
             MaxDiscoveryRadius = config.MaxDiscoveryRadius,
         };
@@ -72,7 +71,6 @@ public static class ConfigEditor
             config.Compact = viewModel.Compact;
             config.Sources = viewModel.Sources;
             config.Tags = viewModel.Tags;
-            config.AutoPlan = viewModel.AutoPlan;
 
             // Currencies — extract from picker
             config.ShopCurrencyFilter = viewModel.CurrencyFilter

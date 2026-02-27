@@ -42,9 +42,9 @@ public static class PlanRenderer
         var hasMultipleSources = discovery?.HasMultipleSources ?? false;
 
         if (hasMultipleSources && showSources)
-            RenderSourceGrouped(sb, plan, discovery!, showTags);
+            RenderSourceGrouped(sb, plan, discovery!, showTags, compact);
         else
-            RenderFlat(sb, plan, discovery, showSources, showTags);
+            RenderFlat(sb, plan, discovery, showSources, showTags, compact);
 
         if (!compact)
         {
@@ -100,7 +100,8 @@ public static class PlanRenderer
         StringBuilder sb,
         MealPlanResult plan,
         DiscoveryResult discovery,
-        bool showTags)
+        bool showTags,
+        bool compact)
     {
         var sortedGroups = AssignToSourceGroups(plan.Items, discovery);
 
@@ -115,6 +116,13 @@ public static class PlanRenderer
             {
                 itemIndex++;
                 var countLabel = group.Count > 1 ? $" x{group.Count}" : "";
+
+                if (compact)
+                {
+                    sb.AppendLine($"  {itemIndex}. {group.Name}{countLabel} ({group.TotalCalories:F0} cal)");
+                    continue;
+                }
+
                 var sign = group.TotalSpGain >= 0 ? "+" : "";
                 var line = $"  {itemIndex}. {group.Name}{countLabel} ({group.TotalCalories:F0} cal) " +
                            $"{sign}{group.TotalSpGain:F2} SP -> {group.FinalSp:F2}";
@@ -140,7 +148,8 @@ public static class PlanRenderer
         StringBuilder sb,
         List<MealPlanItem> remaining,
         DiscoveryResult discovery,
-        bool showTags)
+        bool showTags,
+        bool compact)
     {
         var sortedGroups = AssignToSourceGroups(remaining, discovery);
         var isFirstItem = true;
@@ -157,6 +166,13 @@ public static class PlanRenderer
                 isFirstItem = false;
 
                 var countLabel = group.Count > 1 ? $" x{group.Count}" : "";
+
+                if (compact)
+                {
+                    sb.AppendLine($"  {marker} {group.Name}{countLabel} ({group.TotalCalories:F0} cal)");
+                    continue;
+                }
+
                 var sign = group.TotalSpGain >= 0 ? "+" : "";
                 var line = $"  {marker} {group.Name}{countLabel} ({group.TotalCalories:F0} cal) " +
                            $"{sign}{group.TotalSpGain:F2} SP → {group.FinalSp:F2}";
@@ -181,7 +197,8 @@ public static class PlanRenderer
         MealPlanResult plan,
         DiscoveryResult? discovery,
         bool showSources,
-        bool showTags)
+        bool showTags,
+        bool compact)
     {
         var groups = GroupItems(plan.Items);
 
@@ -189,6 +206,13 @@ public static class PlanRenderer
         {
             var group = groups[i];
             var countLabel = group.Count > 1 ? $" x{group.Count}" : "";
+
+            if (compact)
+            {
+                sb.AppendLine($"  {i + 1}. {group.Name}{countLabel} ({group.TotalCalories:F0} cal)");
+                continue;
+            }
+
             var sign = group.TotalSpGain >= 0 ? "+" : "";
             var line = $"  {i + 1}. {group.Name}{countLabel} ({group.TotalCalories:F0} cal) " +
                        $"{sign}{group.TotalSpGain:F2} SP -> {group.FinalSp:F2}";
@@ -231,7 +255,8 @@ public static class PlanRenderer
         float? finalSp = null,
         DiscoveryResult? discovery = null,
         bool showSources = true,
-        bool showTags = true)
+        bool showTags = true,
+        bool compact = false)
     {
         return status switch
         {
@@ -239,7 +264,7 @@ public static class PlanRenderer
             PlanStatus.StomachFull => "EcoDiet: Stomach full",
             PlanStatus.NothingToSuggest => "EcoDiet: Nothing to suggest",
             PlanStatus.Complete => $"EcoDiet: Plan complete — {finalSp:F1} SP",
-            _ => RenderRemainingItems(remaining, discovery, showSources, showTags)
+            _ => RenderRemainingItems(remaining, discovery, showSources, showTags, compact)
         };
     }
 
@@ -247,7 +272,8 @@ public static class PlanRenderer
         List<MealPlanItem> remaining,
         DiscoveryResult? discovery,
         bool showSources,
-        bool showTags)
+        bool showTags,
+        bool compact)
     {
         var totalBites = remaining.Count;
         var totalSpGain = remaining.Sum(item => item.SpGain);
@@ -259,7 +285,7 @@ public static class PlanRenderer
 
         if (hasMultipleSources && showSources)
         {
-            RenderSourceGroupedCompact(sb, remaining, discovery!, showTags);
+            RenderSourceGroupedCompact(sb, remaining, discovery!, showTags, compact);
         }
         else
         {
@@ -271,6 +297,13 @@ public static class PlanRenderer
                 var group = groups[i];
                 var marker = i == 0 ? "→" : "·";
                 var countLabel = group.Count > 1 ? $" x{group.Count}" : "";
+
+                if (compact)
+                {
+                    sb.AppendLine($"  {marker} {group.Name}{countLabel} ({group.TotalCalories:F0} cal)");
+                    continue;
+                }
+
                 var sign = group.TotalSpGain >= 0 ? "+" : "";
                 var line = $"  {marker} {group.Name}{countLabel} ({group.TotalCalories:F0} cal) " +
                            $"{sign}{group.TotalSpGain:F2} SP → {group.FinalSp:F2}";

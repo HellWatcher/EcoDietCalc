@@ -18,10 +18,7 @@ public sealed class DisplayConfig
     public bool Sources { get; set; } = true;
 
     /// <summary>Show variety/taste/craving tags.</summary>
-    public bool Tags { get; set; } = true;
-
-    /// <summary>Reserved for future auto-plan on food eaten.</summary>
-    public bool AutoPlan { get; set; }
+    public bool Tags { get; set; }
 
     // --- Shop filter ---
 
@@ -31,8 +28,8 @@ public sealed class DisplayConfig
     /// <summary>Max cost per 1000 calories from shops (0 = no limit).</summary>
     public float MaxCostPer1000Cal { get; set; }
 
-    /// <summary>Player-configurable discovery radius in meters (capped by server PlannerConfig.DiscoveryRadiusMeters).</summary>
-    public float MaxDiscoveryRadius { get; set; } = 100f;
+    /// <summary>Player-configurable discovery radius in meters (99999 = effectively unlimited).</summary>
+    public float MaxDiscoveryRadius { get; set; } = 99999f;
 
     // --- Persistence ---
 
