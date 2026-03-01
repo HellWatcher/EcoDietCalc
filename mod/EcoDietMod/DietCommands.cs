@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using Eco.Gameplay.Items;
 using Eco.Gameplay.Players;
@@ -24,7 +23,7 @@ public static class DietCommands
     public static void EcoDiet(User user)
     {
         user.MsgLocStr(
-            "EcoDiet commands: /ediet plan [full|calories], /ediet config [key value], /ediet export [note]");
+            "EcoDiet commands: /ediet plan [full|calories], /ediet config [key value]");
     }
 
     /// <summary>
@@ -218,20 +217,7 @@ public static class DietCommands
         }
     }
 
-    [ChatSubCommand("EcoDiet", "Export game state to JSON for the Python planner", "export")]
-    public static void Export(User user, string note = "")
-    {
-        var timestamp = DateTime.UtcNow.ToString("yyyy-MM-dd_HHmmss");
-        var filename = $"game_state_{timestamp}.json";
-        var dir = Path.Combine(
-            AppDomain.CurrentDomain.BaseDirectory, "Mods", "EcoDietMod", "exports");
-        Directory.CreateDirectory(dir);
-        var path = Path.Combine(dir, filename);
-        GameStateExporter.ExportGameState(user, path, note);
-        user.MsgLocStr($"Game state exported to {path}");
-    }
-
-    /// <summary>
+/// <summary>
     /// Build a cravings list from the current craving (if any).
     /// </summary>
     private static List<string> BuildCravingsList(User user)
