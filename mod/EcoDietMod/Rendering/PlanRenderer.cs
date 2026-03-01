@@ -7,6 +7,8 @@ using EcoDietMod.Tracking;
 
 namespace EcoDietMod.Rendering;
 
+using RT = RichText;
+
 /// <summary>
 /// Formats a MealPlanResult for display in Eco chat.
 /// </summary>
@@ -143,6 +145,7 @@ public static class PlanRenderer
     /// <summary>
     /// Render items grouped by source for the tooltip — compact format with
     /// source headers, calories, running SP total, and optional tags.
+    /// Rich text styled for TMP rendering.
     /// </summary>
     private static void RenderSourceGroupedCompact(
         StringBuilder sb,
@@ -153,33 +156,42 @@ public static class PlanRenderer
     {
         var sortedGroups = AssignToSourceGroups(remaining, discovery);
         var isFirstItem = true;
+        var isFirstGroup = true;
 
         foreach (var (source, items) in sortedGroups)
         {
-            sb.AppendLine($"--- From {source.Tag} ---");
+            if (!isFirstGroup) sb.AppendLine();
+            isFirstGroup = false;
+            sb.AppendLine(RT.Bold($"--- From {source.ColoredTag} ---"));
 
             var groups = GroupItems(items);
 
             foreach (var group in groups)
             {
-                var marker = isFirstItem ? "→" : "·";
+                var marker = isFirstItem
+                    ? RT.Color("→", RT.Marker)
+                    : RT.Color("·", RT.MarkerDot);
                 isFirstItem = false;
 
                 var countLabel = group.Count > 1 ? $" x{group.Count}" : "";
+                var nameLabel = RT.Bold(group.Name) + countLabel;
+                var calLabel = RT.Color($"({group.TotalCalories:F0} cal)", RT.Calories);
 
                 if (compact)
                 {
-                    sb.AppendLine($"  {marker} {group.Name}{countLabel} ({group.TotalCalories:F0} cal)");
+                    sb.AppendLine($"  {marker} {nameLabel} {calLabel}");
                     continue;
                 }
 
+                var gainColor = group.TotalSpGain >= 0 ? RT.SpPositive : RT.SpNegative;
                 var sign = group.TotalSpGain >= 0 ? "+" : "";
-                var line = $"  {marker} {group.Name}{countLabel} ({group.TotalCalories:F0} cal) " +
-                           $"{sign}{group.TotalSpGain:F2} SP → {group.FinalSp:F2}";
+                var spLabel = RT.Color($"{sign}{group.TotalSpGain:F2} SP", gainColor);
+                var runningLabel = RT.Color($"→ {group.FinalSp:F2}", RT.SpRunning);
+                var line = $"  {marker} {nameLabel} {calLabel} {spLabel} {runningLabel}";
 
                 if (showTags)
                 {
-                    var tags = BuildItemTags(group);
+                    var tags = BuildColoredItemTags(group);
                     if (tags.Count > 0)
                         line += $"  [{string.Join(", ", tags)}]";
                 }
@@ -258,14 +270,15 @@ public static class PlanRenderer
         bool showTags = true,
         bool compact = false)
     {
-        return status switch
+        var content = status switch
         {
-            PlanStatus.NoFood => "EcoDiet: No food available",
-            PlanStatus.StomachFull => "EcoDiet: Stomach full",
-            PlanStatus.NothingToSuggest => "EcoDiet: Nothing to suggest",
-            PlanStatus.Complete => $"EcoDiet: Plan complete — {finalSp:F1} SP",
+            PlanStatus.NoFood           => RT.Color("EcoDiet: No food available", RT.StatusMsg),
+            PlanStatus.StomachFull      => RT.Color("EcoDiet: Stomach full", RT.StatusMsg),
+            PlanStatus.NothingToSuggest => RT.Color("EcoDiet: Nothing to suggest", RT.StatusMsg),
+            PlanStatus.Complete         => RT.Color($"EcoDiet: Plan complete — {finalSp:F1} SP", RT.StatusMsg),
             _ => RenderRemainingItems(remaining, discovery, showSources, showTags, compact)
         };
+        return RT.Size(content, RT.TooltipSize);
     }
 
     private static string RenderRemainingItems(
@@ -279,7 +292,10 @@ public static class PlanRenderer
         var totalSpGain = remaining.Sum(item => item.SpGain);
 
         var sb = new StringBuilder();
-        sb.AppendLine($"--- EcoDiet: {totalBites} bites → {FormatSigned(totalSpGain)} SP ---");
+        var spColor = totalSpGain >= 0 ? RT.SpPositive : RT.SpNegative;
+        var headerText = $"--- EcoDiet: {totalBites} bites → {RT.Color(FormatSigned(totalSpGain) + " SP", spColor)} ---";
+        sb.AppendLine(RT.Bold(RT.Color(headerText, RT.Header)));
+        sb.AppendLine();
 
         var hasMultipleSources = discovery?.HasMultipleSources ?? false;
 
@@ -295,22 +311,28 @@ public static class PlanRenderer
             for (var i = 0; i < groups.Count; i++)
             {
                 var group = groups[i];
-                var marker = i == 0 ? "→" : "·";
+                var marker = i == 0
+                    ? RT.Color("→", RT.Marker)
+                    : RT.Color("·", RT.MarkerDot);
                 var countLabel = group.Count > 1 ? $" x{group.Count}" : "";
+                var nameLabel = RT.Bold(group.Name) + countLabel;
+                var calLabel = RT.Color($"({group.TotalCalories:F0} cal)", RT.Calories);
 
                 if (compact)
                 {
-                    sb.AppendLine($"  {marker} {group.Name}{countLabel} ({group.TotalCalories:F0} cal)");
+                    sb.AppendLine($"  {marker} {nameLabel} {calLabel}");
                     continue;
                 }
 
+                var gainColor = group.TotalSpGain >= 0 ? RT.SpPositive : RT.SpNegative;
                 var sign = group.TotalSpGain >= 0 ? "+" : "";
-                var line = $"  {marker} {group.Name}{countLabel} ({group.TotalCalories:F0} cal) " +
-                           $"{sign}{group.TotalSpGain:F2} SP → {group.FinalSp:F2}";
+                var spLabel = RT.Color($"{sign}{group.TotalSpGain:F2} SP", gainColor);
+                var runningLabel = RT.Color($"→ {group.FinalSp:F2}", RT.SpRunning);
+                var line = $"  {marker} {nameLabel} {calLabel} {spLabel} {runningLabel}";
 
                 if (showTags)
                 {
-                    var tags = BuildItemTags(group);
+                    var tags = BuildColoredItemTags(group);
                     if (tags.Count > 0)
                         line += $"  [{string.Join(", ", tags)}]";
                 }
@@ -369,6 +391,23 @@ public static class PlanRenderer
                     tags.Add(source.Tag);
             }
         }
+
+        return tags;
+    }
+
+    /// <summary>
+    /// Build colored variety/taste/craving tags for tooltip rendering.
+    /// </summary>
+    private static List<string> BuildColoredItemTags(ItemGroup group)
+    {
+        var tags = new List<string>();
+
+        if (group.HasCraving)
+            tags.Add(RT.Color("craving", RT.TagCraving));
+        if (MathF.Abs(group.TotalVarietyDeltaPp) > VarietyDeltaThreshold)
+            tags.Add(RT.Color($"variety {FormatSigned(group.TotalVarietyDeltaPp)}pp", RT.TagVariety));
+        if (MathF.Abs(group.TotalTastinessDeltaPp) > TastinessDeltaThreshold)
+            tags.Add(RT.Color($"taste {FormatSigned(group.TotalTastinessDeltaPp)}pp", RT.TagTaste));
 
         return tags;
     }

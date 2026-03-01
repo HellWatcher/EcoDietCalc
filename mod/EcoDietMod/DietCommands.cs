@@ -20,11 +20,11 @@ namespace EcoDietMod;
 [ChatCommandHandler]
 public static class DietCommands
 {
-    [ChatCommand("EcoDiet — plan optimal meals", "ed")]
+    [ChatCommand("EcoDiet — plan optimal meals", "ediet")]
     public static void EcoDiet(User user)
     {
         user.MsgLocStr(
-            "EcoDiet commands: /ed plan [full|calories], /ed config [key value], /ed export [note]");
+            "EcoDiet commands: /ediet plan [full|calories], /ediet config [key value], /ediet export [note]");
     }
 
     /// <summary>

@@ -1,4 +1,5 @@
 using System;
+using EcoDietMod.Rendering;
 
 namespace EcoDietMod.Models;
 
@@ -40,6 +41,17 @@ public sealed class SourceInfo : IComparable<SourceInfo>
         SourceKind.Storage  => $"[{Label} @ {DistanceMeters:F0}m]",
         SourceKind.Shop     => $"[{Label} @ {DistanceMeters:F0}m]",
         _                   => $"[{Label}]"
+    };
+
+    /// <summary>
+    /// Tag wrapped in source-kind-appropriate TMP color for tooltip rendering.
+    /// </summary>
+    public string ColoredTag => Kind switch
+    {
+        SourceKind.Backpack => RichText.Color(Tag, RichText.Backpack),
+        SourceKind.Storage  => RichText.Color(Tag, RichText.Storage),
+        SourceKind.Shop     => RichText.Color(Tag, RichText.Shop),
+        _                   => Tag
     };
 
     public int CompareTo(SourceInfo? other) =>
