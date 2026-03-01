@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-02-27
+Last updated: 2026-03-01
 
 ## Current State
 
@@ -26,7 +26,34 @@ Multi-source discovery: backpack + authorized storage containers + nearby shops 
 | `main.py (cmd_predict)`    | Good     | 5 tests for predict subcommand           |
 | `food_state_manager.py`    | Good     | 26 direct unit tests                     |
 
-## Recent Changes (2026-02-27) — Config Booleans Cleanup & Meaningful Compact Mode
+## Recent Changes (2026-03-01) — Fix Boolean ViewEditor Persistence
+
+### Fixed
+
+- **Boolean config settings (Compact, Sources, Tags) now persist** — `[Autogen]` IL weaver generates a client-only checkbox for `bool` that never fires `[AutoRPC]` RPCs. Workaround: expose booleans as `int` (0/1) properties to force text-input widgets that do fire RPCs. Convenience `bool` accessors maintain clean usage in code.
+- **Discovery radius server cap removed** — player-configurable radius used directly.
+
+### Changed
+
+- `DisplayConfigViewModel.cs` — `bool` → `int` (0/1) for Compact/Sources/Tags; added `[Serialized]` on class, `INotifyPropertyChanged`
+- `PlannerConfig.cs` — `DiscoveryRadiusMeters` default 100→99999, `PositionReplanThresholdMeters` default 20→1
+- `FoodDiscovery.cs` — removed `Math.Min` server cap on radius
+- `.gitignore` — exclude decompiled API reference
+
+### Build
+
+- `dotnet build` clean with 0 warnings, 0 errors (1 expected CS0067 warning for unused event)
+
+### Failed approaches (logged in learned skills)
+
+1. `[Autogen, AutoRPC]` auto-property — renders, doesn't persist
+2. `[Serialized, Autogen, AutoRPC]` — renders, doesn't persist
+3. ChatSettings pattern (no `[Autogen]`) — doesn't render
+4. `[Autogen]` + explicit `[RPC] Set*` methods — renders, doesn't persist
+5. `enum Toggle { Off, On }` — broken picker widget
+6. **`int` (0/1) ✓** — renders as text input, persists via RPC
+
+## Previous Changes (2026-02-27) — Config Booleans Cleanup & Meaningful Compact Mode
 
 ### Removed
 
@@ -478,6 +505,7 @@ Config structure:
 
 ## Session Log
 
+- 2026-03-01: Fix boolean ViewEditor persistence — [Autogen] bool checkbox never fires RPCs; workaround: expose as int (0/1) for text-input widget. 7 approaches tested, 1 worked. Released v0.6.0
 - 2026-02-27: Config booleans cleanup — Tags default false, removed AutoPlan dead stub, meaningful compact mode (strips SP/tags from all render paths)
 - 2026-02-27: Fix tooltip freeze after config save — added ClearPlan (removes cached plan), removed onClose/saved flag, added save confirmation message
 - 2026-02-26: Single-window config editor — ViewEditor.Edit replaces multi-popup OptionBox loop, DisplayConfigViewModel with [SyncToView] properties, DietCommands.Config() back to void

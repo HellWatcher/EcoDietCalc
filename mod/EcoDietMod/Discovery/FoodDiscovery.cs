@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using Eco.Gameplay.Items;
 using Eco.Gameplay.Players;
@@ -61,10 +60,8 @@ public static class FoodDiscovery
         var tasteBuds = user.Stomach.TasteBuds;
         var results = new List<DiscoveryResult>();
 
-        // Player-configurable radius, capped by server-wide limit
-        var radius = Math.Min(
-            displayConfig?.MaxDiscoveryRadius ?? config.DiscoveryRadiusMeters,
-            config.DiscoveryRadiusMeters);
+        // Player-configurable radius (server default when no DisplayConfig)
+        var radius = displayConfig?.MaxDiscoveryRadius ?? config.DiscoveryRadiusMeters;
 
         // Always include backpack
         results.Add(DiscoverFromBackpack(user));

@@ -48,7 +48,7 @@ public sealed class PlannerConfig
     // --- Discovery ---
 
     /// <summary>Maximum distance (meters) for storage/shop discovery.</summary>
-    public float DiscoveryRadiusMeters { get; init; } = 100f;
+    public float DiscoveryRadiusMeters { get; init; } = 99999f;
 
     /// <summary>Enable discovery from authorized storage containers.</summary>
     public bool EnableStorageDiscovery { get; init; } = true;
@@ -57,7 +57,7 @@ public sealed class PlannerConfig
     public bool EnableShopDiscovery { get; init; } = true;
 
     /// <summary>Distance moved (meters) before triggering a replan for updated source distances.</summary>
-    public float PositionReplanThresholdMeters { get; init; } = 20f;
+    public float PositionReplanThresholdMeters { get; init; } = 1f;
 
     // --- Safety ---
 

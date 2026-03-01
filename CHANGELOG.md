@@ -4,7 +4,19 @@ All notable changes to EcoDietMaker are documented here.
 
 Format follows [Keep a Changelog](https://keepachangelog.com/).
 
-## [Unreleased]
+## [0.6.0] - 2026-03-01
+
+### Fixed
+
+- Boolean config settings (Compact, Sources, Tags) now persist when changed via `/ed config` ViewEditor — [Autogen] IL weaver generates a client-only checkbox for `bool` that never fires [AutoRPC] RPCs; worked around by exposing booleans as `int` (0/1) properties to force text-input widgets
+- Discovery radius server cap removed — player-configurable radius is used directly instead of being clamped to `PlannerConfig.DiscoveryRadiusMeters`
+
+### Changed
+
+- `DisplayConfigViewModel.cs` — boolean properties replaced with `int` (0/1) + convenience `bool` accessors; added `[Serialized]` on class, `INotifyPropertyChanged` interface
+- `PlannerConfig.cs` — `DiscoveryRadiusMeters` default 100 → 99999 (effectively unlimited), `PositionReplanThresholdMeters` default 20 → 1
+- `FoodDiscovery.cs` — removed `Math.Min` server cap on discovery radius
+- `.gitignore` — exclude `mod/eco-api-decompiled/`
 
 ## [0.5.0] - 2026-02-12
 

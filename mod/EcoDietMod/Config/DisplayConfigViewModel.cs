@@ -1,53 +1,62 @@
+using System.ComponentModel;
 using Eco.Core.Controller;
 using Eco.Core.Systems;
 using Eco.Gameplay.Civics.GameValues;
 using Eco.Gameplay.Economy;
 using Eco.Shared.Localization;
 using Eco.Shared.Networking;
+using Eco.Shared.Serialization;
 using Eco.Shared.View;
 
 namespace EcoDietMod.Config;
 
 /// <summary>
 /// Transient ViewModel for ViewEditor — mirrors <see cref="DisplayConfig"/> as attributed properties.
-/// ViewEditor renders all [SyncToView] properties as form fields in a single window.
-/// [AutoRPC] registers Set{PropertyName} RPCs with ControllerMarshalerService so the client
-/// can push edits back to the server. Manual Set* methods are NOT needed when [AutoRPC] is present.
+/// Booleans are exposed as int (0 = off, 1 = on) because [Autogen] IL-weaves a client-only checkbox
+/// for bool properties that never fires the [AutoRPC] RPC. Int forces a text-input widget that does.
 /// </summary>
-[AutogenClass]
-public class DisplayConfigViewModel : IController, IViewController, IHasUniversalID
+[Serialized, AutogenClass]
+public class DisplayConfigViewModel : IController, IViewController, IHasUniversalID, INotifyPropertyChanged
 {
     private int _controllerID;
     public ref int ControllerID => ref _controllerID;
 
-    // --- Properties: [AutoRPC] creates the Set{Name} RPC from the property setter ---
+    // --- Booleans as int (0/1): forces text-input widget that fires RPCs ---
 
-    private bool _compact;
-    [SyncToView, Autogen, AutoRPC, LocDisplayName("Compact"),
-     LocDescription("Shorten plan output — hides SP breakdown, shows only food name and calorie count per bite")]
-    public bool Compact
+    private int _compact;
+    [SyncToView, Autogen, AutoRPC, LocDisplayName("Compact (0/1)"),
+     LocDescription("Shorten plan output — hides SP breakdown, shows only food name and calorie count per bite. 0 = off, 1 = on.")]
+    public int CompactInt
     {
         get => _compact;
-        set { _compact = value; this.Changed(nameof(Compact)); }
+        set { _compact = value != 0 ? 1 : 0; this.Changed(nameof(CompactInt)); }
     }
 
-    private bool _sources;
-    [SyncToView, Autogen, AutoRPC, LocDisplayName("Sources"),
-     LocDescription("Show where each food comes from — [backpack], [StorageName @ 15m], [ShopName @ 30m]")]
-    public bool Sources
+    private int _sources;
+    [SyncToView, Autogen, AutoRPC, LocDisplayName("Sources (0/1)"),
+     LocDescription("Show where each food comes from — [backpack], [StorageName @ 15m], [ShopName @ 30m]. 0 = off, 1 = on.")]
+    public int SourcesInt
     {
         get => _sources;
-        set { _sources = value; this.Changed(nameof(Sources)); }
+        set { _sources = value != 0 ? 1 : 0; this.Changed(nameof(SourcesInt)); }
     }
 
-    private bool _tags;
-    [SyncToView, Autogen, AutoRPC, LocDisplayName("Tags"),
-     LocDescription("Show scoring tags on each bite — [variety +2pp], [craving], [delicious]")]
-    public bool Tags
+    private int _tags;
+    [SyncToView, Autogen, AutoRPC, LocDisplayName("Tags (0/1)"),
+     LocDescription("Show scoring tags on each bite — [variety +2pp], [craving], [delicious]. 0 = off, 1 = on.")]
+    public int TagsInt
     {
         get => _tags;
-        set { _tags = value; this.Changed(nameof(Tags)); }
+        set { _tags = value != 0 ? 1 : 0; this.Changed(nameof(TagsInt)); }
     }
+
+    // --- Convenience accessors for bool semantics (not synced to view) ---
+
+    public bool Compact { get => _compact != 0; set => CompactInt = value ? 1 : 0; }
+    public bool Sources { get => _sources != 0; set => SourcesInt = value ? 1 : 0; }
+    public bool Tags { get => _tags != 0; set => TagsInt = value ? 1 : 0; }
+
+    // --- Non-booleans: keep [Autogen] + [AutoRPC] (working) ---
 
     [SyncToView, Autogen, AutoRPC, LocDisplayName("Shop Currencies"),
      LocDescription("Only include shop food priced in these currencies. Leave empty to allow all currencies.")]
@@ -70,6 +79,8 @@ public class DisplayConfigViewModel : IController, IViewController, IHasUniversa
         get => _maxDiscoveryRadius;
         set { _maxDiscoveryRadius = value; this.Changed(nameof(MaxDiscoveryRadius)); }
     }
+
+    public event PropertyChangedEventHandler? PropertyChanged;
 
     public DisplayConfigViewModel()
     {
