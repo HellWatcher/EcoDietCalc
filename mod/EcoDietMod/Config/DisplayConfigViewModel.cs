@@ -23,6 +23,15 @@ public class DisplayConfigViewModel : IController, IViewController, IHasUniversa
 
     // --- Booleans as int (0/1): forces text-input widget that fires RPCs ---
 
+    private int _enabled;
+    [SyncToView, Autogen, AutoRPC, LocDisplayName("Enabled (0/1)"),
+     LocDescription("Enable or disable EcoDiet tooltip planner. 0 = off, 1 = on.")]
+    public int EnabledInt
+    {
+        get => _enabled;
+        set { _enabled = value != 0 ? 1 : 0; this.Changed(nameof(EnabledInt)); }
+    }
+
     private int _compact;
     [SyncToView, Autogen, AutoRPC, LocDisplayName("Compact (0/1)"),
      LocDescription("Shorten plan output — hides SP breakdown, shows only food name and calorie count per bite. 0 = off, 1 = on.")]
@@ -52,6 +61,7 @@ public class DisplayConfigViewModel : IController, IViewController, IHasUniversa
 
     // --- Convenience accessors for bool semantics (not synced to view) ---
 
+    public bool Enabled { get => _enabled != 0; set => EnabledInt = value ? 1 : 0; }
     public bool Compact { get => _compact != 0; set => CompactInt = value ? 1 : 0; }
     public bool Sources { get => _sources != 0; set => SourcesInt = value ? 1 : 0; }
     public bool Tags { get => _tags != 0; set => TagsInt = value ? 1 : 0; }

@@ -1,15 +1,9 @@
 using System;
-using System.Collections.Generic;
 using System.Linq;
-using Eco.Gameplay.Items;
 using Eco.Gameplay.Players;
 using Eco.Gameplay.Systems.Messaging.Chat.Commands;
 using Eco.Shared.Localization;
-using EcoDietMod.Algorithm;
 using EcoDietMod.Config;
-using EcoDietMod.Discovery;
-using EcoDietMod.Models;
-using EcoDietMod.Rendering;
 
 namespace EcoDietMod;
 
@@ -23,84 +17,7 @@ public static class DietCommands
     public static void EcoDiet(User user)
     {
         user.MsgLocStr(
-            "EcoDiet commands: /ediet plan [full|calories], /ediet config [key value]");
-    }
-
-    /// <summary>
-    /// Plan an optimal meal.
-    ///   /ed plan       — remaining calorie budget
-    ///   /ed plan full  — full stomach capacity (empty stomach sim)
-    ///   /ed plan 1500  — custom calorie budget
-    /// </summary>
-    [ChatSubCommand("EcoDiet", "Plan optimal meal (plan / plan full / plan <calories>)", "plan")]
-    public static void Plan(User user, string arg = "")
-    {
-        try
-        {
-            var trimmed = arg.Trim();
-            var isFullPlan = string.Equals(trimmed, "full", StringComparison.OrdinalIgnoreCase)
-                          || string.Equals(trimmed, "max", StringComparison.OrdinalIgnoreCase);
-
-            var config = new PlannerConfig();
-            var displayConfig = DisplayConfig.Load(user.Name);
-            var discovery = FoodDiscovery.DiscoverAll(user, displayConfig);
-
-            if (discovery.Available.Count == 0)
-            {
-                user.MsgLocStr("No food found in backpack, nearby storage, or shops.");
-                return;
-            }
-
-            Dictionary<FoodCandidate, int> stomachState;
-            float calorieBudget;
-            int cravingsSatisfied;
-
-            if (isFullPlan)
-            {
-                // Full plan: empty stomach, plan for max calories
-                stomachState = new Dictionary<FoodCandidate, int>();
-                calorieBudget = StomachSnapshot.GetMaxCalories(user);
-                cravingsSatisfied = 0;
-            }
-            else if (int.TryParse(trimmed, out var customCal) && customCal > 0)
-            {
-                // Custom calorie budget with current stomach
-                stomachState = StomachSnapshot.CaptureStomach(user);
-                calorieBudget = customCal;
-                cravingsSatisfied = StomachSnapshot.GetCravingsSatisfied(user);
-            }
-            else
-            {
-                // Default: remaining calories
-                stomachState = StomachSnapshot.CaptureStomach(user);
-                calorieBudget = StomachSnapshot.GetRemainingCalories(user);
-                cravingsSatisfied = StomachSnapshot.GetCravingsSatisfied(user);
-            }
-
-            if (calorieBudget <= 0f)
-            {
-                user.MsgLocStr("No calorie budget remaining. Stomach is full.");
-                return;
-            }
-
-            var cravings = BuildCravingsList(user);
-            var dinnerPartyMult = StomachSnapshot.GetDinnerPartyMult(user);
-
-            var result = MealPlanner.PlanMeal(
-                stomachState, discovery.Available, cravings, cravingsSatisfied,
-                calorieBudget, config, dinnerPartyMult: dinnerPartyMult);
-
-            var output = PlanRenderer.RenderPlan(
-                result, discovery,
-                showSources: displayConfig.Sources,
-                showTags: displayConfig.Tags,
-                compact: displayConfig.Compact);
-            user.MsgLocStr(output);
-        }
-        catch (Exception ex)
-        {
-            user.MsgLocStr($"Plan error: {ex.Message}");
-        }
+            "EcoDiet commands: /ediet config [key value]");
     }
 
     [ChatSubCommand("EcoDiet", "Show or change display settings", "config")]
@@ -132,8 +49,8 @@ public static class DietCommands
         if (parts.Length < 2)
         {
             user.MsgLocStr(
-                "Usage: /ed config <key> <value>\n" +
-                "  Boolean keys: compact, sources, tags (true|false)\n" +
+                "Usage: /ediet config <key> <value>\n" +
+                "  Boolean keys: enabled, compact, sources, tags (true|false)\n" +
                 "  currencies <name,name,...> or 'clear'\n" +
                 "  maxcost <number> (0 = no limit)\n" +
                 "  maxdistance <meters> (discovery radius)");
@@ -147,6 +64,7 @@ public static class DietCommands
         switch (key)
         {
             // Boolean settings
+            case "enabled":
             case "compact":
             case "sources":
             case "tags":
@@ -157,6 +75,7 @@ public static class DietCommands
                 }
                 switch (key)
                 {
+                    case "enabled":  config.Enabled = boolValue;  break;
                     case "compact":  config.Compact = boolValue;  break;
                     case "sources":  config.Sources = boolValue;  break;
                     case "tags":     config.Tags = boolValue;     break;
@@ -212,20 +131,8 @@ public static class DietCommands
             default:
                 user.MsgLocStr(
                     $"Unknown setting '{key}'.\n" +
-                    "Valid: compact, sources, tags, currencies, maxcost, maxdistance");
+                    "Valid: enabled, compact, sources, tags, currencies, maxcost, maxdistance");
                 return;
         }
-    }
-
-/// <summary>
-    /// Build a cravings list from the current craving (if any).
-    /// </summary>
-    private static List<string> BuildCravingsList(User user)
-    {
-        var cravings = new List<string>();
-        var currentCraving = StomachSnapshot.GetCurrentCraving(user);
-        if (currentCraving != null)
-            cravings.Add(currentCraving);
-        return cravings;
     }
 }

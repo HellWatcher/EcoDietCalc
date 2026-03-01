@@ -31,6 +31,9 @@ public static class EcoDietTooltipLibrary
                 return LocString.Empty;
 
             var displayConfig = DisplayConfig.Load(user.Name);
+            if (!displayConfig.Enabled)
+                return LocString.Empty;
+
             var remaining = PlanTracker.GetRemainingPlanContext(
                 user, out var status, out var finalSp, out var discovery);
             var text = PlanRenderer.RenderRemainingPlan(

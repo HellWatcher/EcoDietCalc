@@ -41,6 +41,7 @@ public static class ConfigEditor
     {
         var viewModel = new DisplayConfigViewModel
         {
+            Enabled = config.Enabled,
             Compact = config.Compact,
             Sources = config.Sources,
             Tags = config.Tags,
@@ -68,6 +69,7 @@ public static class ConfigEditor
         try
         {
             // Booleans — no validation needed
+            config.Enabled = viewModel.Enabled;
             config.Compact = viewModel.Compact;
             config.Sources = viewModel.Sources;
             config.Tags = viewModel.Tags;
