@@ -50,7 +50,7 @@ public static class DietCommands
         {
             user.MsgLocStr(
                 "Usage: /ediet config <key> <value>\n" +
-                "  Boolean keys: enabled, compact, sources, tags (true|false)\n" +
+                "  Boolean keys: fullplan, compact, sources, tags (true|false)\n" +
                 "  currencies <name,name,...> or 'clear'\n" +
                 "  maxcost <number> (0 = no limit)\n" +
                 "  maxdistance <meters> (discovery radius)");
@@ -64,7 +64,7 @@ public static class DietCommands
         switch (key)
         {
             // Boolean settings
-            case "enabled":
+            case "fullplan":
             case "compact":
             case "sources":
             case "tags":
@@ -75,7 +75,7 @@ public static class DietCommands
                 }
                 switch (key)
                 {
-                    case "enabled":  config.Enabled = boolValue;  break;
+                    case "fullplan": config.FullPlan = boolValue;  break;
                     case "compact":  config.Compact = boolValue;  break;
                     case "sources":  config.Sources = boolValue;  break;
                     case "tags":     config.Tags = boolValue;     break;
@@ -131,7 +131,7 @@ public static class DietCommands
             default:
                 user.MsgLocStr(
                     $"Unknown setting '{key}'.\n" +
-                    "Valid: enabled, compact, sources, tags, currencies, maxcost, maxdistance");
+                    "Valid: fullplan, compact, sources, tags, currencies, maxcost, maxdistance");
                 return;
         }
     }

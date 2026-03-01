@@ -148,15 +148,30 @@ public static class PlanTracker
             return new List<MealPlanItem>();
         }
 
-        var stomachState = StomachSnapshot.CaptureStomach(user);
+        Dictionary<FoodCandidate, int> stomachState;
+        float calorieBudget;
+        int cravingsSatisfied;
+
+        if (displayConfig.FullPlan)
+        {
+            stomachState = new Dictionary<FoodCandidate, int>();
+            calorieBudget = StomachSnapshot.GetMaxCalories(user);
+            cravingsSatisfied = 0;
+        }
+        else
+        {
+            stomachState = StomachSnapshot.CaptureStomach(user);
+            calorieBudget = remainingCal;
+            cravingsSatisfied = StomachSnapshot.GetCravingsSatisfied(user);
+        }
+
         var cravings = BuildCravingsList(user);
-        var cravingsSatisfied = StomachSnapshot.GetCravingsSatisfied(user);
         var dinnerPartyMult = StomachSnapshot.GetDinnerPartyMult(user);
         var config = new PlannerConfig();
 
         var result = MealPlanner.PlanMeal(
             stomachState, discovery.Available, cravings, cravingsSatisfied,
-            remainingCal, config, dinnerPartyMult: dinnerPartyMult);
+            calorieBudget, config, dinnerPartyMult: dinnerPartyMult);
 
         finalSp = result.FinalSp;
 

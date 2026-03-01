@@ -11,8 +11,8 @@ namespace EcoDietMod.Config;
 /// </summary>
 public sealed class DisplayConfig
 {
-    /// <summary>Enable or disable the EcoDiet tooltip planner.</summary>
-    public bool Enabled { get; set; } = true;
+    /// <summary>Plan for full stomach capacity instead of remaining calories.</summary>
+    public bool FullPlan { get; set; }
 
     /// <summary>Compact vs full plan format.</summary>
     public bool Compact { get; set; }
