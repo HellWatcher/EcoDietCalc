@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-03-01
+Last updated: 2026-03-04
 
 ## Current State
 
@@ -8,7 +8,7 @@ Phase 2 (Python Polish) complete. 165 tests, mypy clean. All modules now directl
 Phase 3 (C# Mod) — scaffold, read-only chat commands, JSON export, **in-game meal planner**, **live stomach tooltip**, and **multi-source food discovery** implemented.
 Domain naming standardized to match Eco game API (`fat`, `tastiness_*`, `balanced_diet_*`, TastePreference labels).
 Balance-improvement bias added to planner — fixes zero-nutrient food selection bug.
-Stomach tooltip now shows source-grouped plan with calories, running SP, and tags — matching `/ed plan` format.
+Stomach tooltip now uses **native UILinks** — food names and store/container names are interactive (hover shows tooltip, click navigates). Falls back to styled text when references unavailable.
 Multi-source discovery: backpack + authorized storage containers + nearby shops with currency/cost filtering.
 
 ## Test Coverage
@@ -26,7 +26,37 @@ Multi-source discovery: backpack + authorized storage containers + nearby shops 
 | `main.py (cmd_predict)`    | Good     | 5 tests for predict subcommand           |
 | `food_state_manager.py`    | Good     | 26 direct unit tests                     |
 
-## Recent Changes (2026-03-01) — Fix Boolean ViewEditor Persistence
+## Recent Changes (2026-03-04) — Rich Tooltip Links (UILink)
+
+### Added
+
+- **Native UILinks in stomach tooltip** — food names and source (store/container) names are now interactive inline links. Hovering shows the item/object tooltip, clicking navigates to it.
+- `FoodCandidate.FoodType` — stores `System.Type` for food UILink resolution at render time via `Item.Get(type).UILink()`
+- `SourceInfo.WorldObj` — stores `WorldObject?` reference for source UILink resolution via `worldObject.UILink()`
+- `PlanRenderer.RenderRemainingPlanTooltip()` — new public entry point returning `LocString` with UILinks (parallel to existing TMP string path)
+- `ResolveFoodLink()` / `ResolveSourceLink()` — UILink resolution helpers with graceful fallback to styled text
+
+### Changed
+
+- `StomachSnapshot.FoodItemToCandidate()` — passes `foodItem.GetType()` as `FoodType`
+- `StorageDiscovery` / `ShopDiscovery` — pass `WorldObject` reference through to `SourceInfo`
+- `EcoDietTooltipLibrary` — calls `RenderRemainingPlanTooltip()` (LocString) instead of `RenderRemainingPlan()` (string), passes content directly to `TooltipSection` without `Localizer.DoStr()` wrapping
+
+### Build
+
+- `dotnet build` clean with 0 errors (1 pre-existing CS0067 warning)
+- 165 Python tests still pass
+
+### Verification (in-game)
+
+1. Hover stomach tooltip — food names show as interactive UILinks (icon + clickable name)
+2. Hover stomach tooltip (multi-source) — store/container names show as UILinks, "backpack" as plain text
+3. Click a food UILink — opens food item tooltip
+4. Click a store UILink — opens store/world object tooltip
+5. Edge cases (no food, full, complete) — styled status messages, no crashes
+6. Fallback: foods/sources without Eco object references render as styled plain text
+
+## Previous Changes (2026-03-01) — Fix Boolean ViewEditor Persistence
 
 ### Fixed
 
@@ -505,6 +535,7 @@ Config structure:
 
 ## Session Log
 
+- 2026-03-04: Rich tooltip links — food and source names are native UILinks (hover/click), FoodType on FoodCandidate, WorldObj on SourceInfo, new LocString tooltip render path. Released v0.7.0
 - 2026-03-01: Fix boolean ViewEditor persistence — [Autogen] bool checkbox never fires RPCs; workaround: expose as int (0/1) for text-input widget. 7 approaches tested, 1 worked. Released v0.6.0
 - 2026-02-27: Config booleans cleanup — Tags default false, removed AutoPlan dead stub, meaningful compact mode (strips SP/tags from all render paths)
 - 2026-02-27: Fix tooltip freeze after config save — added ClearPlan (removes cached plan), removed onClose/saved flag, added save confirmation message

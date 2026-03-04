@@ -4,6 +4,22 @@ All notable changes to EcoDietMaker are documented here.
 
 Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.7.0] - 2026-03-04
+
+### Added
+
+- Native UILinks in stomach tooltip — food names and source (store/container) names are now interactive inline links with hover tooltips and click-to-navigate
+- `FoodCandidate.FoodType` (`Type?`) — stores the food's runtime type for UILink resolution at render time via `Item.Get(type).UILink()`
+- `SourceInfo.WorldObj` (`WorldObject?`) — stores the world object reference for source UILink resolution via `worldObject.UILink()`
+- `PlanRenderer.RenderRemainingPlanTooltip()` — new LocString-based tooltip render path using `LocStringBuilder` and Eco's UILink system
+- `ResolveFoodLink()` / `ResolveSourceLink()` — graceful fallback to styled text when Eco object references are unavailable or destroyed
+
+### Changed
+
+- `EcoDietTooltipLibrary` — uses `RenderRemainingPlanTooltip()` (returns `LocString`) instead of `RenderRemainingPlan()` (returned `string` wrapped in `Localizer.DoStr()`)
+- `StomachSnapshot.FoodItemToCandidate()` — passes `foodItem.GetType()` through to `FoodCandidate`
+- `StorageDiscovery` / `ShopDiscovery` — pass `WorldObject` reference through to `SourceInfo`
+
 ## [0.6.0] - 2026-03-01
 
 ### Fixed

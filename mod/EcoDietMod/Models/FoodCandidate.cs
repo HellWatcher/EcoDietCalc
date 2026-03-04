@@ -2,6 +2,9 @@ using System;
 
 namespace EcoDietMod.Models;
 
+// System.Type stored for food UILink resolution at render time.
+// Resolved via Item.Get(FoodType) → FoodItem → .UILink().
+
 /// <summary>
 /// Immutable food record used by the planner. Equality is by name (case-insensitive).
 /// Stomach/available counts are kept in separate dictionaries, not on this object.
@@ -16,10 +19,11 @@ public sealed class FoodCandidate : IEquatable<FoodCandidate>
     public float Fat { get; }
     public float Vitamins { get; }
     public int Tastiness { get; }
+    public Type? FoodType { get; }
 
     public FoodCandidate(
         string name, float calories, float carbs, float protein,
-        float fat, float vitamins, int tastiness)
+        float fat, float vitamins, int tastiness, Type? foodType = null)
     {
         Name = name;
         Calories = calories;
@@ -28,6 +32,7 @@ public sealed class FoodCandidate : IEquatable<FoodCandidate>
         Fat = fat;
         Vitamins = vitamins;
         Tastiness = tastiness;
+        FoodType = foodType;
     }
 
     public float NutrientSum => Carbs + Protein + Fat + Vitamins;

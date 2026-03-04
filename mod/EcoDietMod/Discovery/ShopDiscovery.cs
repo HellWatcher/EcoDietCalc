@@ -55,7 +55,7 @@ public static class ShopDiscovery
                 var currencyName = store.CurrencyName;
 
                 ProcessStoreOffers(
-                    store, ownerName, currencyName, distance, tasteBuds, filter,
+                    store, worldObject, ownerName, currencyName, distance, tasteBuds, filter,
                     available, sources);
             });
         }
@@ -69,6 +69,7 @@ public static class ShopDiscovery
 
     private static void ProcessStoreOffers(
         StoreComponent store,
+        WorldObject worldObject,
         string ownerName,
         string currencyName,
         float distance,
@@ -116,7 +117,8 @@ public static class ShopDiscovery
                 var sourceInfo = new SourceInfo(SourceKind.Shop, ownerName, distance)
                 {
                     PricePerUnit = pricePerUnit,
-                    Currency = currencyName
+                    Currency = currencyName,
+                    WorldObj = worldObject
                 };
 
                 // Sum availability

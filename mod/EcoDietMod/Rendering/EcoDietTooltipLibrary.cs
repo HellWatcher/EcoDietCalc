@@ -33,7 +33,7 @@ public static class EcoDietTooltipLibrary
             var displayConfig = DisplayConfig.Load(user.Name);
             var remaining = PlanTracker.GetRemainingPlanContext(
                 user, out var status, out var finalSp, out var discovery);
-            var text = PlanRenderer.RenderRemainingPlan(
+            var content = PlanRenderer.RenderRemainingPlanTooltip(
                 remaining, status, finalSp, discovery,
                 showSources: displayConfig.Sources,
                 showTags: displayConfig.Tags,
@@ -41,7 +41,7 @@ public static class EcoDietTooltipLibrary
 
             return new TooltipSection(
                 Localizer.DoStr("EcoDiet"),
-                Localizer.DoStr(text),
+                content,
                 allowLineWrapping: true,
                 isFoldable: true);
         }

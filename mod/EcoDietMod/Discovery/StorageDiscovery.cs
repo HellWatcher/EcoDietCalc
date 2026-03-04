@@ -44,7 +44,8 @@ public static class StorageDiscovery
                 var sourceInfo = new SourceInfo(
                     SourceKind.Storage,
                     string.IsNullOrEmpty(displayName) ? worldObject.GetType().Name : displayName,
-                    distance);
+                    distance)
+                { WorldObj = worldObject };
 
                 foreach (var stack in storageComponent.Inventory.Stacks)
                 {

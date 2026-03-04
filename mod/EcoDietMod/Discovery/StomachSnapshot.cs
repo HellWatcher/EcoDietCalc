@@ -117,6 +117,7 @@ public static class StomachSnapshot
             }
         }
 
-        return new FoodCandidate(name, calories, carbs, protein, fat, vitamins, tastiness);
+        return new FoodCandidate(name, calories, carbs, protein, fat, vitamins, tastiness,
+            foodItem.GetType());
     }
 }

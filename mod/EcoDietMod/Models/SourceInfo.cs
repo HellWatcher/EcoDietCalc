@@ -1,4 +1,5 @@
 using System;
+using Eco.Gameplay.Objects;
 using EcoDietMod.Rendering;
 
 namespace EcoDietMod.Models;
@@ -24,6 +25,7 @@ public sealed class SourceInfo : IComparable<SourceInfo>
     public float DistanceMeters { get; }
     public float? PricePerUnit { get; init; }
     public string? Currency { get; init; }
+    public WorldObject? WorldObj { get; init; }
 
     public SourceInfo(SourceKind kind, string label, float distanceMeters)
     {
