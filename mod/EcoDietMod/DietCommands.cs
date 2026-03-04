@@ -20,7 +20,7 @@ public static class DietCommands
             "EcoDiet commands: /ediet config [key value]");
     }
 
-    [ChatSubCommand("EcoDiet", "Show or change display settings", "config")]
+    [ChatSubCommand("EcoDiet", "Show or change display settings")]
     public static void Config(User user, string args = "")
     {
         try
