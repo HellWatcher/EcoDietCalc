@@ -28,7 +28,6 @@ public static class ConfigEditor
             user,
             viewModel,
             onSubmit: _ => ApplyAndSave(viewModel, config, user),
-            onBack: _ => user.MsgLocStr("Settings not saved."),
             buttonText: Localizer.DoStr("Save"),
             overrideTitle: Localizer.DoStr("EcoDiet Settings"),
             windowType: ViewEditor.WindowType.Small);
