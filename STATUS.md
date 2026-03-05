@@ -26,7 +26,23 @@ Multi-source discovery: backpack + authorized storage containers + nearby shops 
 | `main.py (cmd_predict)`    | Good     | 5 tests for predict subcommand           |
 | `food_state_manager.py`    | Good     | 26 direct unit tests                     |
 
-## Recent Changes (2026-03-05) — Fix First-Item UILink & Source Tracking
+## Recent Changes (2026-03-05) — Prebuilt DLL in GitHub Releases
+
+### Added
+
+- **GitHub Actions release workflow** — builds `EcoDietMod.dll` in Release config and uploads it as a release asset on `release` publish events
+- **Un-gitignored `Eco.ModKit.dll`** (36KB) — allows CI to build without the full 14MB ModKit directory
+- **`scripts/release-upload.sh`** — local fallback script for manual DLL build + upload
+- **README install option** — "Download prebuilt DLL" added as recommended installation method
+
+### Files
+
+- `.github/workflows/release.yml` — new CI workflow
+- `scripts/release-upload.sh` — new local script
+- `mod/.gitignore` — negation pattern for `Eco.ModKit.dll`
+- `README.md` — added prebuilt DLL install instructions
+
+## Previous Changes (2026-03-05) — Fix First-Item UILink & Source Tracking
 
 ### Fixed
 
@@ -612,6 +628,7 @@ Config structure:
 
 ## Session Log
 
+- 2026-03-05: Prebuilt DLL releases — GitHub Actions workflow builds and uploads EcoDietMod.dll on release; un-gitignored Eco.ModKit.dll for CI; local release-upload.sh script; README install instructions
 - 2026-03-05: Fix first-item UILink/source tracking — copy Available dict before planner mutation preserves discovery data for rendering
 - 2026-03-05: C# mod code rework — dead code removal, PlanRenderer→TooltipRenderer split, PlanTracker split, model modernization (records), thread safety, error handling logging
 - 2026-03-04: Rich tooltip links — food and source names are native UILinks (hover/click), FoodType on FoodCandidate, WorldObj on SourceInfo, new LocString tooltip render path. Released v0.7.0

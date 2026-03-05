@@ -2,4 +2,8 @@ bin/
 obj/
 
 # EcoModKit reference assemblies (large binaries, download separately)
-EcoDietMod/EcoModKit_v0.12.0.6-beta/
+EcoDietMod/EcoModKit_v0.12.0.6-beta/*
+!EcoDietMod/EcoModKit_v0.12.0.6-beta/ReferenceAssemblies/
+EcoDietMod/EcoModKit_v0.12.0.6-beta/ReferenceAssemblies/*
+# Keep Eco.ModKit.dll tracked (36KB) so CI can build without the full ModKit
+!EcoDietMod/EcoModKit_v0.12.0.6-beta/ReferenceAssemblies/Eco.ModKit.dll

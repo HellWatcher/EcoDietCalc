@@ -4,6 +4,14 @@ All notable changes to EcoDietMaker are documented here.
 
 Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.7.2] - 2026-03-05
+
+### Added
+
+- Prebuilt `EcoDietMod.dll` attached to GitHub releases — download and drop into `Mods/` folder, no build step needed
+- GitHub Actions workflow to build and upload the DLL automatically on each release
+- Local `scripts/release-upload.sh` for manual DLL uploads
+
 ## [0.7.1] - 2026-03-05
 
 ### Fixed

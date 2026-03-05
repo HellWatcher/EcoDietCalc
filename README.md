@@ -175,6 +175,16 @@ Output: `bin\Release\net8.0\EcoDietMod.dll`
 
 ### Installing the Mod
 
+#### Option A: Download prebuilt DLL (recommended)
+
+1. Go to the [latest release](https://github.com/HellWatcher/EcoDietCalc/releases/latest)
+2. Download `EcoDietMod.dll`
+3. Drop it into your Eco server's `Mods/` folder
+4. Restart the server
+5. Verify by running `/ed plan` in chat
+
+#### Option B: Build from source
+
 1. Build the mod (see above)
 2. Copy `EcoDietMod.dll` to your Eco server's `Mods/` folder
 3. Restart the server
