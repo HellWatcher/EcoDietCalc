@@ -77,17 +77,6 @@ If a craving is satisfiable within the calorie budget, it takes priority over th
 
 ---
 
-## Out of Scope (V1)
-
-| Feature                     | Reason                            |
-| --------------------------- | --------------------------------- |
-| Recipe crafting suggestions | Focus on eating optimization only |
-| Multi-day planning          | Single meal/day scope for v1      |
-| Multiplayer plan sharing    | Solo optimization first           |
-| Food price/economy factors  | Complexity; defer to v2           |
-
----
-
 ## Technical Design
 
 ### C# Mod Architecture
