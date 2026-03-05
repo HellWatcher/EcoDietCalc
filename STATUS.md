@@ -26,7 +26,27 @@ Multi-source discovery: backpack + authorized storage containers + nearby shops 
 | `main.py (cmd_predict)`    | Good     | 5 tests for predict subcommand           |
 | `food_state_manager.py`    | Good     | 26 direct unit tests                     |
 
-## Recent Changes (2026-03-05) — C# Mod Code Rework
+## Recent Changes (2026-03-05) — Fix First-Item UILink & Source Tracking
+
+### Fixed
+
+- **First backpack item loses UILink and source tracking** — `MealPlanner.PlanMeal()` mutated `discovery.Available` directly (decrementing counts, removing exhausted foods). Single-quantity foods removed during planning were missing from the dictionary at render time, causing `ResolveFoodLink` and `AssignToSourceGroups` to fail lookups. Fix: copy the `Available` dictionary before passing to the planner, preserving original discovery data for rendering.
+
+### Changed
+
+- `PlanTracker.cs` — `ComputeFreshPlan` now passes `new Dictionary<FoodCandidate, int>(discovery.Available)` instead of `discovery.Available` directly
+
+### Build
+
+- `dotnet build` clean with 0 errors (1 pre-existing CS0067 warning)
+
+### Verification (in-game)
+
+1. Hover stomach tooltip with single-quantity foods — first item shows UILink (icon + clickable name)
+2. Move food from backpack to container → replan → source updates correctly
+3. All items show correct source groups (not stuck under backpack)
+
+## Previous Changes (2026-03-05) — C# Mod Code Rework
 
 ### Phase 1: Dead Code Removal (~400 lines deleted)
 
@@ -592,6 +612,8 @@ Config structure:
 
 ## Session Log
 
+- 2026-03-05: Fix first-item UILink/source tracking — copy Available dict before planner mutation preserves discovery data for rendering
+- 2026-03-05: C# mod code rework — dead code removal, PlanRenderer→TooltipRenderer split, PlanTracker split, model modernization (records), thread safety, error handling logging
 - 2026-03-04: Rich tooltip links — food and source names are native UILinks (hover/click), FoodType on FoodCandidate, WorldObj on SourceInfo, new LocString tooltip render path. Released v0.7.0
 - 2026-03-01: Fix boolean ViewEditor persistence — [Autogen] bool checkbox never fires RPCs; workaround: expose as int (0/1) for text-input widget. 7 approaches tested, 1 worked. Released v0.6.0
 - 2026-02-27: Config booleans cleanup — Tags default false, removed AutoPlan dead stub, meaningful compact mode (strips SP/tags from all render paths)

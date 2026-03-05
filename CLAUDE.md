@@ -51,47 +51,48 @@ tests/                   — pytest suite mirroring source structure
 
 ### C# Mod (in-game integration)
 
-```
-mod/EcoDietMod/
-├── DietCommands.cs              — /ed config, /ed export chat commands
-├── GameStateExporter.cs         — JSON export for Python planner
-├── Algorithm/                   — SP math + bite selection (ported from Python)
-│   ├── SpCalculator.cs          — SP formulas, variety, tastiness, bonuses
-│   ├── BiteSelector.cs          — ranking pipeline (biases, penalties)
-│   └── MealPlanner.cs           — plan loop with craving-first strategy
-├── Config/
-│   ├── PlannerConfig.cs         — algorithm constants + Default instance
-│   ├── DisplayConfig.cs         — per-player display prefs (ConcurrentDictionary cache)
-│   ├── DisplayConfigViewModel.cs — ViewEditor ViewModel
-│   └── ConfigEditor.cs          — config UI wiring
-├── Discovery/
-│   ├── StomachSnapshot.cs       — read User.Stomach into planner dicts
-│   ├── FoodDiscovery.cs         — orchestrate backpack + storage + shop discovery
-│   ├── StorageDiscovery.cs      — authorized storage containers
-│   ├── ShopDiscovery.cs         — nearby shops with currency/cost filtering
-│   ├── ShopFilter.cs            — shop filter criteria (record)
-│   └── DiscoveryMerger.cs       — merge multi-source results
-├── Models/
-│   ├── FoodCandidate.cs         — immutable food record (equality by name)
-│   ├── MealPlanItem.cs          — single planned bite (record)
-│   ├── MealPlanResult.cs        — full plan + summary stats (record)
-│   ├── SourceInfo.cs            — source metadata (kind, label, distance)
-│   ├── SourceEntry.cs           — source + quantity pair (record)
-│   ├── DiscoveryResult.cs       — combined discovery with cached HasMultipleSources
-│   ├── ItemGroup.cs             — grouped items for rendering
-│   └── PlanStatus.cs            — plan status enum
-├── Rendering/
-│   ├── EcoDietTooltipLibrary.cs — stomach tooltip registration
-│   ├── TooltipRenderer.cs       — UILink tooltip rendering
-│   ├── ItemGrouping.cs          — shared grouping/formatting utilities
-│   └── RichText.cs              — TMP color/style constants
-└── Tracking/
-    ├── PlanTracker.cs           — in-memory plan cache, fresh plan computation
-    ├── ReplanDetector.cs        — stomach diff + replan reason detection
-    └── EcoDietEventHandler.cs   — GlobalFoodEatenEvent → plan invalidation
-```
+See SPEC.md for full architecture tree. Build: `dotnet build mod/EcoDietMod/EcoDietMod.csproj`
 
-Build: `dotnet build mod/EcoDietMod/EcoDietMod.csproj`
+## Eco API Reference
+
+Decompiled source at `mod/eco-api-decompiled/` (gitignored) for API exploration.
+
+### Key Namespaces
+
+- **Gameplay**: `Eco.Gameplay.Players`, `.Items`, `.Objects`, `.Components.Storage`, `.Components.Store`, `.Economy`, `.Systems.NewTooltip`, `.Systems.TextLinks`, `.Civics.GameValues`
+- **Core**: `Eco.Core.Controller`, `.Systems`
+- **Shared**: `Eco.Shared.Localization`, `.Logging`, `.Networking`, `.Serialization`, `.View`, `.Utils`
+
+### Integration Patterns
+
+- `[ChatCommandHandler]` + `[ChatCommand]`/`[ChatSubCommand]` — chat commands
+- `[TooltipLibrary]` + `[NewTooltip]` extension methods + `CacheAs.Disabled` — stomach tooltip sections
+- `IModInit` — register event handlers at server startup
+- `Stomach.GlobalFoodEatenEvent` — fired when any player eats
+- `User.MsgLocStr()` — send localized chat messages
+- `ViewEditor.Edit(user, controller, onSubmit, ...)` — single-window property editor
+- `Item.Get(type).UILink()` / `worldObject.UILink()` — interactive inline links in LocStrings
+
+### Known Gotchas
+
+- **Logging**: `Eco.Shared.Logging.Log.WriteWarningLineLocStr()` — NOT `Eco.Shared.Utils.Log`
+- **Bool ViewEditor**: `[Autogen]` bool checkbox never fires `[AutoRPC]` RPCs — use `int` (0/1) with text-input widget as workaround
+- **World object iteration**: No `WorldObjectManager.GetWorldObjectsWithComponent<T>()` — use `WorldObjectManager.ForEach()` + `GetComponent<T>()`
+- **Shop currency**: Per-store via `StoreComponent.CurrencyName` — no `TradeOffer.Currency`
+- **Auth check**: `worldObject.Auth?.IsAuthorizedConsumerAccess(user.Player)` — no static `AuthManager`
+- **WorldObject.DisplayName**: Returns `LocString` not `string` — add `.ToString()` when needed
+
+## Tooltip Pipeline
+
+`EcoDietTooltipLibrary` → `PlanTracker` → `TooltipRenderer.RenderRemainingPlanTooltip()`
+
+1. `EcoDietTooltipLibrary` registers with `CacheAs.Disabled` — recalculates on every hover
+2. `PlanTracker` caches active plan per player, detects state changes:
+   - **On-plan**: player eats next planned food → filters eaten items
+   - **Off-plan**: player eats unplanned food → full replan
+   - **Calorie drain**: calories burned → replans with updated budget
+3. `EcoDietEventHandler` subscribes to `GlobalFoodEatenEvent` via `IModInit` to mark plans stale
+4. `TooltipRenderer` renders remaining items as `LocString` with UILinks and edge states (no food, stomach full, plan complete)
 
 ## Key Docs
 

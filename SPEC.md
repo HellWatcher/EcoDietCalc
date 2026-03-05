@@ -15,14 +15,16 @@ EcoDietMaker is an SP (Skill Point) optimization tool for the video game **Eco**
    - Hyperparameter tuning (variety bias, calorie penalties, etc.)
    - In-game validation before porting
 
-2. **C# Eco Mod (In Progress)** - Final deliverable
+2. **C# Eco Mod** - Final deliverable
    - Uses `Eco.ReferenceAssemblies` NuGet package (v0.12.0.6-beta, net8.0+)
    - Chat commands for reading stomach, nutrients, cravings, taste, SP multipliers
    - In-game meal planner — full algorithm port with live game state integration
-   - Food discovery from player backpack (storage + shops planned)
-   - Future: per-player config, auto-suggest on eat, tooltip/notification UI
+   - Multi-source food discovery (backpack, authorized storage containers, nearby shops)
+   - Live stomach tooltip with interactive UILinks and auto-replan
+   - Per-player config via single-window ViewEditor (compact, sources, tags, radius, currencies)
+   - JSON export for Python prototype consumption
 
-The Python codebase serves as the canonical algorithm reference. The C# mod implements the full planning algorithm with live game state, using food from the player's backpack.
+The Python codebase serves as the canonical algorithm reference. The C# mod implements the full planning algorithm with live game state, discovering food from the player's backpack, authorized storage containers, and nearby shops.
 
 ---
 
@@ -60,92 +62,75 @@ If a craving is satisfiable within the calorie budget, it takes priority over th
 
 ---
 
-## V1 Features (In Scope)
+## Remaining Work
 
-### Python Prototype
+### Python
 
-- [x] CLI interface with `plan`, `rate-unknowns`, `reset` subcommands
-- [x] Food state persistence (JSON)
-- [x] Interactive constraint collection (cravings, satisfied count, remaining calories)
-- [x] Meal plan generation with per-bite breakdown
-- [x] Tastiness rating system (-3 to +3 scale)
-- [x] Hyperparameter tuning infrastructure (`tune/`, `tuner_best.json`)
-- [ ] Algorithm validation against in-game SP (blocked: needs testing)
-- [ ] Comprehensive test suite for edge cases
-- [ ] Documentation of formulas with citations
+- [x] Algorithm validation against in-game SP (blocked: needs testing)
+- [ ] Documentation of formulas with game citations
 
-### C# Mod (In Progress)
+### C# Mod
 
-- [x] Read player stomach contents, nutrients, cravings, taste preferences, SP multipliers
-- [x] Generate optimized meal plan for remaining daily calories
-- [x] Chat command `/ed plan` with full/custom calorie budget
-- [x] Stomach tooltip with live plan countdown (auto-replans on eat/calorie drain)
-- [ ] Display SP breakdown (variety %, tastiness %, craving status)
-- [ ] In-game UI panel (minimal, non-intrusive)
-- [ ] Auto-update food database from game's internal data
+- [x] Display SP breakdown (variety %, tastiness %, craving status)
+- [x] In-game UI panel (minimal, non-intrusive)
+- [ ] Community release (workshop page, feedback loop)
 
 ---
 
 ## Out of Scope (V1)
 
-| Feature                     | Reason                                                                       |
-| --------------------------- | ---------------------------------------------------------------------------- |
-| Recipe crafting suggestions | Focus on eating optimization only                                            |
-| Multi-day planning          | Single meal/day scope for v1                                                 |
-| Multiplayer plan sharing    | Solo optimization first                                                      |
-| Food price/economy factors  | Complexity; defer to v2                                                      |
-| "Next bite" real-time mode  | ✅ Partially implemented — tooltip shows remaining plan, auto-replans on eat |
+| Feature                     | Reason                            |
+| --------------------------- | --------------------------------- |
+| Recipe crafting suggestions | Focus on eating optimization only |
+| Multi-day planning          | Single meal/day scope for v1      |
+| Multiplayer plan sharing    | Solo optimization first           |
+| Food price/economy factors  | Complexity; defer to v2           |
 
 ---
 
 ## Technical Design
 
-### Python Codebase
-
-```
-EcoDietMaker/
-├── main.py              # CLI entry point
-├── planner.py           # Bite selection algorithm
-├── calculations.py      # SP formulas and bonuses
-├── constants.py         # Tuned hyperparameters
-├── food_state_manager.py # State container
-├── interface/           # CLI, persistence, rendering
-├── models/              # Food, MealPlanItem dataclasses
-├── tune/                # Hyperparameter optimization
-└── tests/               # pytest suite
-```
-
-**Key dependencies:**
-
-- Python 3.13+
-- No external ML libraries (pure algorithmic)
-
 ### C# Mod Architecture
 
 ```
 mod/EcoDietMod/
-├── EcoDietMod.csproj         # net8.0, Eco.ReferenceAssemblies NuGet
-├── DietCommands.cs           # Chat commands (inspection + planning)
-├── GameStateExporter.cs      # JSON export for Python planner
-├── Models/
-│   ├── FoodCandidate.cs      # Immutable food record, equality by name
-│   ├── MealPlanItem.cs       # Single planned bite with scoring
-│   └── MealPlanResult.cs     # Full plan + summary stats
-├── Config/
-│   └── PlannerConfig.cs      # Algorithm constants (defaults from config.default.yml)
+├── EcoDietMod.csproj              # net8.0, Eco.ReferenceAssemblies NuGet
+├── DietCommands.cs                # Chat commands (/ed plan, /ed config, /ed export)
+├── GameStateExporter.cs           # JSON export for Python planner
 ├── Algorithm/
-│   ├── SpCalculator.cs       # SP formulas (ported from calculations.py)
-│   ├── BiteSelector.cs       # Ranking pipeline (ported from planner.py)
-│   └── MealPlanner.cs        # Plan loop (ported from planner.py)
+│   ├── SpCalculator.cs            # SP formulas (ported from calculations.py)
+│   ├── BiteSelector.cs            # Ranking pipeline (ported from planner.py)
+│   └── MealPlanner.cs             # Plan loop with craving-first strategy
+├── Config/
+│   ├── PlannerConfig.cs           # Algorithm constants + Default static instance
+│   ├── DisplayConfig.cs           # Per-player display prefs (ConcurrentDictionary cache)
+│   ├── DisplayConfigViewModel.cs  # ViewEditor ViewModel ([SyncToView] properties)
+│   └── ConfigEditor.cs            # Config UI wiring (ViewEditor.Edit)
 ├── Discovery/
-│   ├── StomachSnapshot.cs    # Read User.Stomach into planner dicts
-│   └── FoodDiscovery.cs      # Enumerate food from backpack (storage/shops planned)
+│   ├── StomachSnapshot.cs         # Read User.Stomach into planner dicts
+│   ├── FoodDiscovery.cs           # Orchestrate backpack + storage + shop discovery
+│   ├── StorageDiscovery.cs        # Authorized storage containers within range
+│   ├── ShopDiscovery.cs           # Nearby shops with currency/cost filtering
+│   ├── ShopFilter.cs              # Shop filter criteria (record)
+│   └── DiscoveryMerger.cs         # Merge multi-source DiscoveryResults
+├── Models/
+│   ├── FoodCandidate.cs           # Immutable food record (equality by name)
+│   ├── MealPlanItem.cs            # Single planned bite (sealed record)
+│   ├── MealPlanResult.cs          # Full plan + summary stats (sealed record)
+│   ├── SourceInfo.cs              # Source metadata (kind, label, distance, WorldObj)
+│   ├── SourceEntry.cs             # Source + quantity pair (sealed record)
+│   ├── DiscoveryResult.cs         # Combined discovery with cached HasMultipleSources
+│   ├── ItemGroup.cs               # Grouped items for rendering
+│   └── PlanStatus.cs              # Plan status enum
 ├── Rendering/
-│   ├── EcoDietTooltipLibrary.cs  # Stomach tooltip extension (live plan readout)
-│   └── PlanRenderer.cs       # Format plan for chat + tooltip output
+│   ├── EcoDietTooltipLibrary.cs   # Stomach tooltip registration
+│   ├── TooltipRenderer.cs         # UILink tooltip rendering (LocStringBuilder)
+│   ├── ItemGrouping.cs            # Shared grouping/formatting utilities
+│   └── RichText.cs                # TMP color/style constants
 └── Tracking/
-    ├── PlanTracker.cs         # In-memory plan cache with progress detection
-    └── EcoDietEventHandler.cs # GlobalFoodEatenEvent subscription
+    ├── PlanTracker.cs             # In-memory plan cache, fresh plan computation
+    ├── ReplanDetector.cs          # Stomach diff + replan reason detection
+    └── EcoDietEventHandler.cs     # GlobalFoodEatenEvent → plan invalidation
 ```
 
 **Integration points:**
@@ -159,12 +144,14 @@ mod/EcoDietMod/
 
 ### Tooltip System
 
-The mod adds a foldable "EcoDiet" section to the Stomach tooltip showing remaining planned bites:
+The mod adds a foldable "EcoDiet" section to the Stomach tooltip showing remaining planned bites with interactive UILinks (food names are clickable with hover tooltips, source names link to stores/containers):
 
 ```
 --- EcoDiet: 4 bites → +5.63 SP ---
+--- From [backpack] ---
   → Huckleberry Extract x2 (+2.88 SP)
   · Beet (+1.12 SP)
+--- From [Refrigerator @ 15m] ---
   · Corn (+0.75 SP)
 ```
 
@@ -176,164 +163,10 @@ The mod adds a foldable "EcoDiet" section to the Stomach tooltip showing remaini
    - **Off-plan eating**: Player eats food not in the plan → triggers full replan from current state
    - **Calorie drain**: Player burns calories (crafting, activity) → replans with updated budget
 3. `EcoDietEventHandler` subscribes to `Stomach.GlobalFoodEatenEvent` via `IModInit` to mark plans as stale when food is eaten
-4. `PlanRenderer.RenderRemainingPlan()` formats the countdown with edge states:
+4. `TooltipRenderer.RenderRemainingPlanTooltip()` formats the countdown as a `LocString` with UILinks and edge states:
    - No food in inventory → `"EcoDiet: No food available"`
    - Stomach full → `"EcoDiet: Stomach full"`
    - All items eaten → `"EcoDiet: Plan complete — 28.4 SP"`
-
----
-
-## Data Model
-
-### Food
-
-```python
-@dataclass
-class Food:
-    name: str
-    calories: int
-    carbs: float      # 0-1 nutrient density
-    protein: float
-    fat: float
-    vitamins: float
-    tastiness: int    # -3 to +3, 99 = unknown
-```
-
-### Stomach State
-
-```python
-stomach: dict[Food, int]  # Food -> bite count (today)
-```
-
-### Meal Plan Output
-
-```python
-@dataclass
-class MealPlanItem:
-    name: str
-    calories: int
-    sp_gain: float
-    new_sp: float
-    craving: bool
-    variety_delta_pp: float
-    taste_delta_pp: float
-```
-
----
-
-## Verification Strategy
-
-### SP Formula
-
-```
-total_sp = ((nutrient_avg × (1 + balance% + variety% + tastiness% + craving%)) + 12) × server_mult
-
-Where:
-- nutrient_avg = avg(carbs) + avg(protein) + avg(fat) + avg(vitamins)
-- balance% = (min/max nutrient ratio × 100 - 50) / 100  (range: -50% to +50%)
-- variety% = 55% × (1 - 0.5^(qualifying_foods / 20)), capped at 55%
-- tastiness% = tastiness × 10%  (range: -30% to +30%)
-- craving% = satisfied_cravings × 10%  (max 3 = 30%)
-```
-
-### Phase 1: Manual In-Game Testing
-
-**Environment:** Fresh singleplayer world, default settings (1x SP multiplier)
-
-#### Test Case 1: Base + Nutrients
-
-**Goal:** Verify base constant (12) and nutrient averaging
-
-- Fresh stomach, 0 satisfied cravings, no variety
-- Eat 1 bite of known food (e.g., Charred Fish: P:12, F:8, T:+1)
-- Expected: `(12 + 20) × 1.10 = 35.2 SP`
-- **Pass if:** Actual delta within ±5%
-
-#### Test Case 2: Tastiness Modifier
-
-**Goal:** Verify tastiness% = tastiness × 10%
-
-- Fresh stomach, 0 cravings, no variety
-- Test with one positive and one negative tastiness food
-- Calculate expected using: `(12 + nutrients) × (1 + T×10%)`
-- **Pass if:** Both directions match (±5%)
-- **Note:** Tastiness is randomized per save — check in-game first
-
-#### Test Case 3: Craving Bonus
-
-**Goal:** Verify craving% = satisfied_cravings × 10%, max 30%
-
-- Wait for craving to appear
-- Note satisfied count before eating
-- Eat 1 bite of craved food
-- Expected: `(12 + nutrients) × (1 + tastiness% + satisfied×10%)`
-- **Pass if:** SP matches at 0, 1, 2, 3 satisfaction levels (±5%)
-
-#### Test Case 4: Variety Bonus
-
-**Goal:** Verify variety% = 55% × (1 - 0.5^(food_count/20))
-
-- Eat ≥2000 cal of one food type (e.g., 4× Charred Fish)
-- That food now counts toward variety
-- Eat 1 bite of different food, measure SP
-- At 1 qualifying food: variety% ≈ 1.9%
-- At 20 qualifying foods: variety% ≈ 27.5%
-- **Open question:** Continuous or discrete at 20-food intervals?
-
-### Phase 2: Automated Regression
-
-Once formulas are validated:
-
-- Encode test cases as `pytest` fixtures
-- Run on every commit to prevent regressions
-- Add edge cases as discovered
-
-### Phase 3: Community Validation (Post-Release)
-
-- Share mod with Eco community
-- Collect feedback on accuracy
-- Iterate based on edge case reports
-
----
-
-## Phased Roadmap
-
-### Phase 1: Algorithm Validation (Current Priority)
-
-- [x] Document current formula assumptions
-- [x] Create in-game test protocol
-- [ ] Run validation tests, record results
-- [ ] Adjust constants/formulas as needed
-- [ ] Achieve <5% SP prediction error
-
-### Phase 2: Python Polish
-
-- [ ] Add missing unit tests
-- [ ] Improve error handling and edge cases
-- [ ] Clean up code for porting readability
-- [ ] Document all formulas with game citations
-
-### Phase 3: C# Mod Prototype (In Progress)
-
-- [x] Learn Eco modding basics (API surface exploration via decompilation)
-- [x] Create mod scaffold with NuGet reference assemblies
-- [x] Implement food/stomach/nutrient/craving/taste data reading via chat commands
-- [ ] Validate data accuracy against in-game values
-- [ ] Port core SP calculation
-- [ ] Basic console output of meal plan
-
-### Phase 4: C# Mod UI
-
-- [ ] Design in-game panel mockup
-- [ ] Implement UI rendering
-- [ ] Add interactivity (craving input, plan generation)
-- [ ] Polish and test
-
-### Phase 5: Community Release
-
-- [ ] Write installation instructions
-- [ ] Create mod workshop page
-- [ ] Gather feedback and iterate
 
 ---
 

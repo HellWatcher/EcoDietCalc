@@ -172,8 +172,9 @@ public static class PlanTracker
         var cravings = BuildCravingsList(user);
         var dinnerPartyMult = StomachSnapshot.GetDinnerPartyMult(user);
 
+        var availableCopy = new Dictionary<FoodCandidate, int>(discovery.Available);
         var result = MealPlanner.PlanMeal(
-            stomachState, discovery.Available, cravings, cravingsSatisfied,
+            stomachState, availableCopy, cravings, cravingsSatisfied,
             calorieBudget, PlannerConfig.Default, dinnerPartyMult: dinnerPartyMult);
 
         finalSp = result.FinalSp;

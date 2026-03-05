@@ -4,6 +4,12 @@ All notable changes to EcoDietMaker are documented here.
 
 Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.7.1] - 2026-03-05
+
+### Fixed
+
+- First planned item (and any single-quantity food) lost its UILink and source tracking — planner mutated the shared `discovery.Available` dictionary, removing consumed foods before the renderer could look them up. Fixed by copying the dictionary before passing to the planner.
+
 ## [0.7.0] - 2026-03-04
 
 ### Added
