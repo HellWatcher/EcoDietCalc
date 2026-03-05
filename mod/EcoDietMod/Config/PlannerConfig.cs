@@ -8,6 +8,9 @@ namespace EcoDietMod.Config;
 /// </summary>
 public sealed class PlannerConfig
 {
+    /// <summary>Shared default instance to avoid repeated allocations.</summary>
+    public static PlannerConfig Default { get; } = new();
+
     // --- Algorithm parameters ---
 
     /// <summary>Strength of the soft-variety ranking bias.</summary>

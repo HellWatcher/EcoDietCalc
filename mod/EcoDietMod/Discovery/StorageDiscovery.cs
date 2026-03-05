@@ -5,6 +5,7 @@ using Eco.Gameplay.Components.Storage;
 using Eco.Gameplay.Items;
 using Eco.Gameplay.Objects;
 using Eco.Gameplay.Players;
+using Eco.Shared.Logging;
 using EcoDietMod.Models;
 
 namespace EcoDietMod.Discovery;
@@ -68,13 +69,13 @@ public static class StorageDiscovery
                         entries = new List<SourceEntry>();
                         sources[candidate] = entries;
                     }
-                    entries.Add(new SourceEntry { Source = sourceInfo, Quantity = quantity });
+                    entries.Add(new SourceEntry(sourceInfo, quantity));
                 }
             });
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            // Storage discovery is best-effort; don't crash the planner
+            Log.WriteWarningLineLocStr($"[EcoDiet] Storage discovery failed: {ex.Message}");
         }
 
         return new DiscoveryResult { Available = available, Sources = sources };

@@ -45,7 +45,7 @@ public static class FoodDiscovery
                 entries = new List<SourceEntry>();
                 sources[candidate] = entries;
             }
-            entries.Add(new SourceEntry { Source = backpackSource, Quantity = quantity });
+            entries.Add(new SourceEntry(backpackSource, quantity));
         }
 
         return new DiscoveryResult { Available = available, Sources = sources };
@@ -56,7 +56,7 @@ public static class FoodDiscovery
     /// </summary>
     public static DiscoveryResult DiscoverAll(User user, DisplayConfig? displayConfig = null)
     {
-        var config = new PlannerConfig();
+        var config = PlannerConfig.Default;
         var tasteBuds = user.Stomach.TasteBuds;
         var results = new List<DiscoveryResult>();
 
@@ -75,11 +75,9 @@ public static class FoodDiscovery
         // Shop discovery
         if (config.EnableShopDiscovery)
         {
-            var shopFilter = new ShopFilter
-            {
-                CurrencyFilter = displayConfig?.ShopCurrencyFilter ?? new List<string>(),
-                MaxCostPer1000Cal = displayConfig?.MaxCostPer1000Cal ?? 0f
-            };
+            var shopFilter = new ShopFilter(
+                CurrencyFilter: displayConfig?.ShopCurrencyFilter ?? new List<string>(),
+                MaxCostPer1000Cal: displayConfig?.MaxCostPer1000Cal ?? 0f);
             results.Add(ShopDiscovery.Discover(user, radius, tasteBuds, shopFilter));
         }
 

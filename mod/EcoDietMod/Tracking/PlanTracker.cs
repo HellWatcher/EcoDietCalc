@@ -45,56 +45,6 @@ public static class PlanTracker
         }
     }
 
-    private static List<MealPlanItem> GetRemainingItemsInternal(
-        User user, out PlanStatus status, out float finalSp, out DiscoveryResult? discovery)
-    {
-        var userName = user.Name;
-        var currentStomach = CaptureStomachByName(user);
-        var remainingCal = StomachSnapshot.GetRemainingCalories(user);
-
-        if (Plans.TryGetValue(userName, out var active))
-        {
-            // Check if replan is needed
-            var replanReason = DetectReplanReason(active, user, currentStomach, remainingCal);
-
-            if (replanReason == ReplanReason.None)
-            {
-                // No changes — return cached remaining items
-                finalSp = active.Result.FinalSp;
-                discovery = active.Discovery;
-                status = active.Remaining.Count > 0 ? PlanStatus.Active : PlanStatus.Complete;
-                return active.Remaining;
-            }
-
-            if (replanReason == ReplanReason.ProgressDetected)
-            {
-                // Items were eaten that match the plan — filter them out
-                var updated = FilterEatenItems(active, currentStomach);
-                active.StomachSnapshotByName = currentStomach;
-                active.RemainingCaloriesAtPlanTime = remainingCal;
-                active.Remaining = updated;
-                active.IsStale = false;
-                finalSp = active.Result.FinalSp;
-                discovery = active.Discovery;
-
-                if (updated.Count > 0)
-                {
-                    status = PlanStatus.Active;
-                    return updated;
-                }
-
-                // All items eaten — plan complete
-                status = PlanStatus.Complete;
-                return updated;
-            }
-
-            // Off-plan eating, calorie change, or player moved — full replan
-        }
-
-        // Compute fresh plan
-        return ComputeFreshPlan(user, userName, currentStomach, remainingCal, out status, out finalSp, out discovery);
-    }
-
     /// <summary>
     /// Mark a user's plan as stale (called when food is eaten).
     /// The next tooltip render will detect the change and replan if needed.
@@ -119,6 +69,60 @@ public static class PlanTracker
         {
             Plans.Remove(user.Name);
         }
+    }
+
+    private static List<MealPlanItem> GetRemainingItemsInternal(
+        User user, out PlanStatus status, out float finalSp, out DiscoveryResult? discovery)
+    {
+        var userName = user.Name;
+        var currentStomach = CaptureStomachByName(user);
+        var remainingCal = StomachSnapshot.GetRemainingCalories(user);
+
+        if (Plans.TryGetValue(userName, out var active))
+        {
+            var replanReason = ReplanDetector.DetectReplanReason(
+                active.IsStale, active.StomachSnapshotByName, currentStomach,
+                remainingCal, active.RemainingCaloriesAtPlanTime,
+                user.Position, active.PlayerPositionAtPlanTime,
+                active.Remaining);
+
+            if (replanReason == ReplanReason.None)
+            {
+                // No changes — return cached remaining items
+                finalSp = active.Result.FinalSp;
+                discovery = active.Discovery;
+                status = active.Remaining.Count > 0 ? PlanStatus.Active : PlanStatus.Complete;
+                return active.Remaining;
+            }
+
+            if (replanReason == ReplanReason.ProgressDetected)
+            {
+                // Items were eaten that match the plan — filter them out
+                var updated = ReplanDetector.FilterEatenItems(
+                    active.StomachSnapshotByName, currentStomach, active.Remaining);
+                active.StomachSnapshotByName = currentStomach;
+                active.RemainingCaloriesAtPlanTime = remainingCal;
+                active.Remaining = updated;
+                active.IsStale = false;
+                finalSp = active.Result.FinalSp;
+                discovery = active.Discovery;
+
+                if (updated.Count > 0)
+                {
+                    status = PlanStatus.Active;
+                    return updated;
+                }
+
+                // All items eaten — plan complete
+                status = PlanStatus.Complete;
+                return updated;
+            }
+
+            // Off-plan eating, calorie change, or player moved — full replan
+        }
+
+        // Compute fresh plan
+        return ComputeFreshPlan(user, userName, currentStomach, remainingCal, out status, out finalSp, out discovery);
     }
 
     private static List<MealPlanItem> ComputeFreshPlan(
@@ -167,11 +171,10 @@ public static class PlanTracker
 
         var cravings = BuildCravingsList(user);
         var dinnerPartyMult = StomachSnapshot.GetDinnerPartyMult(user);
-        var config = new PlannerConfig();
 
         var result = MealPlanner.PlanMeal(
             stomachState, discovery.Available, cravings, cravingsSatisfied,
-            calorieBudget, config, dinnerPartyMult: dinnerPartyMult);
+            calorieBudget, PlannerConfig.Default, dinnerPartyMult: dinnerPartyMult);
 
         finalSp = result.FinalSp;
 
@@ -199,143 +202,6 @@ public static class PlanTracker
         return activePlan.Remaining;
     }
 
-    private static ReplanReason DetectReplanReason(
-        ActivePlan active,
-        User user,
-        Dictionary<string, int> currentStomach,
-        int currentRemainingCal)
-    {
-        // Explicit invalidation from food eaten event
-        if (active.IsStale)
-        {
-            // Determine if the eaten food was in the plan or off-plan
-            var diff = GetStomachDiff(active.StomachSnapshotByName, currentStomach);
-
-            if (diff.Count == 0)
-            {
-                // Stale flag set but no stomach change yet — wait
-                return ReplanReason.None;
-            }
-
-            // Check if all newly eaten items are in the remaining plan
-            if (AllItemsInPlan(diff, active.Remaining))
-                return ReplanReason.ProgressDetected;
-
-            return ReplanReason.OffPlanEating;
-        }
-
-        // Calorie budget changed (crafting, activity, passive drain)
-        if (Math.Abs(currentRemainingCal - active.RemainingCaloriesAtPlanTime) > 10)
-            return ReplanReason.CalorieDrain;
-
-        // Player moved significantly — food sources may have changed
-        var config = new PlannerConfig();
-        var distanceMoved = Vector3.Distance(user.Position, active.PlayerPositionAtPlanTime);
-        if (distanceMoved > config.PositionReplanThresholdMeters)
-            return ReplanReason.PlayerMoved;
-
-        // Stomach contents changed without invalidation (shouldn't happen, but be safe)
-        if (!StomachsMatch(active.StomachSnapshotByName, currentStomach))
-        {
-            var diff = GetStomachDiff(active.StomachSnapshotByName, currentStomach);
-            if (AllItemsInPlan(diff, active.Remaining))
-                return ReplanReason.ProgressDetected;
-            return ReplanReason.OffPlanEating;
-        }
-
-        return ReplanReason.None;
-    }
-
-    /// <summary>
-    /// Get foods that increased in the stomach since the snapshot.
-    /// Returns food name -> count increase.
-    /// </summary>
-    private static Dictionary<string, int> GetStomachDiff(
-        Dictionary<string, int> snapshot,
-        Dictionary<string, int> current)
-    {
-        var diff = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-
-        foreach (var (name, count) in current)
-        {
-            snapshot.TryGetValue(name, out var oldCount);
-            if (count > oldCount)
-                diff[name] = count - oldCount;
-        }
-
-        return diff;
-    }
-
-    /// <summary>
-    /// Check if all items in the diff are present in the remaining plan.
-    /// </summary>
-    private static bool AllItemsInPlan(
-        Dictionary<string, int> diff,
-        List<MealPlanItem> remaining)
-    {
-        // Count remaining plan items by name
-        var planCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-        foreach (var item in remaining)
-        {
-            planCounts.TryGetValue(item.Name, out var count);
-            planCounts[item.Name] = count + 1;
-        }
-
-        foreach (var (name, eaten) in diff)
-        {
-            if (!planCounts.TryGetValue(name, out var planCount) || eaten > planCount)
-                return false;
-        }
-
-        return true;
-    }
-
-    /// <summary>
-    /// Remove eaten items from the remaining plan (matching by name, in order).
-    /// </summary>
-    private static List<MealPlanItem> FilterEatenItems(
-        ActivePlan active,
-        Dictionary<string, int> currentStomach)
-    {
-        var diff = GetStomachDiff(active.StomachSnapshotByName, currentStomach);
-        var remaining = new List<MealPlanItem>(active.Remaining);
-
-        foreach (var (name, eatenCount) in diff)
-        {
-            var removed = 0;
-            remaining.RemoveAll(item =>
-            {
-                if (removed >= eatenCount) return false;
-                if (string.Equals(item.Name, name, StringComparison.OrdinalIgnoreCase))
-                {
-                    removed++;
-                    return true;
-                }
-                return false;
-            });
-        }
-
-        return remaining;
-    }
-
-    private static bool StomachsMatch(
-        Dictionary<string, int> snapshot,
-        Dictionary<string, int> current)
-    {
-        if (snapshot.Count != current.Count) return false;
-
-        foreach (var (name, count) in snapshot)
-        {
-            if (!current.TryGetValue(name, out var curCount) || curCount != count)
-                return false;
-        }
-
-        return true;
-    }
-
-    /// <summary>
-    /// Capture stomach as a simple name -> count dictionary for comparison.
-    /// </summary>
     private static Dictionary<string, int> CaptureStomachByName(User user)
     {
         var stomach = StomachSnapshot.CaptureStomach(user);
@@ -367,25 +233,4 @@ public static class PlanTracker
         public List<MealPlanItem> Remaining { get; set; } = new();
         public bool IsStale { get; set; }
     }
-
-    private enum ReplanReason
-    {
-        None,
-        ProgressDetected,
-        OffPlanEating,
-        CalorieDrain,
-        PlayerMoved
-    }
-}
-
-/// <summary>
-/// Status of the plan for rendering edge cases.
-/// </summary>
-public enum PlanStatus
-{
-    Active,
-    Complete,
-    NoFood,
-    StomachFull,
-    NothingToSuggest
 }

@@ -7,21 +7,10 @@ using Eco.Gameplay.Components.Store;
 using Eco.Gameplay.Items;
 using Eco.Gameplay.Objects;
 using Eco.Gameplay.Players;
+using Eco.Shared.Logging;
 using EcoDietMod.Models;
 
 namespace EcoDietMod.Discovery;
-
-/// <summary>
-/// Filter criteria for shop food discovery.
-/// </summary>
-public sealed class ShopFilter
-{
-    /// <summary>Only accept these currencies (empty = accept all).</summary>
-    public List<string> CurrencyFilter { get; init; } = new();
-
-    /// <summary>Max cost per 1000 calories (0 = no limit).</summary>
-    public float MaxCostPer1000Cal { get; init; }
-}
 
 /// <summary>
 /// Discovers food available for purchase from nearby shops.
@@ -59,9 +48,9 @@ public static class ShopDiscovery
                     available, sources);
             });
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            // Shop discovery is best-effort; don't crash the planner
+            Log.WriteWarningLineLocStr($"[EcoDiet] Shop discovery failed: {ex.Message}");
         }
 
         return new DiscoveryResult { Available = available, Sources = sources };
@@ -131,12 +120,12 @@ public static class ShopDiscovery
                     entries = new List<SourceEntry>();
                     sources[candidate] = entries;
                 }
-                entries.Add(new SourceEntry { Source = sourceInfo, Quantity = quantity });
+                entries.Add(new SourceEntry(sourceInfo, quantity));
             }
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            // Individual store errors shouldn't halt discovery
+            Log.WriteWarningLineLocStr($"[EcoDiet] Store '{ownerName}' offer scan failed: {ex.Message}");
         }
     }
 }

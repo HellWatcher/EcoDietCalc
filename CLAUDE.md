@@ -53,26 +53,41 @@ tests/                   — pytest suite mirroring source structure
 
 ```
 mod/EcoDietMod/
-├── DietCommands.cs              — /ed plan, /ed config, /ed export chat commands
+├── DietCommands.cs              — /ed config, /ed export chat commands
 ├── GameStateExporter.cs         — JSON export for Python planner
 ├── Algorithm/                   — SP math + bite selection (ported from Python)
 │   ├── SpCalculator.cs          — SP formulas, variety, tastiness, bonuses
 │   ├── BiteSelector.cs          — ranking pipeline (biases, penalties)
 │   └── MealPlanner.cs           — plan loop with craving-first strategy
 ├── Config/
-│   └── PlannerConfig.cs         — algorithm constants
+│   ├── PlannerConfig.cs         — algorithm constants + Default instance
+│   ├── DisplayConfig.cs         — per-player display prefs (ConcurrentDictionary cache)
+│   ├── DisplayConfigViewModel.cs — ViewEditor ViewModel
+│   └── ConfigEditor.cs          — config UI wiring
 ├── Discovery/
 │   ├── StomachSnapshot.cs       — read User.Stomach into planner dicts
-│   └── FoodDiscovery.cs         — enumerate food from player backpack
+│   ├── FoodDiscovery.cs         — orchestrate backpack + storage + shop discovery
+│   ├── StorageDiscovery.cs      — authorized storage containers
+│   ├── ShopDiscovery.cs         — nearby shops with currency/cost filtering
+│   ├── ShopFilter.cs            — shop filter criteria (record)
+│   └── DiscoveryMerger.cs       — merge multi-source results
 ├── Models/
 │   ├── FoodCandidate.cs         — immutable food record (equality by name)
-│   ├── MealPlanItem.cs          — single planned bite with scoring
-│   └── MealPlanResult.cs        — full plan + summary stats
+│   ├── MealPlanItem.cs          — single planned bite (record)
+│   ├── MealPlanResult.cs        — full plan + summary stats (record)
+│   ├── SourceInfo.cs            — source metadata (kind, label, distance)
+│   ├── SourceEntry.cs           — source + quantity pair (record)
+│   ├── DiscoveryResult.cs       — combined discovery with cached HasMultipleSources
+│   ├── ItemGroup.cs             — grouped items for rendering
+│   └── PlanStatus.cs            — plan status enum
 ├── Rendering/
-│   ├── EcoDietTooltipLibrary.cs — stomach tooltip (live plan countdown)
-│   └── PlanRenderer.cs          — format plan for chat + tooltip
+│   ├── EcoDietTooltipLibrary.cs — stomach tooltip registration
+│   ├── TooltipRenderer.cs       — UILink tooltip rendering
+│   ├── ItemGrouping.cs          — shared grouping/formatting utilities
+│   └── RichText.cs              — TMP color/style constants
 └── Tracking/
-    ├── PlanTracker.cs           — in-memory plan cache, progress detection
+    ├── PlanTracker.cs           — in-memory plan cache, fresh plan computation
+    ├── ReplanDetector.cs        — stomach diff + replan reason detection
     └── EcoDietEventHandler.cs   — GlobalFoodEatenEvent → plan invalidation
 ```
 

@@ -22,19 +22,20 @@ public static class SpCalculator
         Dictionary<FoodCandidate, int> stomach)
     {
         var totalCal = TotalCalories(stomach);
-        var density = new NutrientDensity();
-        if (totalCal <= 0f) return (density, 0f);
+        if (totalCal <= 0f) return (new NutrientDensity(0f, 0f, 0f, 0f), 0f);
+
+        float carbs = 0f, protein = 0f, fat = 0f, vitamins = 0f;
 
         foreach (var (food, quantity) in stomach)
         {
             var calorieWeight = (food.Calories * quantity) / totalCal;
-            density.Carbs += food.Carbs * calorieWeight;
-            density.Protein += food.Protein * calorieWeight;
-            density.Fat += food.Fat * calorieWeight;
-            density.Vitamins += food.Vitamins * calorieWeight;
+            carbs += food.Carbs * calorieWeight;
+            protein += food.Protein * calorieWeight;
+            fat += food.Fat * calorieWeight;
+            vitamins += food.Vitamins * calorieWeight;
         }
 
-        return (density, totalCal);
+        return (new NutrientDensity(carbs, protein, fat, vitamins), totalCal);
     }
 
     /// <summary>Total calories in the stomach.</summary>
@@ -197,7 +198,7 @@ public static class SpCalculator
         float dinnerPartyMult = 1f)
     {
         var (density, _) = SumAllWeightedNutrients(stomach);
-        var densitySum = density.Carbs + density.Protein + density.Fat + density.Vitamins;
+        var densitySum = density.Sum;
 
         var bonus = CalculateNutritionMultiplier(stomach, uniqueFoods24h, config) / 100f;
         bonus += cravingsSatisfied * config.CravingSatisfiedFrac;
@@ -285,17 +286,14 @@ public static class SpCalculator
     public static float NutrientSum(Dictionary<FoodCandidate, int> stomach)
     {
         var (density, _) = SumAllWeightedNutrients(stomach);
-        return density.Carbs + density.Protein + density.Fat + density.Vitamins;
+        return density.Sum;
     }
 }
 
 /// <summary>
-/// Mutable struct for accumulating weighted nutrient densities.
+/// Immutable nutrient density values (calorie-weighted).
 /// </summary>
-public struct NutrientDensity
+public readonly record struct NutrientDensity(float Carbs, float Protein, float Fat, float Vitamins)
 {
-    public float Carbs;
-    public float Protein;
-    public float Fat;
-    public float Vitamins;
+    public float Sum => Carbs + Protein + Fat + Vitamins;
 }

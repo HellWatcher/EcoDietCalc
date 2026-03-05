@@ -4,15 +4,6 @@ using System.Linq;
 namespace EcoDietMod.Models;
 
 /// <summary>
-/// A single source contribution for a food item (source + quantity available there).
-/// </summary>
-public sealed class SourceEntry
-{
-    public SourceInfo Source { get; init; } = null!;
-    public int Quantity { get; init; }
-}
-
-/// <summary>
 /// Combined result of food discovery across all sources.
 /// Tracks total availability per food and per-source breakdown.
 /// </summary>
@@ -35,9 +26,11 @@ public sealed class DiscoveryResult
     /// <summary>
     /// Whether this result contains food from multiple distinct source kinds.
     /// Used to decide whether to show source group headers in rendering.
+    /// Cached after first access to avoid repeated LINQ evaluation.
     /// </summary>
+    private bool? _hasMultipleSources;
     public bool HasMultipleSources =>
-        Sources.Values
+        _hasMultipleSources ??= Sources.Values
             .SelectMany(entries => entries)
             .Select(entry => entry.Source)
             .DistinctBy(source => (source.Kind, source.Label))

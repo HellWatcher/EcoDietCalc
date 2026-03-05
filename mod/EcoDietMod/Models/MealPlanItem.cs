@@ -3,14 +3,11 @@ namespace EcoDietMod.Models;
 /// <summary>
 /// A single planned bite with scoring details.
 /// </summary>
-public sealed class MealPlanItem
-{
-    public string Name { get; init; } = "";
-    public float Calories { get; init; }
-    public float SpGain { get; init; }
-    public float NewSp { get; init; }
-    public bool Craving { get; init; }
-    public float VarietyDeltaPp { get; init; }
-    public float TastinessDeltaPp { get; init; }
-    public string Source { get; init; } = "";
-}
+public sealed record MealPlanItem(
+    string Name,
+    float Calories,
+    float SpGain,
+    float NewSp,
+    bool Craving,
+    float VarietyDeltaPp,
+    float TastinessDeltaPp);

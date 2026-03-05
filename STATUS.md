@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-03-04
+Last updated: 2026-03-05
 
 ## Current State
 
@@ -26,7 +26,64 @@ Multi-source discovery: backpack + authorized storage containers + nearby shops 
 | `main.py (cmd_predict)`    | Good     | 5 tests for predict subcommand           |
 | `food_state_manager.py`    | Good     | 26 direct unit tests                     |
 
-## Recent Changes (2026-03-04) — Rich Tooltip Links (UILink)
+## Recent Changes (2026-03-05) — C# Mod Code Rework
+
+### Phase 1: Dead Code Removal (~400 lines deleted)
+
+- Removed 10 dead methods from `PlanRenderer.cs` — `RenderPlan`, `RenderSourceGrouped`, `RenderFlat`, `RenderCompactSuggestion`, `RenderRemainingPlan` (string-based), `RenderRemainingItems`, `RenderSourceGroupedCompact`, `BuildTags`, `BuildColoredItemTags`, `BuildItemTags`
+- Removed dead `Source` property from `MealPlanItem`
+
+### Phase 2: PlanRenderer Restructure
+
+- `PlanRenderer.cs` (698 lines) → split into 3 files:
+  - `Rendering/TooltipRenderer.cs` (238 lines) — UILink tooltip rendering, renamed class
+  - `Rendering/ItemGrouping.cs` (89 lines) — shared grouping/formatting utilities
+  - `Models/ItemGroup.cs` (29 lines) — extracted data model
+- Updated `EcoDietTooltipLibrary.cs` → `TooltipRenderer`
+- Deleted `PlanRenderer.cs`
+
+### Phase 3: PlanTracker Split
+
+- Extracted `PlanStatus` enum → `Models/PlanStatus.cs` (13 lines)
+- Extracted replan detection → `Tracking/ReplanDetector.cs` (165 lines)
+- `PlanTracker.cs` reduced from 392 → 236 lines
+
+### Phase 4: Model Modernization
+
+- `MealPlanItem` → `sealed record` (positional constructor)
+- `MealPlanResult` → `sealed record` (init properties, computed `SpGainTotal`)
+- `SourceEntry` → `sealed record` (extracted to own file)
+- `ShopFilter` → `sealed record` (extracted from `ShopDiscovery.cs`)
+- `NutrientDensity` → `readonly record struct` with `.Sum` property
+- Updated all callers (MealPlanner, FoodDiscovery, StorageDiscovery, ShopDiscovery)
+
+### Phase 5: Thread Safety & Caching
+
+- `DisplayConfig.Cache` → `ConcurrentDictionary` with `GetOrAdd` pattern
+- `DiscoveryResult.HasMultipleSources` — cached after first access
+- Added `PlannerConfig.Default` static instance, updated all callers
+
+### Phase 6: Error Handling
+
+- Added `Log.WriteWarningLineLocStr` (`Eco.Shared.Logging`) to 6 silent catch blocks:
+  - `ShopDiscovery` (outer + inner), `StorageDiscovery` (outer), `DisplayConfig.Load`, `TooltipRenderer.ResolveSourceLink`, `TooltipRenderer.ResolveFoodLink`
+- Kept `EcoDietTooltipLibrary` and `StorageDiscovery.IsAuthorized` catches silent (expected failure modes)
+
+### Build
+
+- `dotnet build` clean with 0 errors, 0 warnings
+- 165 Python tests still pass
+- All files under 300-line limit (max: SpCalculator.cs at 299)
+- Total: 3,137 lines across 27 source files (down from 3,468 across 22)
+
+### Verification (in-game)
+
+1. Hover stomach tooltip — food/source UILinks render correctly (same behavior, new file structure)
+2. Eat food → plan updates (ReplanDetector extracted correctly)
+3. Config change → plan clears and recomputes
+4. Multi-source tooltip → source group headers display
+
+## Previous Changes (2026-03-04) — Rich Tooltip Links (UILink)
 
 ### Added
 

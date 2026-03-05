@@ -143,16 +143,14 @@ public static class MealPlanner
         var varietyDelta = SpCalculator.GetVarietyBonus(newVarietyCount, config)
                          - SpCalculator.GetVarietyBonus(varietyCountNow, config);
 
-        items.Add(new MealPlanItem
-        {
-            Name = food.Name,
-            Calories = food.Calories,
-            SpGain = currentSp - beforeSp,
-            NewSp = currentSp,
-            Craving = satisfied,
-            VarietyDeltaPp = varietyDelta,
-            TastinessDeltaPp = tastinessDelta
-        });
+        items.Add(new MealPlanItem(
+            Name: food.Name,
+            Calories: food.Calories,
+            SpGain: currentSp - beforeSp,
+            NewSp: currentSp,
+            Craving: satisfied,
+            VarietyDeltaPp: varietyDelta,
+            TastinessDeltaPp: tastinessDelta));
 
         return (currentSp, remainingCalories, cravingsSatisfied, newVarietyCount);
     }

@@ -5,7 +5,7 @@ namespace EcoDietMod.Models;
 /// <summary>
 /// Complete meal plan with summary statistics.
 /// </summary>
-public sealed class MealPlanResult
+public sealed record MealPlanResult
 {
     public List<MealPlanItem> Items { get; init; } = new();
     public float StartingSp { get; init; }

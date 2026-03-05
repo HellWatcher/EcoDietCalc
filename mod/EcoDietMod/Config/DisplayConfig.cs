@@ -1,8 +1,10 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Eco.Shared.Logging;
 
 namespace EcoDietMod.Config;
 
@@ -36,7 +38,7 @@ public sealed class DisplayConfig
 
     // --- Persistence ---
 
-    private static readonly Dictionary<string, DisplayConfig> Cache = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly ConcurrentDictionary<string, DisplayConfig> Cache = new(StringComparer.OrdinalIgnoreCase);
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -50,31 +52,26 @@ public sealed class DisplayConfig
     /// </summary>
     public static DisplayConfig Load(string playerName)
     {
-        if (Cache.TryGetValue(playerName, out var cached))
-            return cached;
+        return Cache.GetOrAdd(playerName, LoadFromDisk);
+    }
 
+    private static DisplayConfig LoadFromDisk(string playerName)
+    {
         var path = GetPath(playerName);
-        DisplayConfig config;
 
-        if (File.Exists(path))
-        {
-            try
-            {
-                var json = File.ReadAllText(path);
-                config = JsonSerializer.Deserialize<DisplayConfig>(json, JsonOptions) ?? new DisplayConfig();
-            }
-            catch
-            {
-                config = new DisplayConfig();
-            }
-        }
-        else
-        {
-            config = new DisplayConfig();
-        }
+        if (!File.Exists(path))
+            return new DisplayConfig();
 
-        Cache[playerName] = config;
-        return config;
+        try
+        {
+            var json = File.ReadAllText(path);
+            return JsonSerializer.Deserialize<DisplayConfig>(json, JsonOptions) ?? new DisplayConfig();
+        }
+        catch (Exception ex)
+        {
+            Log.WriteWarningLineLocStr($"[EcoDiet] Failed to load config for '{playerName}': {ex.Message}");
+            return new DisplayConfig();
+        }
     }
 
     /// <summary>
