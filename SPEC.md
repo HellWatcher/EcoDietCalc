@@ -84,7 +84,7 @@ If a craving is satisfiable within the calorie budget, it takes priority over th
 ```
 mod/EcoDietMod/
 ├── EcoDietMod.csproj              # net8.0, Eco.ReferenceAssemblies NuGet
-├── DietCommands.cs                # Chat commands (/ed plan, /ed config, /ed export)
+├── DietCommands.cs                # Chat commands (/ediet, /ediet config)
 ├── GameStateExporter.cs           # JSON export for Python planner
 ├── Algorithm/
 │   ├── SpCalculator.cs            # SP formulas (ported from calculations.py)

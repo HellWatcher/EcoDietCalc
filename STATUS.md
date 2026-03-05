@@ -5,7 +5,7 @@ Last updated: 2026-03-05
 ## Current State
 
 Phase 2 (Python Polish) complete. 165 tests, mypy clean. All modules now directly tested.
-Phase 3 (C# Mod) — scaffold, read-only chat commands, JSON export, **in-game meal planner**, **live stomach tooltip**, and **multi-source food discovery** implemented.
+Phase 3 (C# Mod) — **live stomach tooltip** and **multi-source food discovery** implemented, with per-player config editor.
 Domain naming standardized to match Eco game API (`fat`, `tastiness_*`, `balanced_diet_*`, TastePreference labels).
 Balance-improvement bias added to planner — fixes zero-nutrient food selection bug.
 Stomach tooltip now uses **native UILinks** — food names and store/container names are interactive (hover shows tooltip, click navigates). Falls back to styled text when references unavailable.

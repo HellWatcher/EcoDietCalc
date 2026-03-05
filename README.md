@@ -96,16 +96,16 @@ The `mod/EcoDietMod/` directory contains a C# Eco server mod with a full in-game
 
 ### In-Game Commands
 
-| Command                    | Description                                                       |
-| -------------------------- | ----------------------------------------------------------------- |
-| `/ediet config`            | Open the settings editor (compact, sources, tags, radius, etc.)   |
-| `/ediet`                   | List available subcommands                                        |
+| Command         | Description                                                     |
+| --------------- | --------------------------------------------------------------- |
+| `/ediet config` | Open the settings editor (compact, sources, tags, radius, etc.) |
+| `/ediet`        | List available subcommands                                      |
 
 ### Mod Structure
 
 ```
 mod/EcoDietMod/
-├── DietCommands.cs              Chat commands (/ed plan, /ed config, /ed export)
+├── DietCommands.cs              Chat commands (/ediet, /ediet config)
 ├── GameStateExporter.cs         JSON export for Python planner
 ├── Algorithm/
 │   ├── SpCalculator.cs          SP formulas, variety, tastiness, bonuses
@@ -181,14 +181,14 @@ Output: `bin\Release\net8.0\EcoDietMod.dll`
 2. Download `EcoDietMod.dll`
 3. Drop it into your Eco server's `Mods/` folder
 4. Restart the server
-5. Verify by running `/ed plan` in chat
+5. Verify by running `/ediet` in chat
 
 #### Option B: Build from source
 
 1. Build the mod (see above)
 2. Copy `EcoDietMod.dll` to your Eco server's `Mods/` folder
 3. Restart the server
-4. Verify by running `/ed plan` in chat
+4. Verify by running `/ediet` in chat
 
 The `Mods/` folder is in your server's root directory — typically:
 
