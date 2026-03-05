@@ -98,16 +98,8 @@ The `mod/EcoDietMod/` directory contains a C# Eco server mod with a full in-game
 
 | Command                    | Description                                                       |
 | -------------------------- | ----------------------------------------------------------------- |
-| `/ed plan [calories]`      | Generate and display an optimized meal plan                       |
-| `/ed config`               | Open the settings editor (compact, sources, tags, radius, etc.)   |
-| `/ed config <key> <value>` | Set a single config value via CLI                                 |
-| `/ed export [note]`        | Export game state to JSON for Python planner                      |
-| `/ecodiet`                 | List available subcommands                                        |
-| `/ecodiet stomach`         | Current stomach contents and calories                             |
-| `/ecodiet nutrients`       | Nutrient levels (carbs, protein, fat, vitamins)                   |
-| `/ecodiet cravings`        | Active craving and craving multiplier                             |
-| `/ecodiet taste`           | Discovered taste preferences and multipliers                      |
-| `/ecodiet multipliers`     | All SP multipliers (variety, balanced diet, taste, craving, etc.) |
+| `/ediet config`            | Open the settings editor (compact, sources, tags, radius, etc.)   |
+| `/ediet`                   | List available subcommands                                        |
 
 ### Mod Structure
 
