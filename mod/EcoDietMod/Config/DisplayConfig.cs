@@ -36,6 +36,9 @@ public sealed class DisplayConfig
     /// <summary>Player-configurable discovery radius in meters (99999 = effectively unlimited).</summary>
     public float MaxDiscoveryRadius { get; set; } = 99999f;
 
+    /// <summary>Skip foods with this many calories or fewer. Default: 120.</summary>
+    public int MinCalorieFloor { get; set; } = 120;
+
     // --- Persistence ---
 
     private static readonly ConcurrentDictionary<string, DisplayConfig> Cache = new(StringComparer.OrdinalIgnoreCase);

@@ -90,6 +90,15 @@ public class DisplayConfigViewModel : IController, IViewController, IHasUniversa
         set { _maxDiscoveryRadius = value; this.Changed(nameof(MaxDiscoveryRadius)); }
     }
 
+    private float _minCalorieFloor;
+    [SyncToView, Autogen, AutoRPC, LocDisplayName("Min Calories"),
+     LocDescription("Skip foods with this many calories or fewer. Default: 120.")]
+    public float MinCalorieFloor
+    {
+        get => _minCalorieFloor;
+        set { _minCalorieFloor = value; this.Changed(nameof(MinCalorieFloor)); }
+    }
+
     public event PropertyChangedEventHandler? PropertyChanged;
 
     public DisplayConfigViewModel()

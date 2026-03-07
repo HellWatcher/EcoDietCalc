@@ -131,11 +131,11 @@ variety_pp = VARIETY_BONUS_CAP_PP * (1 - 0.5^(count / 20))
 
 ### Constants
 
-| Constant                | Value    | Status                                        |
-| ----------------------- | -------- | --------------------------------------------- |
-| `VARIETY_BONUS_CAP_PP`  | 55       | **[UNVERIFIED]** Asymptotic cap               |
-| `VARIETY_CAL_THRESHOLD` | 2000     | **[UNVERIFIED]** Calories per food to qualify |
-| Half-life               | 20 foods | **[UNVERIFIED]** Count to reach half of cap   |
+| Constant                | Value    | Status                                                |
+| ----------------------- | -------- | ----------------------------------------------------- |
+| `VARIETY_BONUS_CAP_PP`  | 55       | **[VERIFIED]** Asymptotic cap (in-game tooltip)       |
+| `VARIETY_CAL_THRESHOLD` | 2000     | **[VERIFIED]** Calories per food to qualify (tooltip) |
+| Half-life               | 20 foods | **[VERIFIED]** Count to reach half of cap (tooltip)   |
 
 ### Qualifying Foods
 
@@ -145,7 +145,7 @@ A food counts toward variety only if:
 calories * quantity >= VARIETY_CAL_THRESHOLD (2000)
 ```
 
-**[UNVERIFIED]**: Threshold is exactly 2000 calories
+**[VERIFIED]**: Threshold is exactly 2000 calories (confirmed via in-game tooltip)
 
 ### Example Values
 
@@ -303,8 +303,8 @@ SP = (28.39 + 12) * 1.0 = 40.39
 | Component         | Assumption         | Test Case                    |
 | ----------------- | ------------------ | ---------------------------- |
 | Base SP           | = 12               | T1: Single food, verify base |
-| Variety threshold | = 2000 cal         | T4: Low-cal food test        |
-| Variety cap       | = 55 pp            | T11: Map variety curve       |
+| Variety threshold | = 2000 cal ✓       | T4: Low-cal food test        |
+| Variety cap       | = 55 pp ✓          | T11: Map variety curve       |
 | Taste scale       | [-0.30, +0.30]     | T5, T6: Favorite/hated foods |
 | Satisfied frac    | = 0.10 per craving | T7, T8: Craving satisfaction |
 | Balance range     | [-50, +50]         | Integration tests            |

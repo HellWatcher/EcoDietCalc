@@ -29,7 +29,10 @@ public sealed class PlannerConfig
     public int LowCalorieThreshold { get; init; } = 395;
 
     /// <summary>Strength of the low-calorie penalty (>= 1; higher = harsher).</summary>
-    public float LowCaloriePenaltyStrength { get; init; } = 2.48f;
+    public float LowCaloriePenaltyStrength { get; init; } = 4.0f;
+
+    /// <summary>Hard floor: skip foods with this many calories or fewer.</summary>
+    public int MinCalorieFloor { get; init; } = 120;
 
     /// <summary>Strength of the balance-improvement bias for filling nutrient gaps.</summary>
     public float BalancedDietImprovementStrength { get; init; } = 1.91f;

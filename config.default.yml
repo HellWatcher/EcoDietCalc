@@ -18,7 +18,10 @@ algorithm:
   low_calorie_threshold: 395
 
   # Strength of the low-calorie penalty (>= 1; higher = harsher)
-  low_calorie_penalty_strength: 2.48
+  low_calorie_penalty_strength: 4.0
+
+  # Hard floor: skip foods with this many calories or fewer
+  min_calorie_floor: 120
 
   # Asymptotic cap for variety bonus (percentage points)
   variety_bonus_cap_pp: 55.0

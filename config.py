@@ -38,6 +38,7 @@ class AlgorithmConfig:
     tastiness_weight: float = 1.0
     balanced_diet_improvement_strength: float = 1.91
     repetition_penalty_strength: float = 1.25
+    min_calorie_floor: int = 120
 
 
 @dataclass

@@ -46,6 +46,7 @@ public static class ConfigEditor
             Tags = config.Tags,
             MaxCostPer1000Cal = config.MaxCostPer1000Cal,
             MaxDiscoveryRadius = config.MaxDiscoveryRadius,
+            MinCalorieFloor = config.MinCalorieFloor,
         };
 
         // Populate currency picker from saved filter
@@ -84,6 +85,9 @@ public static class ConfigEditor
 
             // MaxDiscoveryRadius — only clamp minimum (no upper cap)
             config.MaxDiscoveryRadius = Math.Max(1f, viewModel.MaxDiscoveryRadius);
+
+            // MinCalorieFloor — clamp to non-negative int
+            config.MinCalorieFloor = Math.Max(0, (int)viewModel.MinCalorieFloor);
 
             config.Save(user.Name);
             PlanTracker.ClearPlan(user);

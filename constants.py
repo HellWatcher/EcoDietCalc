@@ -126,6 +126,9 @@ LOW_CALORIE_THRESHOLD: Final[int] = _cfg.algorithm.low_calorie_threshold
 # Strength of the low-calorie penalty (>=1; higher = harsher).
 LOW_CALORIE_PENALTY_STRENGTH: Final[float] = _cfg.algorithm.low_calorie_penalty_strength
 
+# Hard floor: skip foods with this many calories or fewer
+MIN_CALORIE_FLOOR: Final[int] = _cfg.algorithm.min_calorie_floor
+
 # Asymptotic cap for variety bonus (see get_variety_bonus), in pp
 VARIETY_BONUS_CAP_PP: Final[float] = _cfg.algorithm.variety_bonus_cap_pp
 

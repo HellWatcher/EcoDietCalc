@@ -27,6 +27,7 @@ from constants import (
     LOW_CALORIE_THRESHOLD,
     LOW_CALORIE_PENALTY_STRENGTH,
     MAX_ITERATIONS,
+    MIN_CALORIE_FLOOR,
     SOFT_VARIETY_BIAS_STRENGTH,
     PROXIMITY_APPROACH_WEIGHT,
     PROXIMITY_OVERSHOOT_PENALTY,
@@ -196,7 +197,8 @@ def _balance_improvement_bias(
         return 0.0
 
     nutrient_sum_after = sum(nutrients_after)
-    return BALANCED_DIET_IMPROVEMENT_STRENGTH * nutrient_sum_after * ratio_delta
+    calorie_factor = min(1.0, food.calories / LOW_CALORIE_THRESHOLD)
+    return BALANCED_DIET_IMPROVEMENT_STRENGTH * nutrient_sum_after * ratio_delta * calorie_factor
 
 
 def _low_calorie_penalty(
@@ -291,8 +293,8 @@ def _choose_next_bite(
 
     # 1) Compute raw ΔSP + low-calorie penalty (first pass, no soft/proximity)
     for food in manager.all_available():
-        # Skip zero-calorie items (seeds, spores) — no nutritional value
-        if food.calories <= 0:
+        # Skip foods at or below the calorie floor
+        if food.calories <= MIN_CALORIE_FLOOR:
             continue
         # Skip foods that exceed the remaining calorie budget for this plan
         if food.calories > remaining_calories:
@@ -449,7 +451,7 @@ def _pick_feasible_craving(
     for food, quantity_available in manager.available.items():
         if (
             not quantity_available
-            or food.calories <= 0
+            or food.calories <= MIN_CALORIE_FLOOR
             or food.calories > remaining_calories
         ):
             continue

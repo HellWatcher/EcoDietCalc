@@ -97,7 +97,8 @@ public static class BiteSelector
 
         var nutrientSumAfter = densityAfter.Carbs + densityAfter.Protein
                              + densityAfter.Fat + densityAfter.Vitamins;
-        return config.BalancedDietImprovementStrength * nutrientSumAfter * ratioDelta;
+        var calorieFactor = MathF.Min(1f, food.Calories / (float)config.LowCalorieThreshold);
+        return config.BalancedDietImprovementStrength * nutrientSumAfter * ratioDelta * calorieFactor;
     }
 
     /// <summary>
@@ -123,8 +124,8 @@ public static class BiteSelector
         // Pass 1: raw SP delta + low-calorie penalty
         foreach (var food in availableFoods)
         {
-            // Skip zero-calorie items (seeds, spores) — no nutritional value
-            if (food.Calories <= 0f)
+            // Skip foods at or below the calorie floor
+            if (food.Calories <= config.MinCalorieFloor)
                 continue;
             if (food.Calories > remainingCalories)
                 continue;
@@ -202,7 +203,7 @@ public static class BiteSelector
 
         foreach (var (food, qty) in available)
         {
-            if (qty <= 0 || food.Calories <= 0f || food.Calories > remainingCalories)
+            if (qty <= 0 || food.Calories <= config.MinCalorieFloor || food.Calories > remainingCalories)
                 continue;
             if (!cravingsSet.Contains(food.Name))
                 continue;
