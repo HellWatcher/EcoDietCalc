@@ -1,10 +1,10 @@
 # Project Status
 
-Last updated: 2026-03-05
+Last updated: 2026-03-07
 
 ## Current State
 
-Phase 2 (Python Polish) complete. 165 tests, mypy clean. All modules now directly tested.
+Phase 2 (Python Polish) complete. 166 tests, mypy clean. All modules now directly tested.
 Phase 3 (C# Mod) — **live stomach tooltip** and **multi-source food discovery** implemented, with per-player config editor.
 Domain naming standardized to match Eco game API (`fat`, `tastiness_*`, `balanced_diet_*`, TastePreference labels).
 Balance-improvement bias added to planner — fixes zero-nutrient food selection bug.
@@ -16,7 +16,7 @@ Multi-source discovery: backpack + authorized storage containers + nearby shops 
 | Module                     | Coverage | Notes                                    |
 | -------------------------- | -------- | ---------------------------------------- |
 | `calculations.py`          | Good     | 11 tests covering SP, bonuses, variety   |
-| `planner.py`               | Good     | 26 tests for ranking functions           |
+| `planner.py`               | Good     | 27 tests for ranking functions           |
 | `integration`              | Good     | 21 tests for full planning pipeline      |
 | `config.py`                | Good     | 9 tests for load, validation, merging    |
 | `interface/cli.py`         | Good     | 7 tests for parser subcommands and flags |
@@ -26,7 +26,26 @@ Multi-source discovery: backpack + authorized storage containers + nearby shops 
 | `main.py (cmd_predict)`    | Good     | 5 tests for predict subcommand           |
 | `food_state_manager.py`    | Good     | 26 direct unit tests                     |
 
-## Recent Changes (2026-03-05) — Prebuilt DLL in GitHub Releases
+## Recent Changes (2026-03-07) — Calorie-Factor Dampening & Min Calorie Floor
+
+### Added
+
+- **Calorie-factor dampening on balance-improvement bias** — `min(1.0, calories / LOW_CALORIE_THRESHOLD)` scales down the bias for low-calorie foods, preventing them from being over-promoted just for filling a nutrient gap. Applied in both Python (`planner.py`) and C# (`BiteSelector.cs`).
+- **Configurable `MIN_CALORIE_FLOOR`** (default 120) — replaces hard-coded `<= 0` calorie skip. Foods at or below this threshold are excluded from planning. Exposed in Python config (`config.default.yml`, `config.py`, `constants.py`) and C# mod (`PlannerConfig.cs`, `DisplayConfig.cs`, `DisplayConfigViewModel.cs`, `ConfigEditor.cs`).
+- **`test_low_calorie_food_dampens_bias`** — verifies 200-calorie food gets bias scaled down by `200/395 ≈ 0.506`
+- **`calorie_factor` in existing test** — `test_bias_scales_with_strength_constant` now explicitly includes the factor in its expected calculation (was passing by coincidence)
+
+### Changed
+
+- `low_calorie_penalty_strength` default bumped from 2.48 to 4.0
+- `PlanTracker.cs` — passes `MinCalorieFloor` from user `DisplayConfig` to `PlannerConfig`
+- `docs/FORMULAS.md` — marked variety constants (cap, threshold, half-life) as **[VERIFIED]** from in-game tooltip
+
+### Tests
+
+- 166 tests pass (up from 165)
+
+## Previous Changes (2026-03-05) — Prebuilt DLL in GitHub Releases
 
 ### Added
 
@@ -628,6 +647,7 @@ Config structure:
 
 ## Session Log
 
+- 2026-03-07: Calorie-factor dampening — balance-improvement bias scaled by `min(1, cal/threshold)` for low-cal foods; configurable MIN_CALORIE_FLOOR (120) replaces `<=0` skip; penalty strength 2.48→4.0; MinCalorieFloor in mod settings UI; variety constants verified in FORMULAS.md; 166 tests
 - 2026-03-05: Prebuilt DLL releases — GitHub Actions workflow builds and uploads EcoDietMod.dll on release; un-gitignored Eco.ModKit.dll for CI; local release-upload.sh script; README install instructions
 - 2026-03-05: Fix first-item UILink/source tracking — copy Available dict before planner mutation preserves discovery data for rendering
 - 2026-03-05: C# mod code rework — dead code removal, PlanRenderer→TooltipRenderer split, PlanTracker split, model modernization (records), thread safety, error handling logging
