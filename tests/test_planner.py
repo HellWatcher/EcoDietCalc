@@ -240,10 +240,10 @@ class TestChooseNextBite:
     def test_single_candidate_returns_that_food(self) -> None:
         """With one feasible candidate, returns it."""
         expensive = make_food("Expensive", calories=1000)
-        cheap = make_food("Cheap", calories=100)
+        cheap = make_food("Cheap", calories=200)
         foods = [expensive, cheap]
         manager = DummyManager(foods)
-        remaining_calories = 150  # Only cheap fits
+        remaining_calories = 250  # Only cheap fits
 
         food, _delta = _choose_next_bite(
             manager,
@@ -445,9 +445,7 @@ class TestBalanceImprovementBias:
         )
         stomach: dict[Food, int] = {pumpkin: 6}
 
-        fixer = make_food(
-            "Fixer", calories=400, carbs=5, protein=5, fat=10, vitamins=5
-        )
+        fixer = make_food("Fixer", calories=400, carbs=5, protein=5, fat=10, vitamins=5)
 
         bias = _balance_improvement_bias(stomach, fixer)
 
@@ -467,9 +465,57 @@ class TestBalanceImprovementBias:
 
         ratio_delta = ratio_after - ratio_before
         nutrient_sum_after = sum(nutrients_after)
-        expected = BALANCED_DIET_IMPROVEMENT_STRENGTH * nutrient_sum_after * ratio_delta
+        calorie_factor = min(1.0, fixer.calories / LOW_CALORIE_THRESHOLD)
+        expected = BALANCED_DIET_IMPROVEMENT_STRENGTH * nutrient_sum_after * ratio_delta * calorie_factor
 
         assert math.isclose(bias, expected, rel_tol=1e-9)
+
+    def test_low_calorie_food_dampens_bias(self) -> None:
+        """Low-calorie food should have bias dampened by calorie_factor."""
+        pumpkin = make_food(
+            "Pumpkin", calories=400, carbs=10, protein=5, fat=0, vitamins=8
+        )
+        stomach: dict[Food, int] = {pumpkin: 6}
+
+        low_cal_fixer = make_food(
+            "LowCalFixer", calories=200, carbs=5, protein=5, fat=10, vitamins=5
+        )
+
+        bias = _balance_improvement_bias(stomach, low_cal_fixer)
+
+        # Manually compute expected with calorie dampening
+        density_before, _ = sum_all_weighted_nutrients(stomach)
+        nutrients_before = [
+            density_before[k] for k in ("carbs", "protein", "fat", "vitamins")
+        ]
+        ratio_before = calculate_balanced_diet_ratio(nutrients_before)
+
+        after = simulate_stomach_with_added_food(stomach, low_cal_fixer)
+        density_after, _ = sum_all_weighted_nutrients(after)
+        nutrients_after = [
+            density_after[k] for k in ("carbs", "protein", "fat", "vitamins")
+        ]
+        ratio_after = calculate_balanced_diet_ratio(nutrients_after)
+
+        ratio_delta = ratio_after - ratio_before
+        nutrient_sum_after = sum(nutrients_after)
+        calorie_factor = min(1.0, low_cal_fixer.calories / LOW_CALORIE_THRESHOLD)
+
+        # Verify dampening is active (factor < 1.0)
+        assert calorie_factor < 1.0, f"Expected dampening but factor={calorie_factor}"
+        expected_dampened = (
+            BALANCED_DIET_IMPROVEMENT_STRENGTH
+            * nutrient_sum_after
+            * ratio_delta
+            * calorie_factor
+        )
+        assert math.isclose(bias, expected_dampened, rel_tol=1e-9)
+
+        # Compare against undampened value to confirm reduction
+        undampened = (
+            BALANCED_DIET_IMPROVEMENT_STRENGTH * nutrient_sum_after * ratio_delta
+        )
+        assert bias < undampened
 
     def test_empty_stomach_first_food_zero_bias(self) -> None:
         """First food into an empty stomach: no prior ratio to improve from."""
